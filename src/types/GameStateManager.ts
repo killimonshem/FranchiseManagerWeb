@@ -6,6 +6,7 @@ import { Team } from './team';
 import { Player, PlayerStatus } from './player';
 import { Position, NFLDivision, NFLConference } from './nfl-types';
 import { FreeAgencyTransaction, CompensatoryPickSystem, CompPick } from './CompensatoryPickSystem';
+import { UserProfile, createUserProfile } from './UserProfile';
 
 // MARK: - Placeholder Types & Enums
 
@@ -269,11 +270,6 @@ export interface InboxItem {
   requiresAction: boolean;
 }
 
-export interface UserProfile {
-  firstName: string;
-  lastName: string;
-  joinedDate: Date;
-}
 
 export interface DevelopmentState {
   lastProcessedWeek: number;
@@ -641,11 +637,8 @@ export class GameStateManager {
   }
 
   initializeGM(firstName: string, lastName: string): void {
-    this.userProfile = {
-      firstName,
-      lastName,
-      joinedDate: new Date()
-    };
+    this.userProfile = createUserProfile(firstName, lastName);
+    console.log(`👤 [GameStateManager] GM initialized: ${firstName} ${lastName}`);
   }
 
   selectUserTeam(teamId: string): void {
