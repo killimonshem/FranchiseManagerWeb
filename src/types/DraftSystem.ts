@@ -8,6 +8,7 @@ import { Position, DraftProspect } from "./nfl-types";
 import { Player, PlayerStatus, createPlayer } from "./player";
 import { Team } from "./team";
 import { PlayerContract } from "./nfl-types";
+import { CompPick } from "./CompensatoryPickSystem";
 
 // ============================================================================
 // DRAFT AUDIT RESULT
@@ -276,10 +277,16 @@ export function startDraftWithValidation(
 
 /**
  * Advance draft pick with full validation
+ * Accounts for compensatory picks in rounds 3-7
+ *
+ * Note: This function works with a conceptual "virtual pick" system:
+ * - Picks 1-32: Regular draft picks
+ * - Picks 33+: Compensatory picks (variable count per round)
  */
 export function advanceDraftPick(
   currentRound: number,
-  currentPick: number
+  currentPick: number,
+  compPicksPerRound: Map<number, number> = new Map() // round -> count
 ): {
   newRound: number;
   newPick: number;
@@ -288,17 +295,24 @@ export function advanceDraftPick(
   let round = currentRound;
   let pick = currentPick;
 
-  // Check if this is the last pick (7.32)
-  if (round === 7 && pick === 32) {
-    console.log("🛑 CRITICAL: This is pick 7.32 - DRAFT MUST END NOW");
-    return { newRound: 7, newPick: 32, draftComplete: true };
+  // Get comp pick count for current round (if round 3-7)
+  const compCountThisRound = (round >= 3 && round <= 7) ? (compPicksPerRound.get(round) || 0) : 0;
+  const maxPickThisRound = 32 + compCountThisRound;
+
+  // Check if this is the last pick of round 7
+  const round7CompCount = compPicksPerRound.get(7) || 0;
+  const round7LastPick = 32 + round7CompCount;
+
+  if (round === 7 && pick === round7LastPick) {
+    console.log(`🛑 CRITICAL: This is pick 7.${pick} - DRAFT MUST END NOW`);
+    return { newRound: 7, newPick: pick, draftComplete: true };
   }
 
   // Advance pick
   pick += 1;
 
   // Check if we need to advance round
-  if (pick > 32) {
+  if (pick > maxPickThisRound) {
     pick = 1;
     round += 1;
 
@@ -307,7 +321,7 @@ export function advanceDraftPick(
     // Fail-safe: Check if we exceeded 7 rounds
     if (round > 7) {
       console.log("🚨 EMERGENCY: Draft exceeded 7 rounds - forcing completion");
-      return { newRound: 7, newPick: 32, draftComplete: true };
+      return { newRound: 7, newPick: round7LastPick, draftComplete: true };
     }
   }
 
@@ -744,6 +758,7 @@ export interface DraftState {
   draftOrder: string[]; // Array of team IDs in draft order
   draftProspects: DraftProspect[];
   draftCompletionManager: DraftCompletionManager;
+  compPicks: CompPick[]; // Compensatory picks (rounds 3-7)
 }
 
 /**
@@ -758,7 +773,25 @@ export function initializeDraftState(): DraftState {
     draftOrder: [],
     draftProspects: [],
     draftCompletionManager: initializeDraftCompletionManager(),
+    compPicks: [],
   };
+}
+
+/**
+ * Calculate compensatory picks per round from a DraftState
+ * Returns a Map where key = round number (3-7), value = count of comp picks
+ */
+export function getCompPicksPerRound(draftState: DraftState): Map<number, number> {
+  const compPicksPerRound = new Map<number, number>();
+
+  for (let round = 3; round <= 7; round++) {
+    const count = draftState.compPicks.filter(pick => pick.round === round).length;
+    if (count > 0) {
+      compPicksPerRound.set(round, count);
+    }
+  }
+
+  return compPicksPerRound;
 }
 
 /**

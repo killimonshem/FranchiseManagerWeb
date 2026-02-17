@@ -2,7 +2,8 @@
 // Core game state hub managing all league, team, player, and simulation data
 
 import { v4 as uuidv4 } from 'uuid';
-import { Team, Player, PlayerStatus } from './team';
+import { Team } from './team';
+import { Player, PlayerStatus } from './player';
 import { Position, NFLDivision, NFLConference } from './nfl-types';
 import { FreeAgencyTransaction, CompensatoryPickSystem, CompPick } from './CompensatoryPickSystem';
 
@@ -816,6 +817,36 @@ export class GameStateManager {
     return this.completedEvents.has(event);
   }
 
+  /**
+   * Mark event as completed and handle any associated side effects
+   * For DRAFT event, this triggers compensatory pick setup
+   */
+  markEventCompleted(event: SeasonEvent): void {
+    this.completedEvents.add(event);
+    console.log(`✅ Completed event: ${event}`);
+
+    // Trigger compensatory pick setup when draft event is completed
+    if (event === SeasonEvent.DRAFT) {
+      // The draft setup should have already happened when transitioning to draft phase
+      // This is just a marker that draft has been completed
+      console.log('📋 Draft phase completed');
+    }
+  }
+
+  /**
+   * Handle phase transition to DRAFT
+   * Sets up compensatory picks before draft begins
+   * Should be called when currentPhase transitions to DRAFT
+   */
+  onEnterDraftPhase(): Map<number, number> {
+    console.log('\n🏈 Entering Draft Phase...');
+
+    // Setup draft with compensatory picks
+    const compPicksPerRound = this.setupDraftWithCompensatoryPicks();
+
+    return compPicksPerRound;
+  }
+
   private getEventWeek(event: SeasonEvent): number {
     const eventWeeks: Record<SeasonEvent, number> = {
       [SeasonEvent.SCOUTING_COMBINE]: 5,
@@ -1140,6 +1171,34 @@ export class GameStateManager {
     this.compPicks = [];
     this.offseasonTransactions = [];
     console.log('🗑️ [CompPicks] Cleared all compensatory picks and transactions');
+  }
+
+  /**
+   * Setup draft with compensatory picks
+   * Should be called when transitioning from free agency to draft phase
+   *
+   * Returns: Map of round number to compensatory pick count
+   */
+  setupDraftWithCompensatoryPicks(): Map<number, number> {
+    console.log('\n🏈 [Draft Setup] Preparing draft with compensatory picks...');
+
+    // Inject compensatory picks
+    this.injectCompensatoryPicks();
+
+    // Calculate comp picks per round for draft system
+    const compPicksPerRound = new Map<number, number>();
+    for (let round = 3; round <= 7; round++) {
+      const count = this.getCompPicksForRound(round).length;
+      if (count > 0) {
+        compPicksPerRound.set(round, count);
+        console.log(`   Round ${round}: ${count} compensatory picks`);
+      }
+    }
+
+    const totalComps = Array.from(compPicksPerRound.values()).reduce((a, b) => a + b, 0);
+    console.log(`✅ [Draft Setup] Total compensatory picks: ${totalComps}`);
+
+    return compPicksPerRound;
   }
 
   /**
