@@ -4,6 +4,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Team, Player, PlayerStatus } from './team';
 import { Position, NFLDivision, NFLConference } from './nfl-types';
+import { FreeAgencyTransaction, CompensatoryPickSystem, CompPick } from './CompensatoryPickSystem';
 
 // MARK: - Placeholder Types & Enums
 
@@ -486,6 +487,11 @@ export class GameStateManager {
     lastProcessedSlot: '',
     reports: []
   };
+
+  // Compensatory Pick System
+  offseasonTransactions: FreeAgencyTransaction[] = [];
+  compPicks: CompPick[] = [];
+  compensatoryPickSystem: CompensatoryPickSystem = new CompensatoryPickSystem();
 
   // Constants
   static readonly MAX_PRACTICE_SQUAD_SIZE = 16;
@@ -1007,5 +1013,139 @@ export class GameStateManager {
     console.log(`   Games Played: ${gamesThisWeek.filter(g => g.isPlayed).length}`);
 
     console.log(`${'='.repeat(60)}\n`);
+  }
+
+  // MARK: - Compensatory Pick System Integration
+
+  /**
+   * Track a free agent signing for compensatory pick calculation
+   * Called whenever a player signs with a team during free agency
+   *
+   * Parameters:
+   *   - playerId: UUID of the player signing
+   *   - oldTeamId: Team the player left (or undefined if they were unemployed)
+   *   - newTeamId: Team the player is joining
+   *   - contract: The contract details (including APY)
+   *   - snapPercentage: Percentage of snaps played last season (0.0-1.0)
+   *   - isAllPro: Whether player was All-Pro last year
+   *   - isProBowl: Whether player was Pro Bowl last year
+   */
+  recordFreeAgentSigning(
+    playerId: string,
+    oldTeamId: string | null,
+    newTeamId: string,
+    apy: number,
+    snapPercentage: number = 0.5,
+    isAllPro: boolean = false,
+    isProBowl: boolean = false
+  ): void {
+    // Only track if player left another team (was a true UFA)
+    if (!oldTeamId) {
+      console.log(`ℹ️ [CompPicks] Skipping ${playerId} - not from another team`);
+      return;
+    }
+
+    const player = this.allPlayers.find(p => p.id === playerId);
+    if (!player) {
+      console.log(`❌ [CompPicks] Player not found: ${playerId}`);
+      return;
+    }
+
+    // Create transaction record
+    const transaction: FreeAgencyTransaction = {
+      id: uuidv4(),
+      playerId,
+      playerPosition: player.position,
+      oldTeamId,
+      newTeamId,
+      averageYearlyValue: apy,
+      snapPercentage,
+      isAllPro,
+      isProBowl,
+      isUnrestrictedFreeAgent: player.experience > 3,
+      contractExpiredNaturally: true, // Assume contract expiration for now
+      signedBeforeDeadline: true, // Assume early signing
+      transactionDate: new Date()
+    };
+
+    this.offseasonTransactions.push(transaction);
+    console.log(`✅ [CompPicks] Recorded signing: ${player.firstName} ${player.lastName} (${player.position}) ${oldTeamId} -> ${newTeamId} for $${(apy / 1_000_000).toFixed(1)}M APY`);
+  }
+
+  /**
+   * Calculate and inject compensatory picks into the draft
+   * Should be called after free agency ends (Week 10) before draft setup
+   *
+   * Returns: Array of compensatory picks that were generated
+   */
+  injectCompensatoryPicks(): CompPick[] {
+    console.log('\n🏈 [CompPicks] Starting compensatory pick calculation...');
+
+    // Create map of player IDs to names for display
+    const playerNames = new Map<string, string>();
+    for (const player of this.allPlayers) {
+      playerNames.set(player.id, `${player.firstName} ${player.lastName}`);
+    }
+
+    // Calculate comp picks using the system
+    const newPicks = this.compensatoryPickSystem.calculateCompensatoryPicks(
+      this.offseasonTransactions,
+      playerNames
+    );
+
+    // Store in state
+    this.compPicks = newPicks;
+
+    // Log results
+    console.log(`✅ [CompPicks] Generated ${newPicks.length} compensatory picks`);
+    console.log(`   These picks will be inserted at the end of rounds 3-7`);
+
+    // Clear transactions for next season
+    this.offseasonTransactions = [];
+
+    return newPicks;
+  }
+
+  /**
+   * Get compensatory picks for a specific round
+   * Used by draft system to insert comp picks at end of each round
+   *
+   * Parameters:
+   *   - round: Draft round number (3-7)
+   *
+   * Returns: Array of comp picks for this round, sorted by value
+   */
+  getCompPicksForRound(round: number): CompPick[] {
+    return this.compPicks
+      .filter(pick => pick.round === round)
+      .sort((a, b) => b.overallRank - a.overallRank);
+  }
+
+  /**
+   * Get total number of picks in draft (224 base + comp picks)
+   * Used for draft validation
+   *
+   * Returns: Total pick count (max 224 + 32 = 256 with comp picks)
+   */
+  getTotalDraftPickCount(): number {
+    // 224 regular picks (7 rounds × 32 teams)
+    // + up to 32 compensatory picks
+    return 224 + this.compPicks.length;
+  }
+
+  /**
+   * Clear all recorded compensatory picks (e.g., when starting a new season)
+   */
+  clearCompensatoryPicks(): void {
+    this.compPicks = [];
+    this.offseasonTransactions = [];
+    console.log('🗑️ [CompPicks] Cleared all compensatory picks and transactions');
+  }
+
+  /**
+   * Print diagnostic information about the compensatory pick system
+   */
+  printCompensatoryPickDiagnostics(): void {
+    this.compensatoryPickSystem.printCompensatoryPickDiagnostics(this.offseasonTransactions);
   }
 }
