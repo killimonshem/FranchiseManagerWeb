@@ -6,14 +6,15 @@
  */
 
 import { Team } from '../types/team';
-import { Player, PlayerStatus } from '../types/player';
+import { Player } from '../types/player';
 import { UserProfile, createUserProfile, validateUserProfile } from '../types/UserProfile';
 import { StorageService } from '../services/StorageService';
 import {
   initializeDraftState,
   DraftState
 } from '../types/DraftSystem';
-import { CompPick } from '../types/CompensatoryPickSystem';
+import { CompPick, FreeAgencyTransaction } from '../types/CompensatoryPickSystem';
+import type { GameDate as ManagerGameDate, ProcessingInterrupt } from '../types/GameStateManager';
 
 /**
  * Game Date representation
@@ -48,6 +49,14 @@ export interface SaveData {
   // Metadata
   saveTimestamp: Date;
   playtimeMins: number;
+
+  // Simulation state (populated by GameStateManager.syncToStore before every save)
+  offseasonTransactions?: FreeAgencyTransaction[];
+  compPicks?: CompPick[];
+  interruptQueue?: ProcessingInterrupt[];
+  completedEvents?: string[];
+  fullGameDate?: ManagerGameDate;
+  freeAgents?: Player[];
 }
 
 /**

@@ -22,7 +22,8 @@ import { StaffScreen } from "./screens/StaffScreen";
 import { FreeAgencyScreen } from "./screens/FreeAgencyScreen";
 import { TradeScreen } from "./screens/TradeScreen";
 import { TrophyScreen } from "./screens/TrophyScreen";
-import { Player } from "./types/player";
+import { gameStateManager } from "./types/GameStateManager";
+import { gameStore } from "./stores/GameStore";
 
 // ─── Navigation Architecture ───────────────────────────────────────
 const ARCHITECTURE = [
@@ -55,10 +56,13 @@ const ARCHITECTURE = [
 export default function App() {
   // ── Game phase ────────────────────────────────────────────────────
   const [phase, setPhase]               = useState<"setup" | "playing">("setup");
-  const [allPlayers, setAllPlayers]     = useState<Player[]>([]);
   const [userTeamAbbr, setUserTeamAbbr] = useState<string>("");
   const [userTeamMeta, setUserTeamMeta] = useState<TeamMeta | null>(null);
   const [gm, setGm]                     = useState<GMProfile | null>(null);
+
+  // Version counter: increment to trigger re-renders after manager mutations
+  const [, setVersion] = useState(0);
+  const refresh = () => setVersion(v => v + 1);
 
   // ── Nav state ─────────────────────────────────────────────────────
   const [primaryTab, setPrimaryTab] = useState("dashboard");
@@ -68,8 +72,9 @@ export default function App() {
     typeof window !== "undefined" ? window.innerWidth < 768 : false
   );
 
-  const WEEK   = 1;
-  const SEASON = 2025;
+  // Live week/season from the manager (falls back to defaults before game starts)
+  const WEEK   = gameStateManager.currentGameDate.week;
+  const SEASON = gameStateManager.currentGameDate.season;
 
   const handleScreenChange = (s: string) => {
     const parent = ARCHITECTURE.find(a => a.id === s || a.subs?.find(sub => sub.id === s));
@@ -84,7 +89,22 @@ export default function App() {
 
   // ── Franchise start callback ──────────────────────────────────────
   function handleGameStart(data: GameStartData) {
-    setAllPlayers(data.players);
+    // Initialise the manager as the single source of truth
+    gameStateManager.initializeGM(data.gm.firstName, data.gm.lastName);
+    gameStateManager.selectUserTeam(data.teamAbbr);
+    gameStateManager.allPlayers = data.players;
+    gameStateManager.updateAllTeamRatings();
+
+    // Register the auto-save callback (avoids circular import)
+    gameStateManager.onAutoSave = () => {
+      gameStateManager.syncToStore(gameStore);
+      gameStore.saveGame("AutoSave");
+    };
+
+    // Seed the store so saveGame has a valid profile
+    gameStore.initializeNewGame(data.gm.firstName, data.gm.lastName, data.teamAbbr);
+    gameStore.allPlayers = data.players;
+
     setUserTeamAbbr(data.teamAbbr);
     setUserTeamMeta(data.teamMeta);
     setGm(data.gm);
@@ -96,8 +116,8 @@ export default function App() {
     return <TeamSelectScreen onStart={handleGameStart} />;
   }
 
-  // ── Derived data ──────────────────────────────────────────────────
-  const teamPlayers   = allPlayers.filter(p => p.teamId === userTeamAbbr);
+  // ── Derived data — read from the manager, not local state ─────────
+  const teamPlayers   = gameStateManager.allPlayers.filter(p => p.teamId === userTeamAbbr);
   const currentPillar = ARCHITECTURE.find(a => a.id === primaryTab);
   const unreadInbox   = 0;
 
@@ -122,7 +142,7 @@ export default function App() {
       case "inbox":      return <InboxScreen />;
       case "schedule":   return <ScheduleScreen />;
       case "staff":      return <StaffScreen />;
-      case "freeAgency": return <FreeAgencyScreen />;
+      case "freeAgency": return <FreeAgencyScreen onRosterChange={refresh} />;
       case "trade":      return <TradeScreen />;
       case "trophies":   return <TrophyScreen />;
       default:

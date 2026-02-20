@@ -1,12 +1,14 @@
 // GameStateManager.ts
 // Core game state hub managing all league, team, player, and simulation data
 
-import { v4 as uuidv4 } from 'uuid';
+const uuidv4 = () => crypto.randomUUID();
 import { Team } from './team';
 import { Player, PlayerStatus } from './player';
+import { calculatePlayerMarketValue } from './player';
 import { Position, NFLDivision, NFLConference } from './nfl-types';
 import { FreeAgencyTransaction, CompensatoryPickSystem, CompPick } from './CompensatoryPickSystem';
 import { UserProfile, createUserProfile } from './UserProfile';
+import { AITeamManager, GameStateForAI } from './AITeamManager';
 
 // MARK: - Placeholder Types & Enums
 
@@ -818,12 +820,13 @@ export class GameStateManager {
     this.completedEvents.add(event);
     console.log(`✅ Completed event: ${event}`);
 
-    // Trigger compensatory pick setup when draft event is completed
     if (event === SeasonEvent.DRAFT) {
-      // The draft setup should have already happened when transitioning to draft phase
-      // This is just a marker that draft has been completed
       console.log('📋 Draft phase completed');
     }
+
+    // Auto-save after every completed event
+    this.onAutoSave?.();
+    console.log(`💾 [markEventCompleted] Auto-save triggered after: ${event}`);
   }
 
   /**
@@ -1200,4 +1203,263 @@ export class GameStateManager {
   printCompensatoryPickDiagnostics(): void {
     this.compensatoryPickSystem.printCompensatoryPickDiagnostics(this.offseasonTransactions);
   }
+
+  // MARK: - Store Sync & Hydration
+
+  /**
+   * Hydrate this manager from a loaded GameStore.
+   * Call this immediately after gameStore.loadGame() to restore all simulation state.
+   */
+  hydrateFromStore(store: import('../stores/GameStore').GameStore): void {
+    this.userProfile = store.userProfile;
+    this.userTeamId = store.userTeamId || null;
+    this.allPlayers = store.allPlayers;
+    this.teams = store.teams;
+    if (store.currentDate) {
+      this.currentGameDate = {
+        ...this.currentGameDate,
+        season: store.currentDate.year,
+        week: store.currentDate.week,
+      };
+    }
+    const raw = store as any;
+    if (raw.offseasonTransactions) this.offseasonTransactions = raw.offseasonTransactions;
+    if (raw.compPicks) this.compPicks = raw.compPicks;
+    if (raw.interruptQueue) this.interruptQueue = raw.interruptQueue;
+    if (raw.completedEvents) this.completedEvents = new Set(raw.completedEvents);
+    if (raw.fullGameDate) this.currentGameDate = raw.fullGameDate;
+    if (raw.freeAgents) this.freeAgents = raw.freeAgents;
+    console.log(`✅ [GameStateManager] Hydrated from store — Week ${this.currentWeek}, Season ${this.currentSeason}`);
+  }
+
+  /**
+   * Push the manager's authoritative state into the store so saveGame() captures it.
+   * Always call this before gameStore.saveGame().
+   */
+  syncToStore(store: import('../stores/GameStore').GameStore): void {
+    store.userProfile = this.userProfile;
+    store.userTeamId = this.userTeamId ?? '';
+    store.allPlayers = this.allPlayers;
+    store.teams = this.teams;
+    store.currentDate = { year: this.currentGameDate.season, week: this.currentGameDate.week };
+    const raw = store as any;
+    raw.offseasonTransactions = this.offseasonTransactions;
+    raw.compPicks = this.compPicks;
+    raw.interruptQueue = this.interruptQueue;
+    raw.completedEvents = Array.from(this.completedEvents);
+    raw.fullGameDate = this.currentGameDate;
+    raw.freeAgents = this.freeAgents;
+  }
+
+  // MARK: - Simulation Tick
+
+  /**
+   * Advance one time slot. Called by the UI's "Simulate" button.
+   * Checks interrupts first; rolls day/week boundaries as needed.
+   */
+  tick(): void {
+    if (this.simulationState === SimulationState.PAUSED_FOR_INTERRUPT) return;
+
+    const pending = this.interruptQueue.find(i => !i.isResolved);
+    if (pending) {
+      this.activeInterrupt = pending;
+      this.simulationState = SimulationState.PAUSED_FOR_INTERRUPT;
+      console.log(`⏸️ [Tick] Paused for interrupt: ${JSON.stringify(pending.type)}`);
+      return;
+    }
+
+    const next = getNextTimeSlot(this.currentGameDate.timeSlot);
+    const wrapping = next.rawValue === TimeSlots.earlyMorning.rawValue;
+
+    if (wrapping) {
+      const nextDay = this.currentGameDate.dayOfWeek + 1;
+      if (nextDay > 7) {
+        this.currentGameDate = { ...this.currentGameDate, dayOfWeek: 1, timeSlot: next };
+        this.onWeekBoundary();
+      } else {
+        this.currentGameDate = { ...this.currentGameDate, dayOfWeek: nextDay, timeSlot: next };
+      }
+    } else {
+      this.currentGameDate = { ...this.currentGameDate, timeSlot: next };
+    }
+  }
+
+  /**
+   * Full async week simulation loop — processes every time slot with gated logic
+   * and batch skipping for the offseason dead zone (weeks 1–24).
+   */
+  async advanceWeekAsync(): Promise<void> {
+    const startWeek = this.currentWeek;
+    this.isSimulating = true;
+    this.simulationState = SimulationState.SIMULATING;
+
+    while (this.currentGameDate.week === startWeek && this.isSimulating) {
+      const pending = this.interruptQueue.find(i => !i.isResolved);
+      if (pending) {
+        this.activeInterrupt = pending;
+        this.simulationState = SimulationState.PAUSED_FOR_INTERRUPT;
+        break;
+      }
+
+      // Dead-zone batch skip: jump to day 7 for weeks 1–24
+      if (this.currentGameDate.week < 25 && this.currentGameDate.dayOfWeek < 7) {
+        this.currentGameDate = { ...this.currentGameDate, dayOfWeek: 7 };
+        continue;
+      }
+
+      // Offseason development: gated to Day 2 Early Morning, weeks 16–20
+      if (
+        this.currentGameDate.week >= 16 && this.currentGameDate.week <= 20 &&
+        this.currentGameDate.dayOfWeek === 2 &&
+        this.currentGameDate.timeSlot.rawValue === TimeSlots.earlyMorning.rawValue
+      ) {
+        this.processOffseasonDevelopment();
+      }
+
+      // AI decisions during business-hours slots only
+      if (this.currentGameDate.timeSlot.shouldProcessAIActions) {
+        this.simulateAIDecisions();
+      }
+
+      // Advance one slot
+      this.advanceTimeSlotClock();
+    }
+
+    if (this.simulationState !== SimulationState.PAUSED_FOR_INTERRUPT) {
+      this.simulationState = SimulationState.IDLE;
+    }
+    this.isSimulating = false;
+  }
+
+  /** Move the clock forward one slot; rolls day and week as needed. */
+  private advanceTimeSlotClock(): void {
+    const next = getNextTimeSlot(this.currentGameDate.timeSlot);
+    const wrapping = next.rawValue === TimeSlots.earlyMorning.rawValue;
+    if (wrapping) {
+      const nextDay = this.currentGameDate.dayOfWeek + 1;
+      if (nextDay > 7) {
+        this.currentGameDate = { ...this.currentGameDate, dayOfWeek: 1, timeSlot: next };
+        this.onWeekBoundary();
+      } else {
+        this.currentGameDate = { ...this.currentGameDate, dayOfWeek: nextDay, timeSlot: next };
+      }
+    } else {
+      this.currentGameDate = { ...this.currentGameDate, timeSlot: next };
+    }
+  }
+
+  /** Called once when the clock rolls into a new week. */
+  private onWeekBoundary(): void {
+    const newWeek = this.currentGameDate.week + 1;
+    this.currentGameDate = { ...this.currentGameDate, week: newWeek };
+    console.log(`📅 [advanceWeek] Week ${newWeek}, Season ${this.currentGameDate.season}`);
+
+    // Team rating snapshots at Preseason (25) and Trade Deadline (37)
+    if (newWeek === 25 || newWeek === 37) {
+      this.updateAllTeamRatings();
+      console.log(`📊 Team ratings updated at week ${newWeek}`);
+    }
+
+    // Weekly cap-hit deduction from cash reserves (regular season only)
+    if (newWeek >= 29 && newWeek <= 46 && this.userTeamId) {
+      const weeklyExpense = this.getCapHit(this.userTeamId) / 18;
+      const teamIdx = this.teams.findIndex(t => t.id === this.userTeamId);
+      if (teamIdx !== -1) {
+        this.teams[teamIdx].cashReserves = Math.max(0, this.teams[teamIdx].cashReserves - weeklyExpense);
+      }
+    }
+
+    // End of regular season: persist the playoff bracket
+    if (newWeek === 46) {
+      const existing = this.loadPlayoffBracket();
+      if (existing) {
+        this.savePlayoffBracket(existing);
+        console.log('🏆 Playoff bracket persisted at regular season end');
+      }
+      this.markEventCompleted(SeasonEvent.REGULAR_SEASON_END);
+    }
+
+    // Auto-save every week boundary via the registered callback
+    this.onAutoSave?.();
+  }
+
+  /**
+   * Optional callback registered by App.tsx to sync + save without creating
+   * a circular import between GameStateManager and GameStore.
+   */
+  onAutoSave?: () => void;
+
+  // MARK: - Market Value
+
+  /** Calculate a player's market value using the existing formula from player.ts */
+  calculateMarketValue(player: Player): number {
+    return calculatePlayerMarketValue(player);
+  }
+
+  // MARK: - AI Decisions
+
+  /**
+   * Delegate AI team decisions to AITeamManager.
+   * Builds the GameStateForAI adapter and calls simulateAITeamDecisions().
+   */
+  private simulateAIDecisions(): void {
+    const adapter: GameStateForAI = {
+      teams: this.teams,
+      allPlayers: this.allPlayers,
+      freeAgents: this.freeAgents,
+      draftPicks: this.draftPicks.map(p => ({
+        year: p.year,
+        round: p.round,
+        originalTeamId: p.originalTeamId,
+        currentTeamId: p.currentTeamId,
+      })),
+      userTeamId: this.userTeamId ?? undefined,
+      currentSeason: this.currentSeason,
+      currentWeek: this.currentWeek,
+      currentPhase: this.currentPhase.toString(),
+      leagueTradeBlock: this.leagueTradeBlock,
+      addHeadline: (h) => this.addHeadline(h.title, h.body, h.category as any, h.importance as any),
+      addSocialPost: (_p) => { /* social posts handled separately */ },
+    };
+    const aiManager = new AITeamManager(adapter);
+    aiManager.simulateAITeamDecisions();
+  }
+
+  // MARK: - Offseason Development
+
+  /**
+   * Process player development for offseason weeks (16–20).
+   * Gated to Day 2 Early Morning inside advanceWeekAsync.
+   */
+  private processOffseasonDevelopment(): void {
+    const currentWeek = this.currentGameDate.week;
+    const lastProcessed = this.developmentState.lastProcessedWeek;
+    if (lastProcessed === currentWeek) return; // prevent double-processing
+
+    console.log(`🏋️ [OffseasonDev] Processing development — Week ${currentWeek}`);
+    let developedCount = 0;
+
+    for (const player of this.allPlayers) {
+      if (!player.teamId) continue; // skip free agents
+      const ageFactor = player.age < 25 ? 1.5 : player.age < 30 ? 1.0 : 0.5;
+      const gap = player.potential - player.overall;
+      if (gap <= 0) continue;
+
+      const gain = Math.random() < 0.3 * ageFactor ? 1 : 0;
+      if (gain > 0) {
+        player.overall = Math.min(player.potential, player.overall + gain);
+        developedCount++;
+      }
+    }
+
+    this.developmentState.lastProcessedWeek = currentWeek;
+    this.developmentState.lastProcessedSlot = this.currentGameDate.timeSlot.rawValue;
+    console.log(`✅ [OffseasonDev] ${developedCount} players improved`);
+  }
 }
+
+/**
+ * Global singleton — import this everywhere instead of constructing
+ * a new GameStateManager. App.tsx registers onAutoSave on startup.
+ */
+export const gameStateManager = new GameStateManager();
