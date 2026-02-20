@@ -205,7 +205,7 @@ export interface ProspectEvaluation {
 /**
  * Calculate tier delta between club grade and PFF grade
  */
-export function calculateProspectTierDelta(eval: ProspectEvaluation): number {
+export function calculateProspectTierDelta(evaluation: ProspectEvaluation): number {
   const gradeToTier = (grade: string): number => {
     const map: Record<string, number> = {
       "A+": 13,
@@ -225,14 +225,14 @@ export function calculateProspectTierDelta(eval: ProspectEvaluation): number {
     return map[grade.toUpperCase()] || 6;
   };
 
-  return gradeToTier(eval.clubGrade) - gradeToTier(eval.pffGrade);
+  return gradeToTier(evaluation.clubGrade) - gradeToTier(evaluation.pffGrade);
 }
 
 /**
  * Get tier delta description
  */
-export function getProspectTierDeltaDescription(eval: ProspectEvaluation): string {
-  const delta = calculateProspectTierDelta(eval);
+export function getProspectTierDeltaDescription(evaluation: ProspectEvaluation): string {
+  const delta = calculateProspectTierDelta(evaluation);
   if (delta === 0) return "Same Tier";
   if (delta === 1 || delta === -1) {
     return delta > 0 ? "+1 Tier" : "-1 Tier";
@@ -243,8 +243,8 @@ export function getProspectTierDeltaDescription(eval: ProspectEvaluation): strin
 /**
  * Check if club rates player higher than PFF
  */
-export function clubRatesHigher(eval: ProspectEvaluation): boolean {
-  return calculateProspectTierDelta(eval) > 0;
+export function clubRatesHigher(evaluation: ProspectEvaluation): boolean {
+  return calculateProspectTierDelta(evaluation) > 0;
 }
 
 // ============================================================================

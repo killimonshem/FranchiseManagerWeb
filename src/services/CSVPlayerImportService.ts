@@ -6,8 +6,8 @@
  *
  * Key rules:
  *  - Age is ALWAYS calculated from `birthdate`; the CSV `age` column is ignored.
- *  - Every `stats/*/value` column is mapped to the matching PlayerAttributes field.
- *  - `stats/*/diff` columns are informational only and are not stored.
+ *  - Every `stats/<field>/value` column is mapped to the matching PlayerAttributes field.
+ *  - `stats/<field>/diff` columns are informational only and are not stored.
  *  - Rows with an unrecognised position or missing first/last name are collected
  *    in the `errors` array and skipped rather than crashing.
  *  - Contract is only attached when yearsLeft > 0 AND contract_apy > 0.
@@ -217,7 +217,7 @@ function parsePosition(raw: string): Position | null {
 }
 
 /**
- * Map all `stats/*/value` CSV columns to a PlayerAttributes object.
+ * Map all `stats/<field>/value` CSV columns to a PlayerAttributes object.
  * Starts from createEmptyPlayerAttributes() (all 50s) so any unmapped
  * attribute retains a sensible default.
  */

@@ -1,19 +1,16 @@
 /**
  * Franchise Manager — Main App Shell
  *
+ * - Phase: "setup" shows TeamSelectScreen, "playing" shows the main UI
+ * - Real player data from CSV is passed down to each screen
  * - Navigation architecture: 4 pillars (Dashboard, Team, Office, League)
- * - Screen management with progressive disclosure
- * - No emojis — all lucide-react icons
- * - Rating descriptors instead of numbers
  */
 
 import { useState } from "react";
 import { COLORS, FONT } from "./ui/theme";
-import {
-  LayoutDashboard, Users, Briefcase, Trophy, Mail,
-  NAV_ICONS, RatingBadge, Pill,
-} from "./ui/components";
+import { LayoutDashboard, Users, Briefcase, Trophy, Mail } from "./ui/components";
 
+import { TeamSelectScreen, GameStartData, TeamMeta, GMProfile } from "./screens/TeamSelectScreen";
 import { DashboardScreen } from "./screens/DashboardScreen";
 import { RosterScreen } from "./screens/RosterScreen";
 import { PlayerProfileScreen } from "./screens/PlayerProfileScreen";
@@ -25,9 +22,9 @@ import { StaffScreen } from "./screens/StaffScreen";
 import { FreeAgencyScreen } from "./screens/FreeAgencyScreen";
 import { TradeScreen } from "./screens/TradeScreen";
 import { TrophyScreen } from "./screens/TrophyScreen";
+import { Player } from "./types/player";
 
 // ─── Navigation Architecture ───────────────────────────────────────
-// 4 pillars, each with optional sub-screens (progressive disclosure)
 const ARCHITECTURE = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, defaultScreen: "dashboard" },
   {
@@ -56,15 +53,24 @@ const ARCHITECTURE = [
 ];
 
 export default function App() {
-  const [primaryTab, setPrimaryTab] = useState("dashboard");
-  const [screen, setScreen] = useState("dashboard");
-  const [detail, setDetail] = useState(null);
-  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth < 768 : false);
+  // ── Game phase ────────────────────────────────────────────────────
+  const [phase, setPhase]               = useState<"setup" | "playing">("setup");
+  const [allPlayers, setAllPlayers]     = useState<Player[]>([]);
+  const [userTeamAbbr, setUserTeamAbbr] = useState<string>("");
+  const [userTeamMeta, setUserTeamMeta] = useState<TeamMeta | null>(null);
+  const [gm, setGm]                     = useState<GMProfile | null>(null);
 
-  const WEEK = 34;
+  // ── Nav state ─────────────────────────────────────────────────────
+  const [primaryTab, setPrimaryTab] = useState("dashboard");
+  const [screen, setScreen]         = useState("dashboard");
+  const [detail, setDetail]         = useState<any>(null);
+  const [isMobile, setIsMobile]     = useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+
+  const WEEK   = 1;
   const SEASON = 2025;
 
-  // Auto-navigate pillar when selecting a screen
   const handleScreenChange = (s: string) => {
     const parent = ARCHITECTURE.find(a => a.id === s || a.subs?.find(sub => sub.id === s));
     if (parent) setPrimaryTab(parent.id);
@@ -72,37 +78,69 @@ export default function App() {
     setDetail(null);
   };
 
-  // Listen for resize
   if (typeof window !== "undefined") {
-    window.addEventListener("resize", () => {
-      setIsMobile(window.innerWidth < 768);
-    });
+    window.addEventListener("resize", () => setIsMobile(window.innerWidth < 768));
   }
 
-  const currentPillar = ARCHITECTURE.find(a => a.id === primaryTab);
-  const unreadInbox = 2; // Mock
+  // ── Franchise start callback ──────────────────────────────────────
+  function handleGameStart(data: GameStartData) {
+    setAllPlayers(data.players);
+    setUserTeamAbbr(data.teamAbbr);
+    setUserTeamMeta(data.teamMeta);
+    setGm(data.gm);
+    setPhase("playing");
+  }
 
-  // Render the active screen
+  // ── Show setup until franchise is configured ──────────────────────
+  if (phase === "setup") {
+    return <TeamSelectScreen onStart={handleGameStart} />;
+  }
+
+  // ── Derived data ──────────────────────────────────────────────────
+  const teamPlayers   = allPlayers.filter(p => p.teamId === userTeamAbbr);
+  const currentPillar = ARCHITECTURE.find(a => a.id === primaryTab);
+  const unreadInbox   = 0;
+
   const renderScreen = () => {
     switch (screen) {
-      case "dashboard":        return <DashboardScreen week={WEEK} season={SEASON} setScreen={setScreen} setDetail={setDetail} />;
-      case "roster":           return <RosterScreen setScreen={setScreen} setDetail={setDetail} />;
-      case "playerProfile":    return <PlayerProfileScreen player={detail} setScreen={setScreen} />;
-      case "draft":            return <DraftScreen />;
-      case "finances":         return <FinancesScreen />;
-      case "inbox":            return <InboxScreen />;
-      case "schedule":         return <ScheduleScreen />;
-      case "staff":            return <StaffScreen />;
-      case "freeAgency":       return <FreeAgencyScreen />;
-      case "trade":            return <TradeScreen />;
-      case "trophies":         return <TrophyScreen />;
-      default:                 return <DashboardScreen week={WEEK} season={SEASON} setScreen={setScreen} setDetail={setDetail} />;
+      case "dashboard":
+        return (
+          <DashboardScreen
+            week={WEEK} season={SEASON}
+            setScreen={setScreen} setDetail={setDetail}
+            players={teamPlayers}
+            userTeam={userTeamMeta!}
+            gm={gm!}
+          />
+        );
+      case "roster":
+        return <RosterScreen setScreen={setScreen} setDetail={setDetail} players={teamPlayers} />;
+      case "playerProfile":
+        return <PlayerProfileScreen player={detail} setScreen={setScreen} />;
+      case "draft":      return <DraftScreen />;
+      case "finances":   return <FinancesScreen />;
+      case "inbox":      return <InboxScreen />;
+      case "schedule":   return <ScheduleScreen />;
+      case "staff":      return <StaffScreen />;
+      case "freeAgency": return <FreeAgencyScreen />;
+      case "trade":      return <TradeScreen />;
+      case "trophies":   return <TrophyScreen />;
+      default:
+        return (
+          <DashboardScreen
+            week={WEEK} season={SEASON}
+            setScreen={setScreen} setDetail={setDetail}
+            players={teamPlayers}
+            userTeam={userTeamMeta!}
+            gm={gm!}
+          />
+        );
     }
   };
 
   return (
     <div style={{
-      display: "flex", flexDirection: "column", minHeight: "100vh",
+      display: "flex", flexDirection: "row", height: "100vh", overflow: "hidden",
       background: COLORS.bg, fontFamily: FONT.system, color: COLORS.light,
     }}>
       <style>{`
@@ -115,22 +153,23 @@ export default function App() {
         select { outline: none; }
         button { transition: all 0.12s; }
         button:not(:disabled):hover { filter: brightness(1.15); }
+        input { font-family: inherit; }
       `}</style>
 
-      {/* Desktop Sidebar Navigation */}
+      {/* Desktop Sidebar */}
       {!isMobile && (
         <nav style={{
           width: 240, background: COLORS.bg, borderRight: `1px solid ${COLORS.darkMagenta}`,
           display: "flex", flexDirection: "column", flexShrink: 0,
-          position: "sticky", top: 0, height: "100vh", zIndex: 200,
+          height: "100vh", overflowY: "auto", zIndex: 200,
         }}>
-          {/* Header */}
           <div style={{ padding: "20px 16px", borderBottom: `1px solid ${COLORS.darkMagenta}` }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: COLORS.light, letterSpacing: -0.3 }}>FM 2025</div>
-            <div style={{ fontSize: 10, color: COLORS.muted, marginTop: 4 }}>Season {SEASON} · Week {WEEK}</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: COLORS.light, letterSpacing: -0.3 }}>FM 2025</div>
+            <div style={{ fontSize: 10, color: COLORS.muted, marginTop: 3 }}>
+              {userTeamMeta ? `${userTeamMeta.city} ${userTeamMeta.name}` : ""} · GM {gm?.lastName}
+            </div>
           </div>
 
-          {/* Nav Items */}
           <div style={{ flex: 1, padding: "12px 0", overflowY: "auto", display: "flex", flexDirection: "column", gap: 1 }}>
             {ARCHITECTURE.map(item => {
               const Icon = item.icon;
@@ -148,7 +187,6 @@ export default function App() {
                     <span style={{ flex: 1, textAlign: "left" }}>{item.label}</span>
                   </button>
 
-                  {/* Sub-items */}
                   {primaryTab === item.id && item.subs && (
                     <div style={{ padding: "0 12px 8px 12px", display: "flex", flexDirection: "column", gap: 3 }}>
                       {item.subs.map(sub => (
@@ -168,7 +206,6 @@ export default function App() {
               );
             })}
 
-            {/* Inbox Badge */}
             <div style={{ marginTop: 16, padding: "0 12px" }}>
               <button onClick={() => handleScreenChange("inbox")} style={{
                 display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 16px",
@@ -183,9 +220,7 @@ export default function App() {
                   <span style={{
                     background: COLORS.magenta, color: COLORS.light,
                     borderRadius: 10, padding: "2px 6px", fontSize: 8, fontWeight: 800,
-                  }}>
-                    {unreadInbox}
-                  </span>
+                  }}>{unreadInbox}</span>
                 )}
               </button>
             </div>
@@ -196,30 +231,17 @@ export default function App() {
       {/* Main Content */}
       <main style={{
         flex: 1, display: "flex", flexDirection: "column",
-        maxHeight: isMobile ? "calc(100vh - 60px)" : "100vh", overflow: "hidden",
+        height: "100vh", overflow: "hidden",
       }}>
-        {/* Mobile Top Bar */}
         {isMobile && (
           <div style={{ background: COLORS.bg, borderBottom: `1px solid ${COLORS.darkMagenta}`, zIndex: 100, flexShrink: 0 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px" }}>
               <div style={{ fontSize: 14, fontWeight: 800, color: COLORS.light }}>FM 2025</div>
               <button onClick={() => handleScreenChange("inbox")} style={{
-                position: "relative", background: "rgba(141,36,110,0.2)", border: `1px solid ${COLORS.darkMagenta}`,
+                background: "rgba(141,36,110,0.2)", border: `1px solid ${COLORS.darkMagenta}`,
                 borderRadius: 8, padding: "6px 10px", color: COLORS.lime, fontSize: 11, fontWeight: 600, cursor: "pointer",
-              }}>
-                📬 Inbox
-                {unreadInbox > 0 && (
-                  <span style={{
-                    position: "absolute", top: -6, right: -6, background: COLORS.magenta, color: COLORS.light,
-                    fontSize: 10, padding: "2px 6px", borderRadius: 12, border: `2px solid ${COLORS.bg}`,
-                  }}>
-                    {unreadInbox}
-                  </span>
-                )}
-              </button>
+              }}>Inbox</button>
             </div>
-
-            {/* Mobile Sub-Nav */}
             {currentPillar?.subs && (
               <div style={{ display: "flex", overflowX: "auto", padding: "0 16px 12px 16px", gap: 8 }}>
                 {currentPillar.subs.map(sub => (
@@ -228,7 +250,6 @@ export default function App() {
                     whiteSpace: "nowrap", border: "none", cursor: "pointer",
                     background: screen === sub.id ? COLORS.lime : "rgba(116,0,86,0.4)",
                     color: screen === sub.id ? COLORS.bg : COLORS.light,
-                    transition: "all 0.2s",
                   }}>
                     {sub.label}
                   </button>
@@ -238,7 +259,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Content Area */}
         <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? 16 : 30 }}>
           {renderScreen()}
         </div>
@@ -259,7 +279,7 @@ export default function App() {
                 background: primaryTab === item.id ? "rgba(141,36,110,0.15)" : "transparent",
                 border: "none", borderTop: primaryTab === item.id ? `3px solid ${COLORS.magenta}` : "3px solid transparent",
                 color: primaryTab === item.id ? COLORS.light : COLORS.muted,
-                cursor: "pointer", transition: "all 0.2s",
+                cursor: "pointer",
               }}>
                 <Icon size={20} color={primaryTab === item.id ? COLORS.lime : COLORS.muted} />
                 <span style={{ fontSize: 9, fontWeight: primaryTab === item.id ? 700 : 500 }}>{item.label}</span>
