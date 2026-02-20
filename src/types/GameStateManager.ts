@@ -32,8 +32,9 @@ import { hasMajorEventThisWeek, getScheduledEvent } from './scheduled-events';
 import { AgentPersonalitySystem } from '../systems/AgentPersonalitySystem';
 import { TradeSystem } from '../systems/TradeSystem';
 import { FinanceSystem } from '../systems/FinanceSystem';
-import { DraftEngine } from '../systems/DraftEngine';
+import { DraftEngine, generateDraftClass } from '../systems/DraftEngine';
 import type { DraftPickResult } from '../systems/DraftEngine';
+import type { TradeOfferPayload, TradeEvaluation } from '../systems/TradeSystem';
 
 // Re-export engine types so existing imports from this file still work
 export type { Interrupt, InterruptResolution, EngineGameDate, EngineSnapshot };
@@ -406,11 +407,23 @@ export interface TradePickInfo {
 
 export interface DraftProspect {
   id: string;
-  name: string;
+  // Identity
+  firstName: string;
+  lastName: string;
+  name: string;             // "First Last" — for legacy callers
   position: Position;
   college: string;
-  height: number;
-  weight: number;
+  // Hidden truth (never exposed directly in draft UI before scouting)
+  overall: number;
+  potential: number;
+  projectedRound: number;   // 1–7; 8 = UDFA
+  // Scouting fog-of-war
+  scoutingRange: { min: number; max: number };
+  scoutingPointsSpent: number; // 0 = full fog, 1 = narrowed, 2+ = revealed
+  medicalGrade: 'A' | 'B' | 'C' | 'D';
+  // Optional legacy combine fields
+  height?: number;
+  weight?: number;
   fortyYardDash?: number;
   benchPress?: number;
   verticalJump?: number;
@@ -508,6 +521,9 @@ export class GameStateManager {
     lastProcessedSlot: '',
     reports: []
   };
+
+  // Scouting
+  scoutingPointsAvailable: number = 15;
 
   // Compensatory Pick System
   offseasonTransactions: FreeAgencyTransaction[] = [];
@@ -901,6 +917,12 @@ export class GameStateManager {
   onEnterDraftPhase(): Map<number, number> {
     console.log('\n🏈 Entering Draft Phase...');
 
+    // Generate the draft class for this season (real data 2026, procedural 2027+)
+    this.draftProspects = generateDraftClass(this.currentGameDate.season);
+    this.draftBoard = [...this.draftProspects];
+    this.scoutingPointsAvailable = 15;
+    console.log(`[Draft] Generated ${this.draftProspects.length} prospects for season ${this.currentGameDate.season}`);
+
     // Setup draft with compensatory picks
     const compPicksPerRound = this.setupDraftWithCompensatoryPicks();
 
@@ -1293,6 +1315,11 @@ export class GameStateManager {
     if (raw.completedEvents) this.completedEvents = new Set(raw.completedEvents);
     if (raw.fullGameDate) this.currentGameDate = raw.fullGameDate;
     if (raw.freeAgents) this.freeAgents = raw.freeAgents;
+    if (raw.draftPicks) this.draftPicks = raw.draftPicks;
+    if (raw.draftProspects) this.draftProspects = raw.draftProspects;
+    if (raw.draftOrder) this.draftOrder = raw.draftOrder;
+    if (raw.availableStaff) this.availableStaff = raw.availableStaff;
+    if (raw.scoutingPointsAvailable != null) this.scoutingPointsAvailable = raw.scoutingPointsAvailable;
     console.log(`✅ [GameStateManager] Hydrated from store — Week ${this.currentWeek}, Season ${this.currentSeason}`);
   }
 
@@ -1313,6 +1340,11 @@ export class GameStateManager {
     raw.completedEvents = Array.from(this.completedEvents);
     raw.fullGameDate = this.currentGameDate;
     raw.freeAgents = this.freeAgents;
+    raw.draftPicks = this.draftPicks;
+    raw.draftProspects = this.draftProspects;
+    raw.draftOrder = this.draftOrder;
+    raw.availableStaff = this.availableStaff;
+    raw.scoutingPointsAvailable = this.scoutingPointsAvailable;
   }
 
   // MARK: - Simulation Tick
@@ -1417,6 +1449,16 @@ export class GameStateManager {
     const newWeek = this.currentGameDate.week + 1;
     this.currentGameDate = { ...this.currentGameDate, week: newWeek };
     console.log(`📅 [advanceWeek] Week ${newWeek}, Season ${this.currentGameDate.season}`);
+
+    // Annual veteran retirement (start of League Year)
+    if (newWeek === 1) {
+      this.processAnnualRetirements();
+    }
+
+    // UDFA "Dream is Over" purge (end of OTAs / pre-camp)
+    if (newWeek === 20) {
+      this.processUDFACleanup();
+    }
 
     // Team rating snapshots at Preseason (25) and Trade Deadline (37)
     if (newWeek === 25 || newWeek === 37) {
@@ -2043,9 +2085,202 @@ export class GameStateManager {
     this.processOffseasonDevelopment();
   }
 
-  /** Convenience: current engine phase label for UI display. */
-  get enginePhaseLabel(): string {
-    return PHASE_LABELS[getEnginePhaseForWeek(this.currentGameDate.week)];
+/** Convenience: current engine phase label for UI display. */
+get enginePhaseLabel(): string {
+  return PHASE_LABELS[getEnginePhaseForWeek(this.currentGameDate.week)];
+}
+
+  // MARK: - Roster Churn Hooks
+
+  /**
+   * Annual retirement sweep — fires at Week 1 (start of League Year).
+   * Removes aging/declining veterans from the player universe to prevent bloat.
+   * If a star (OVR >= 85) on the user's team retires, fires a HARD STOP interrupt.
+   */
+  private processAnnualRetirements(): void {
+    console.log('[Roster Churn] Executing Week 1 annual retirement sweep...');
+    const retiringIds = new Set<string>();
+
+    for (const player of this.allPlayers) {
+      const isFA = !player.teamId || player.status === PlayerStatus.FREE_AGENT;
+
+      // Unconditional retirement for extreme age
+      if (player.age >= 40) {
+        retiringIds.add(player.id);
+        continue;
+      }
+
+      // Free agent probabilistic retirement
+      if (isFA) {
+        let chance = 0;
+        if (player.age >= 38) chance = 0.65;
+        else if (player.age >= 36) chance = 0.35;
+        else if (player.age >= 34) chance = 0.15;
+
+        if (player.overall < 65) chance += 0.10;
+        if (player.overall < 60) chance += 0.10;
+
+        if (chance > 0 && Math.random() < chance) {
+          retiringIds.add(player.id);
+          continue;
+        }
+      }
+
+      // Signed veteran voluntary retirement
+      if (!isFA && player.age >= 38 && player.overall < 73 && Math.random() < 0.20) {
+        retiringIds.add(player.id);
+      }
+    }
+
+    if (retiringIds.size === 0) return;
+
+    // Check for user-team star retirements before removing
+    for (const id of retiringIds) {
+      const player = this.allPlayers.find(p => p.id === id);
+      if (player && player.teamId === this.userTeamId && player.overall >= 85) {
+        this._handleEngineInterrupt(
+          this._buildEngineInterrupt(
+            HardStopReason.LEAGUE_YEAR_RESET,
+            { reason: HardStopReason.LEAGUE_YEAR_RESET } as any,
+            `${player.firstName} ${player.lastName} Has Retired`,
+            `Your franchise cornerstone has announced retirement. Re-evaluate your offseason strategy.`,
+          )
+        );
+      }
+    }
+
+    this.allPlayers = this.allPlayers.filter(p => !retiringIds.has(p.id));
+    this.freeAgents  = this.freeAgents.filter(p => !retiringIds.has(p.id));
+    // Release from team rosters if teams track player IDs directly
+    for (const team of this.teams) {
+      if ((team as any).roster) {
+        (team as any).roster = (team as any).roster.filter((id: string) => !retiringIds.has(id));
+      }
+    }
+
+    console.log(`[Roster Churn] ${retiringIds.size} veterans announced retirement.`);
+    this.addHeadline(
+      'Offseason Retirements',
+      `${retiringIds.size} veterans have announced retirement ahead of the new league year.`,
+      NewsCategory.RUMORS,
+      NewsImportance.LOW,
+    );
+  }
+
+  // MARK: - Scouting
+
+  /**
+   * Spend scouting points to narrow (or fully reveal) a prospect's true OVR.
+   * Returns false if insufficient points or prospect not found.
+   *
+   * Tier system:
+   *   0 pts spent → full fog (wide range shown)
+   *   1 pt spent  → range halved around midpoint (shown in accent color)
+   *   2+ pts spent → true OVR fully revealed (RatingBadge shown)
+   */
+  public spendScoutingPoints(prospectId: string, points: number): boolean {
+    if (this.scoutingPointsAvailable < points) return false;
+    const p = this.draftProspects.find(d => d.id === prospectId);
+    if (!p) return false;
+
+    this.scoutingPointsAvailable -= points;
+    p.scoutingPointsSpent += points;
+
+    if (p.scoutingPointsSpent === 1) {
+      const mid = Math.round((p.scoutingRange.min + p.scoutingRange.max) / 2);
+      const halfWidth = Math.max(1, Math.round((p.scoutingRange.max - p.scoutingRange.min) / 4));
+      p.scoutingRange = {
+        min: Math.max(40, mid - halfWidth),
+        max: Math.min(99, mid + halfWidth),
+      };
+    } else if (p.scoutingPointsSpent >= 2) {
+      // Fully revealed — collapse range to the true OVR
+      p.scoutingRange = { min: p.overall, max: p.overall };
+    }
+    return true;
+  }
+
+  // MARK: - Trade Execution
+
+  /**
+   * Evaluate and, if accepted, apply a trade offer.
+   * Accepts an ID-based payload; resolves live references internally so that
+   * React UI shallow copies cannot corrupt the engine's authoritative arrays.
+   */
+  public applyTradeOffer(payload: TradeOfferPayload): TradeEvaluation {
+    const partnerTeam = this.teams.find(t => t.id === payload.receivingTeamId);
+    if (!partnerTeam) {
+      return { accepted: false, reason: 'Partner team not found.', fairnessScore: 0 };
+    }
+
+    // Resolve IDs → live references from authoritative arrays
+    const offeringPlayers  = payload.offeringPlayerIds
+      .map(id => this.allPlayers.find(p => p.id === id)).filter(Boolean) as Player[];
+    const receivingPlayers = payload.receivingPlayerIds
+      .map(id => this.allPlayers.find(p => p.id === id)).filter(Boolean) as Player[];
+    // Pick IDs use compound key format: "${year}-${round}-${originalTeamId}"
+    const findPick = (pickId: string) => {
+      const [y, r, orig] = pickId.split('-');
+      return this.draftPicks.find(
+        dp => dp.year === parseInt(y) && dp.round === parseInt(r) && dp.originalTeamId === orig
+      );
+    };
+    const offeringPicks  = payload.offeringPickIds.map(findPick).filter(Boolean) as TeamDraftPick[];
+    const receivingPicks = payload.receivingPickIds.map(findPick).filter(Boolean) as TeamDraftPick[];
+
+    const result = this.tradeSystem.evaluateTradeOffer(
+      payload,
+      offeringPlayers,
+      receivingPlayers,
+      offeringPicks,
+      receivingPicks,
+      partnerTeam,
+      this.currentGameDate.week,
+    );
+
+    if (result.accepted) {
+      for (const p of offeringPlayers)   p.teamId = payload.receivingTeamId;
+      for (const p of receivingPlayers)  p.teamId = payload.offeringTeamId;
+      for (const pick of offeringPicks)  pick.currentTeamId = payload.receivingTeamId;
+      for (const pick of receivingPicks) pick.currentTeamId = payload.offeringTeamId;
+    }
+    return result;
+  }
+
+  private processUDFACleanup(): void {
+    console.log(`🧹 [Roster Churn] Executing Week 20 UDFA cleanup...`);
+    
+    let retiredCount = 0;
+    const retiringIds = new Set<string>();
+
+    for (const player of this.allPlayers) {
+        // Condition: Is a Free Agent, OVR is less than 55, and is young (indicating UDFA)
+        if (
+            player.status === PlayerStatus.FREE_AGENT && 
+            !player.teamId && 
+            player.overall < 55 &&
+            player.age <= 24 // Ensures we are targeting the UDFA class, not just older vets (who are handled in Week 1)
+        ) {
+            retiringIds.add(player.id);
+            retiredCount++;
+        }
+    }
+
+    if (retiredCount > 0) {
+        // Remove them from the active universe
+        this.allPlayers = this.allPlayers.filter(p => !retiringIds.has(p.id));
+        this.freeAgents = this.freeAgents.filter(p => !retiringIds.has(p.id));
+        
+        console.log(`✅ [Roster Churn] ${retiredCount} UDFAs failed to make a roster and have retired from football.`);
+        
+        // Optional: Notify the user so the world feels alive
+        this.addHeadline(
+            "Roster Cuts & Retirements",
+            `${retiredCount} undrafted free agents have quietly retired from football after failing to secure practice squad invites ahead of Training Camp.`,
+            NewsCategory.RUMORS,
+            NewsImportance.LOW
+        );
+    }
   }
 }
 

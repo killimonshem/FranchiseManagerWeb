@@ -22,6 +22,8 @@ import type { Player } from '../types/player';
 import type { Team } from '../types/team';
 import { HardStopReason } from '../types/engine-types';
 import type { DraftProspect, TradeOffer } from '../types/GameStateManager';
+import { Position } from '../types/nfl-types';
+import bigboardJson from '../../bigboard.json';
 
 // ─── Gem / Bust constants (PRD §4.3) ─────────────────────────────────────────
 
@@ -300,13 +302,14 @@ export class DraftEngine {
     return { pickNumber, round, teamId, playerId, outcome, potentialGranted };
   }
 
-  private _selectBestProspectForTeam(team: Team): DraftProspect | null {
+  private _selectBestProspectForTeam(_team: Team): DraftProspect | null {
     const prospects = this._host.draftProspects;
     if (prospects.length === 0) return null;
 
-    // Simple AI: pick the first available prospect
-    // (A real implementation would check positional need — left for CoachingSystem)
-    return prospects[0] ?? null;
+    // AI sees true overall — fog-of-war is a UI mechanic for the human GM only.
+    // Sort by true overall descending and return the best available.
+    const sorted = [...prospects].sort((a, b) => b.overall - a.overall);
+    return sorted[0] ?? null;
   }
 
   private _findTradeUpCandidate(pickNumber: number): Team | null {
@@ -344,4 +347,225 @@ export class DraftEngine {
       }, 5 * 60 * 1000);
     });
   }
+}
+
+// ─── Draft Class Hydration ────────────────────────────────────────────────────
+//
+// Standalone exports — called by GameStateManager at the start of each draft
+// phase. These functions are pure: no side effects, no React imports.
+
+interface BigBoardEntry {
+  rank: number;
+  player: string;              // "First Last"
+  position: string;            // "QB", "WR", "EDGE", "IOL", etc.
+  college: string;
+  projection: string | null;   // "1st Round" … "7th Round" | null
+  projected_team: string | null;
+}
+
+/** Maps bigboard projection string to a round number (1–7; 8 = UDFA). */
+function projectionToRound(projection: string | null): number {
+  if (!projection) return 8;
+  const match = projection.match(/^(\d+)/);
+  return match ? Math.min(7, parseInt(match[1], 10)) : 8;
+}
+
+/**
+ * Maps bigboard position strings to the Position enum.
+ * Bigboard uses NFL-scouting terminology ("EDGE", "IOL") that doesn't map
+ * 1-to-1 to the game's simplified Position enum.
+ */
+function mapBigBoardPosition(pos: string): Position {
+  switch (pos.toUpperCase()) {
+    case 'QB':   return Position.QB;
+    case 'RB':   return Position.RB;
+    case 'WR':   return Position.WR;
+    case 'TE':   return Position.TE;
+    case 'OT':
+    case 'OL':
+    case 'IOL':
+    case 'C':
+    case 'G':    return Position.OL;
+    case 'DL':
+    case 'DT':
+    case 'EDGE':
+    case 'DE':   return Position.DL;
+    case 'LB':
+    case 'ILB':
+    case 'OLB':  return Position.LB;
+    case 'CB':   return Position.CB;
+    case 'S':
+    case 'SS':
+    case 'FS':   return Position.S;
+    case 'K':    return Position.K;
+    case 'P':    return Position.P;
+    default:     return Position.LB; // fallback
+  }
+}
+
+function randomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function generateMedicalGrade(): 'A' | 'B' | 'C' | 'D' {
+  const roll = Math.random();
+  if (roll < 0.50) return 'A';
+  if (roll < 0.80) return 'B';
+  if (roll < 0.95) return 'C';
+  return 'D';
+}
+
+/**
+ * Fog-of-war range visible to the user before scouting.
+ * Range half-width by projected round — 1st-rounders are more scrutinized.
+ */
+function computeScoutingRange(
+  trueOvr: number,
+  round: number,
+): { min: number; max: number } {
+  const halfWidth = round === 1 ? 5
+    : round <= 3 ? 8
+    : round <= 5 ? 10
+    : round <= 7 ? 12
+    : 15; // UDFA
+  return {
+    min: Math.max(40, trueOvr - halfWidth),
+    max: Math.min(99, trueOvr + halfWidth),
+  };
+}
+
+function hydrateProspect(shell: BigBoardEntry): DraftProspect {
+  const projectedRound = projectionToRound(shell.projection);
+
+  let overall: number;
+  let potential: number;
+  switch (projectedRound) {
+    case 1:
+      overall   = randomInt(71, 84);
+      potential = randomInt(85, 99);
+      break;
+    case 2:
+    case 3:
+      overall   = randomInt(65, 75);
+      potential = randomInt(78, 90);
+      break;
+    default:
+      overall   = randomInt(55, 68);
+      potential = randomInt(65, 82);
+  }
+
+  const spaceIdx = shell.player.indexOf(' ');
+  const firstName = spaceIdx > 0 ? shell.player.slice(0, spaceIdx) : shell.player;
+  const lastName  = spaceIdx > 0 ? shell.player.slice(spaceIdx + 1) : '';
+
+  return {
+    id: crypto.randomUUID(),
+    firstName,
+    lastName,
+    name: shell.player,
+    position: mapBigBoardPosition(shell.position),
+    college: shell.college,
+    overall,
+    potential,
+    projectedRound,
+    scoutingRange: computeScoutingRange(overall, projectedRound),
+    scoutingPointsSpent: 0,
+    medicalGrade: generateMedicalGrade(),
+  };
+}
+
+// Small name pools for procedural generation (2028+)
+const PROC_FIRST_NAMES = [
+  'Marcus', 'DeShawn', 'Tyrell', 'Jordan', 'Elijah',
+  'Malik', 'Jaylon', 'Darius', 'Cameron', 'Nathan',
+  'Isaiah', 'Brendan', 'Trevon', 'Caleb', 'Derrick',
+];
+const PROC_LAST_NAMES = [
+  'Williams', 'Johnson', 'Brown', 'Jackson', 'Davis',
+  'Harris', 'Thompson', 'Moore', 'Walker', 'White',
+  'Taylor', 'Anderson', 'Robinson', 'Clark', 'Mitchell',
+];
+// Weighted position distribution matching NFL roster composition
+const PROC_POSITION_POOL: Position[] = [
+  Position.QB, Position.QB,
+  Position.RB, Position.RB, Position.RB,
+  Position.WR, Position.WR, Position.WR, Position.WR, Position.WR,
+  Position.TE, Position.TE,
+  Position.OL, Position.OL, Position.OL, Position.OL, Position.OL,
+  Position.DL, Position.DL, Position.DL, Position.DL,
+  Position.LB, Position.LB, Position.LB,
+  Position.CB, Position.CB, Position.CB, Position.CB,
+  Position.S, Position.S,
+  Position.K,
+  Position.P,
+];
+
+/**
+ * Weighted round selection for a 250-player class.
+ * Targets ~32 R1, ~32 R2, ~38 R3, ~148 R4–7 to avoid league talent collapse.
+ */
+function pickProceduralRound(): number {
+  const roll = Math.random();
+  if (roll < 0.13) return 1;
+  if (roll < 0.26) return 2;
+  if (roll < 0.41) return 3;
+  if (roll < 0.56) return 4;
+  if (roll < 0.71) return 5;
+  if (roll < 0.85) return 6;
+  return 7;
+}
+
+function generateProceduralProspect(): DraftProspect {
+  const projectedRound = pickProceduralRound();
+
+  let overall: number;
+  let potential: number;
+  switch (projectedRound) {
+    case 1:
+      overall   = randomInt(71, 84);
+      potential = randomInt(85, 99);
+      break;
+    case 2:
+    case 3:
+      overall   = randomInt(65, 75);
+      potential = randomInt(78, 90);
+      break;
+    default:
+      overall   = randomInt(55, 68);
+      potential = randomInt(65, 82);
+  }
+
+  const firstName = PROC_FIRST_NAMES[Math.floor(Math.random() * PROC_FIRST_NAMES.length)];
+  const lastName  = PROC_LAST_NAMES[Math.floor(Math.random() * PROC_LAST_NAMES.length)];
+  const position  = PROC_POSITION_POOL[Math.floor(Math.random() * PROC_POSITION_POOL.length)];
+
+  return {
+    id: crypto.randomUUID(),
+    firstName,
+    lastName,
+    name: `${firstName} ${lastName}`,
+    position,
+    college: 'Unknown',
+    overall,
+    potential,
+    projectedRound,
+    scoutingRange: computeScoutingRange(overall, projectedRound),
+    scoutingPointsSpent: 0,
+    medicalGrade: generateMedicalGrade(),
+  };
+}
+
+/**
+ * Generate the draft class for a given season year.
+ * - Year matching bigboard.json (2026): hydrates all 750 real prospects.
+ * - Any other year: generates 250 procedural prospects.
+ *
+ * Called by GameStateManager.onEnterDraftPhase().
+ */
+export function generateDraftClass(year: number): DraftProspect[] {
+  const board = bigboardJson as { dataset_info: { year: number }; prospects: BigBoardEntry[] };
+  if (year === board.dataset_info.year) {
+    return board.prospects.map(hydrateProspect);
+  }
+  return Array.from({ length: 250 }, generateProceduralProspect);
 }

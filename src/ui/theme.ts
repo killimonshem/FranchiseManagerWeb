@@ -13,11 +13,17 @@ export const COLORS = {
   light:       "#F0EEF2",
   lime:        "#D7F171",
   warmLime:    "#B8D94A",
+  // Accessible Additions (WCAG AAA against #1D1920)
+  gold:        "#FFD700",
+  coral:       "#FF8080",
+  sky:         "#66E0FF",
+  lavender:    "#D0C8D8",
+  white:       "#FFFFFF",
   // Semantic
   positive:    "#D7F171",
-  negative:    "#740056",
-  warning:     "#8D246E",
-  neutral:     "#9990A0",
+  negative:    "#FF8080", // Updated to accessible coral
+  warning:     "#FFD700", // Updated to accessible gold
+  neutral:     "#D0C8D8", // Updated to accessible lavender
 } as const;
 
 export const FONT = {
@@ -41,15 +47,15 @@ const TIERS: { min: number; label: string; color: string }[] = [
   { min: 75, label: "Solid",        color: COLORS.muted },
   { min: 70, label: "Average",      color: COLORS.muted },
   { min: 65, label: "Developing",   color: COLORS.magenta },
-  { min: 60, label: "Below Avg",    color: COLORS.darkMagenta },
-  { min: 0,  label: "Project",      color: COLORS.darkMagenta },
+  { min: 60, label: "Below Avg",    color: COLORS.neutral },
+  { min: 0,  label: "Project",      color: COLORS.neutral },
 ];
 
 export function ratingToDescriptor(value: number): RatingDescriptor {
   for (const tier of TIERS) {
     if (value >= tier.min) return { label: tier.label, color: tier.color };
   }
-  return { label: "Project", color: COLORS.darkMagenta };
+  return { label: "Project", color: COLORS.neutral };
 }
 
 export function ratingToColor(value: number): string {
@@ -60,8 +66,8 @@ export function ratingToColor(value: number): string {
 export function gradeColor(grade: string): string {
   if (grade.startsWith("A")) return COLORS.lime;
   if (grade.startsWith("B")) return COLORS.light;
-  if (grade.startsWith("C")) return COLORS.muted;
-  return COLORS.darkMagenta;
+  if (grade.startsWith("C")) return COLORS.neutral;
+  return COLORS.coral;
 }
 
 // ─── Rarity Colors (Trophy system) ─────────────────────────────────
@@ -91,7 +97,7 @@ export const POS_COLORS: Record<string, string> = {
   WR: "#7EB8E8",  // sky blue   — speed/route
   TE: "#E8A046",  // amber      — hybrid blocker/receiver
   OL: "#C4A4E8",  // lavender   — trenches
-  DL: "#E86060",  // coral red  — pass rush
+  DL: "#FF8080",  // coral      — pass rush (AAA compliant)
   LB: "#E87DA0",  // rose       — linebacker corps
   CB: "#58C4B8",  // teal       — coverage
   S:  "#B8D94A",  // warm lime  — safety (distinct from QB lime)
@@ -102,19 +108,19 @@ export const POS_COLORS: Record<string, string> = {
 // ─── Priority Colors ──────────────────────────────────────────────
 export function priorityColor(priority: string): string {
   switch (priority) {
-    case "urgent": return COLORS.magenta;
-    case "high":   return COLORS.midMagenta;
-    case "medium": return COLORS.light;
-    case "low":    return COLORS.muted;
-    default:       return COLORS.muted;
+    case "urgent": return COLORS.coral;
+    case "high":   return COLORS.gold;
+    case "medium": return COLORS.sky;
+    case "low":    return COLORS.neutral;
+    default:       return COLORS.neutral;
   }
 }
 
 // ─── Morale Thresholds ────────────────────────────────────────────
 export function moraleColor(value: number): string {
   if (value > 80) return COLORS.lime;
-  if (value > 60) return COLORS.muted;
-  return COLORS.magenta;
+  if (value > 60) return COLORS.neutral;
+  return COLORS.coral;
 }
 
 // ─── Franchise Tier Colors ────────────────────────────────────────
@@ -122,9 +128,9 @@ export function tierColor(tier: string): string {
   switch (tier) {
     case "Contender": return COLORS.lime;
     case "Rebuilder": return COLORS.light;
-    case "Purgatory": return COLORS.muted;
-    case "Hoarder":   return COLORS.midMagenta;
-    case "Mediocre":  return COLORS.darkMagenta;
-    default:          return COLORS.muted;
+    case "Purgatory": return COLORS.coral;
+    case "Hoarder":   return COLORS.sky;
+    case "Mediocre":  return COLORS.neutral;
+    default:          return COLORS.neutral;
   }
 }

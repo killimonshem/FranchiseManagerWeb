@@ -2,6 +2,7 @@ import { COLORS } from "../ui/theme";
 import { Section, RatingBadge, DataRow, PosTag, Pill } from "../ui/components";
 import { useState } from "react";
 import draftTradeData from "../../drafttrade.json";
+import type { GameStateManager, DraftProspect } from "../types/GameStateManager";
 
 // ─── Draft pick computation from ledger ──────────────────────────────────────
 
@@ -17,7 +18,7 @@ interface DraftPick {
   year: number;
   round: number;
   originalTeam: string;
-  isOwn: boolean; // true if original_team === owning team
+  isOwn: boolean;
   notes?: string;
 }
 
@@ -29,6 +30,7 @@ const ALL_TEAMS = [
 
 const DRAFT_YEARS = [2026, 2027, 2028];
 const TOTAL_ROUNDS = 7;
+const ROUND_LABEL = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th"];
 
 const tradedPicks: TradedPick[] = draftTradeData.traded_picks as TradedPick[];
 
@@ -40,7 +42,7 @@ function computeTeamPicks(teamAbbr: string): DraftPick[] {
   const received: DraftPick[] = [];
 
   for (const tp of tradedPicks) {
-    if (tp.new_owner === tp.original_team) continue; // no-op
+    if (tp.new_owner === tp.original_team) continue;
     const key = `${tp.year}-${tp.round}-${tp.original_team}`;
     if (tp.new_owner === teamAbbr) {
       received.push({ year: tp.year, round: tp.round, originalTeam: tp.original_team, isOwn: false, notes: tp.notes });
@@ -60,25 +62,45 @@ function computeTeamPicks(teamAbbr: string): DraftPick[] {
     }
   }
 
-  const all = [...ownPicks, ...received].sort((a, b) =>
+  return [...ownPicks, ...received].sort((a, b) =>
     a.year !== b.year ? a.year - b.year : a.round - b.round
   );
-  return all;
+}
+
+// ─── Fog-of-war OVR renderer (three tiers) ───────────────────────────────────
+
+function renderOvr(p: DraftProspect): JSX.Element {
+  if (p.scoutingPointsSpent >= 2) {
+    // Fully revealed
+    return <RatingBadge value={p.overall} size="sm" />;
+  }
+  if (p.scoutingPointsSpent === 1) {
+    // Narrowed — tighter range in accent color
+    return (
+      <span style={{ fontSize: 10, color: COLORS.lime, fontWeight: 600 }}>
+        {p.scoutingRange.min}–{p.scoutingRange.max}
+      </span>
+    );
+  }
+  // Full fog — wide range, muted italic
+  return (
+    <span style={{ fontSize: 9, color: COLORS.muted, fontStyle: "italic" }}>
+      {p.scoutingRange.min}–{p.scoutingRange.max}
+    </span>
+  );
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const PROSPECTS = [
-  { id: 1, name: "Cam Ward",         pos: "QB", college: "Miami",    overall: 90, projRound: 1 },
-  { id: 2, name: "Travis Hunter",    pos: "CB", college: "Colorado", overall: 88, projRound: 1 },
-  { id: 3, name: "Abdul Carter",     pos: "LB", college: "Penn St",  overall: 87, projRound: 1 },
-  { id: 4, name: "Will Johnson",     pos: "CB", college: "Michigan", overall: 86, projRound: 1 },
-  { id: 5, name: "Mason Graham",     pos: "DL", college: "Michigan", overall: 85, projRound: 1 },
-];
-
-const ROUND_LABEL = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th"];
-
-export function DraftScreen({ userTeamAbbr }: { userTeamAbbr: string }) {
+export function DraftScreen({
+  userTeamAbbr,
+  gsm,
+  refresh,
+}: {
+  userTeamAbbr: string;
+  gsm: GameStateManager;
+  refresh: () => void;
+}) {
   const [tab, setTab] = useState("board");
 
   const myPicks = computeTeamPicks(userTeamAbbr);
@@ -87,9 +109,19 @@ export function DraftScreen({ userTeamAbbr }: { userTeamAbbr: string }) {
     picks: myPicks.filter(p => p.year === yr),
   }));
 
+  const prospects = gsm.draftProspects;
+  const scoutPtsLeft = gsm.scoutingPointsAvailable;
+
+  function handleScout(prospectId: string) {
+    gsm.spendScoutingPoints(prospectId, 1);
+    refresh();
+  }
+
   return (
     <div style={{ animation: "fadeIn .4s" }}>
-      <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: COLORS.light, marginBottom: 8 }}>2026 NFL Draft</h2>
+      <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: COLORS.light, marginBottom: 8 }}>
+        {gsm.currentGameDate.season} NFL Draft
+      </h2>
       <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
         <Pill active={tab === "board"}  onClick={() => setTab("board")}>Big Board</Pill>
         <Pill active={tab === "picks"}  onClick={() => setTab("picks")}>My Picks</Pill>
@@ -97,24 +129,53 @@ export function DraftScreen({ userTeamAbbr }: { userTeamAbbr: string }) {
       </div>
 
       {tab === "board" && (
-        <Section title="Prospect Board" pad={false}>
-          <DataRow header>
-            {["#", "Name", "Pos", "College", "Rating", "Proj"].map(h =>
-              <span key={h} style={{ fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700, flex: h === "Name" ? 2 : 1 }}>
-                {h}
-              </span>
-            )}
-          </DataRow>
-          {PROSPECTS.map((p, i) => (
-            <DataRow key={p.id} even={i % 2 === 0} hover>
-              <span style={{ flex: 1, fontSize: 10, fontFamily: "monospace", color: COLORS.muted }}>{i + 1}</span>
-              <span style={{ flex: 2, fontSize: 11, fontWeight: 600, color: COLORS.light }}>{p.name}</span>
-              <span style={{ flex: 1 }}><PosTag pos={p.pos} /></span>
-              <span style={{ flex: 1.5, fontSize: 10, color: COLORS.muted }}>{p.college}</span>
-              <span style={{ flex: 1 }}><RatingBadge value={p.overall} size="sm" /></span>
-              <span style={{ flex: 1, fontSize: 10, color: COLORS.muted }}>Rd {p.projRound}</span>
-            </DataRow>
-          ))}
+        <Section title={`Prospect Board — Scout Pts: ${scoutPtsLeft}`} pad={false}>
+          {prospects.length === 0 ? (
+            <div style={{ padding: "14px", fontSize: 11, color: COLORS.muted }}>
+              Draft class generates when you enter Draft Prep phase.
+            </div>
+          ) : (
+            <>
+              <DataRow header>
+                {["#", "Name", "Pos", "College", "OVR", "Proj", "Scout"].map(h =>
+                  <span key={h} style={{ fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700, flex: h === "Name" ? 2 : 1 }}>
+                    {h}
+                  </span>
+                )}
+              </DataRow>
+              {prospects.map((p, i) => {
+                const canScout = scoutPtsLeft >= 1 && p.scoutingPointsSpent < 2;
+                return (
+                  <DataRow key={p.id} even={i % 2 === 0} hover>
+                    <span style={{ flex: 1, fontSize: 10, fontFamily: "monospace", color: COLORS.muted }}>{i + 1}</span>
+                    <span style={{ flex: 2, fontSize: 11, fontWeight: 600, color: COLORS.light }}>{p.name}</span>
+                    <span style={{ flex: 1 }}><PosTag pos={p.position} /></span>
+                    <span style={{ flex: 1.5, fontSize: 10, color: COLORS.muted }}>{p.college}</span>
+                    <span style={{ flex: 1 }}>{renderOvr(p)}</span>
+                    <span style={{ flex: 1, fontSize: 10, color: COLORS.muted }}>Rd {p.projectedRound === 8 ? "UDFA" : p.projectedRound}</span>
+                    <span style={{ flex: 1 }}>
+                      <button
+                        onClick={() => canScout && handleScout(p.id)}
+                        disabled={!canScout}
+                        style={{
+                          fontSize: 9,
+                          padding: "2px 6px",
+                          borderRadius: 3,
+                          border: "none",
+                          cursor: canScout ? "pointer" : "default",
+                          background: canScout ? "rgba(215,241,113,0.15)" : "transparent",
+                          color: canScout ? COLORS.lime : COLORS.muted,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {p.scoutingPointsSpent >= 2 ? "Done" : "Scout"}
+                      </button>
+                    </span>
+                  </DataRow>
+                );
+              })}
+            </>
+          )}
         </Section>
       )}
 

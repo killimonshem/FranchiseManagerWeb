@@ -14,7 +14,7 @@ import {
   DraftState
 } from '../types/DraftSystem';
 import { CompPick, FreeAgencyTransaction } from '../types/CompensatoryPickSystem';
-import type { GameDate as ManagerGameDate, ProcessingInterrupt } from '../types/GameStateManager';
+import type { GameDate as ManagerGameDate, ProcessingInterrupt, DraftProspect, TeamDraftPick } from '../types/GameStateManager';
 
 /**
  * Game Date representation
@@ -57,6 +57,12 @@ export interface SaveData {
   completedEvents?: string[];
   fullGameDate?: ManagerGameDate;
   freeAgents?: Player[];
+  // Draft & staff ecosystem
+  draftPicks?: TeamDraftPick[];
+  draftProspects?: DraftProspect[];
+  draftOrder?: string[];
+  availableStaff?: unknown[];
+  scoutingPointsAvailable?: number;
 }
 
 /**

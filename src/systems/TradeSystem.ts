@@ -1,245 +1,223 @@
 /**
  * TradeSystem.ts
  *
- * AI teams evaluate trades through the lens of their current FranchiseTier.
- * A Rebuilder overvalues picks; a Contender overpays for veteran starters.
- * A team in Purgatory is desperate — it will trade away talent just to clear cap.
+ * The Context-Aware Trade Valuation Engine.
+ * Evaluates trades based on Value Arbitrage and Franchise Tiers.
  *
  * Rules:
  *  - Pure TypeScript class, zero React imports.
  *  - Injected into GameStateManager.
- *  - A trade is only accepted if OfferingValue >= ReceivingValue * 0.85.
+ *  - Implements strict valuation logic based on PRD.
  */
 
 import type { Player } from '../types/player';
 import type { Team } from '../types/team';
-import type { Position } from '../types/nfl-types';
 import type { TeamDraftPick } from '../types/GameStateManager';
+import { Position } from '../types/nfl-types';
 
-// ─── Franchise Tiers ──────────────────────────────────────────────────────────
+export interface TradeOfferPayload {
+  offeringTeamId: string;
+  receivingTeamId: string;
+  // IDs only — GameStateManager resolves to live references before calling evaluateTradeOffer()
+  offeringPlayerIds: string[];
+  receivingPlayerIds: string[];
+  offeringPickIds: string[];
+  receivingPickIds: string[];
+}
+
+export interface TradeEvaluation {
+  accepted: boolean;
+  reason: string;
+  fairnessScore: number; // Ratio of Perceived Value. 1.0 is perfectly even.
+}
 
 export enum FranchiseTier {
-  /** Win% > 65%, avg OVR > 80. Overvalues veterans, undervalues picks. */
-  CONTENDER  = 'CONTENDER',
-  /** Win% < 35%. Overvalues picks and youth (<25). Trades expensive veterans. */
-  REBUILDER  = 'REBUILDER',
-  /** Bad record + bad cap space. Will trade value to clear salary. */
-  PURGATORY  = 'PURGATORY',
-  /** Everyone else — roughly balanced valuations. */
-  NEUTRAL    = 'NEUTRAL',
+  CONTENDER = 'Contender', // Win now mode
+  REBUILDER = 'Rebuilder', // Stockpiling assets
+  NEUTRAL = 'Neutral'      // Standard valuation
 }
-
-// ─── Position multipliers (PRD §2.3) ─────────────────────────────────────────
-
-const POSITION_MULTIPLIER: Partial<Record<string, number>> = {
-  QB: 2.5, EDGE: 2.0, DL: 1.8, WR: 1.6, CB: 1.6, LT: 1.5, RT: 1.4,
-  TE: 1.3, S: 1.3, LB: 1.2, RB: 1.1, OL: 1.0, C: 1.0, LG: 1.0, RG: 1.0,
-  FB: 0.8, P: 0.6, K: 0.5,
-};
-
-/** Base pick values by round (PRD §2.3). */
-const BASE_PICK_VALUE: Record<number, number> = {
-  1: 5000, 2: 2500, 3: 1200, 4: 600, 5: 300, 6: 150, 7: 75,
-};
-
-// ─── Trade offer shape ────────────────────────────────────────────────────────
-
-export interface TradeOfferValuation {
-  offeringTeamValue: number;
-  receivingTeamValue: number;
-  isAcceptable: boolean;          // offeringValue >= receivingValue * 0.85
-  offeringSurplus: number;        // positive = offering team overpaid
-}
-
-export interface EvaluatedPick {
-  pick: TeamDraftPick;
-  value: number;
-}
-
-// ─── System class ─────────────────────────────────────────────────────────────
 
 export class TradeSystem {
 
-  // ── Franchise tier classification ──────────────────────────────────────────
+  // ─── Module 1: Base Asset Valuation ─────────────────────────────────────────
 
-  /**
-   * Classify a team's current state based on win rate and roster quality.
-   */
-  getFranchiseTier(team: Team, allPlayers: Player[]): FranchiseTier {
-    const totalGames = team.wins + team.losses + team.ties;
-    const winPct = totalGames > 0 ? team.wins / totalGames : 0.5;
-    const capSpace = (team.salaryCap ?? 255_000_000) - this._getCapHit(team, allPlayers);
-    const capPct = capSpace / (team.salaryCap ?? 255_000_000);
+  private getBasePlayerValue(player: Player): number {
+    // Exponential Curve: 85 OVR is exponentially more valuable than 75 OVR
+    let value = Math.pow(player.overall, 2) * 10;
 
-    // Roster quality: average overall of top 22 players
-    const rosterOvr = this._getRosterRating(team, allPlayers);
+    // Age Modifiers
+    if (player.age < 25) {
+      value *= 1.3; // Youth premium
+    } else if (player.age > 30) {
+      value *= 0.6; // Decline risk
+    }
 
-    if (winPct >= 0.65 && rosterOvr >= 80) return FranchiseTier.CONTENDER;
-    if (winPct <= 0.35) return FranchiseTier.REBUILDER;
-    if (winPct <= 0.45 && capPct < 0.15) return FranchiseTier.PURGATORY;
-    return FranchiseTier.NEUTRAL;
+    // Positional Scarcity Modifiers
+    switch (player.position) {
+      case Position.QB:
+        value *= 2.5;
+        break;
+      case Position.OL: // Treating OL as LT (Premium)
+      case Position.DL:
+      case Position.CB:
+        value *= 1.5;
+        break;
+      default:
+        // Standard positions (RB, WR, TE, LB, S, K, P) = 1.0
+        break;
+    }
+
+    return value;
   }
 
-  // ── Player valuation ────────────────────────────────────────────────────────
-
-  /**
-   * Calculate a player's trade value adjusted for the receiving team's tier.
-   */
-  calculatePlayerValue(
-    player: Player,
-    forTier: FranchiseTier,
-    currentWeek: number,
-  ): number {
-    const posMultiplier = POSITION_MULTIPLIER[player.position] ?? 1.0;
-    let base = player.overall * posMultiplier;
-
-    // Age penalty (>30 years old)
-    if (player.age > 30) {
-      const agePenalty = (player.age - 30) * 0.05;
-      base *= Math.max(0.5, 1 - agePenalty);
-    }
-
-    // Contract penalty: if the player has <1 year left they're worth less
-    const yearsRemaining = player.contract?.yearsRemaining ?? 1;
-    if (yearsRemaining < 1) base *= 0.75;
-
-    // Tier-specific adjustments
-    switch (forTier) {
-      case FranchiseTier.CONTENDER:
-        // Overvalues veterans (age >28, OVR >80) by 20%
-        if (player.age >= 28 && player.overall >= 80) base *= 1.20;
-        break;
-      case FranchiseTier.REBUILDER:
-        // Undervalues veterans, boosts youth (<25)
-        if (player.age >= 28) base *= 0.75;
-        if (player.age < 25) base *= 1.25;
-        break;
-      case FranchiseTier.PURGATORY:
-        // Cuts value on expensive players (cap dumps)
-        if ((player.contract?.currentYearCap ?? 0) > 15_000_000) base *= 0.70;
-        break;
-      case FranchiseTier.NEUTRAL:
-        break;
-    }
-
-    // Mid-season modifier: values veterans more in season, rookies more in offseason
-    if (currentWeek >= 29 && currentWeek <= 46) {
-      if (player.age >= 28) base *= 1.10;
-    }
-
-    return Math.round(base);
+  private getBasePickValue(pick: TeamDraftPick): number {
+    // Simplified Jimmy Johnson trade chart
+    // Index 0 is unused, Index 1 = Round 1
+    const roundValues = [0, 3000, 1200, 500, 200, 100, 50, 20];
+    const round = Math.max(1, Math.min(7, pick.round));
+    return roundValues[round] || 0;
   }
 
-  // ── Pick valuation ──────────────────────────────────────────────────────────
+  // ─── Module 2: Franchise State Analysis ─────────────────────────────────────
 
   /**
-   * Calculate a draft pick's value adjusted for the originating team's tier
-   * and current week (mid-season picks from Rebuilders are worth more).
+   * Determine the AI team's mindset based on wins and season context.
    */
-  calculatePickValue(
-    pick: TeamDraftPick,
-    currentWeek: number,
-    fromTeam: Team,
-    allPlayers: Player[],
-  ): number {
-    const round = Math.min(7, Math.max(1, pick.round));
-    let value = BASE_PICK_VALUE[round] ?? 75;
+  public determineFranchiseTier(team: Team, currentWeek: number): FranchiseTier {
+    // Early season ambiguity check
+    if (currentWeek <= 4) {
+      return FranchiseTier.NEUTRAL;
+    }
 
-    // Mid-season pick modifier: Rebuilder 1st rounds are the most valuable
-    if (currentWeek >= 29) {
-      const fromTier = this.getFranchiseTier(fromTeam, allPlayers);
-      if (fromTier === FranchiseTier.REBUILDER && round === 1) {
-        value *= 2.5; // Top-5 pick potential premium
-      } else if (fromTier === FranchiseTier.CONTENDER && round === 1) {
-        value *= 0.75; // Late 1st from a contender
+    if (team.wins >= 10) {
+      return FranchiseTier.CONTENDER;
+    } else if (team.wins <= 4) {
+      return FranchiseTier.REBUILDER;
+    } else {
+      return FranchiseTier.NEUTRAL;
+    }
+  }
+
+  // ─── Module 3: The Contextual Modifier ──────────────────────────────────────
+
+  /**
+   * Calculate value of a player distorted by the AI's Franchise Tier.
+   */
+  private getContextualPlayerValue(player: Player, tier: FranchiseTier): number {
+    let value = this.getBasePlayerValue(player);
+
+    if (tier === FranchiseTier.REBUILDER) {
+      // Rebuilder: Wants youth, penalizes age
+      if (player.age <= 26) {
+        value *= 1.2;
+      } else {
+        value *= 0.5; // Heavily penalize expensive, aging veterans
+      }
+    } else if (tier === FranchiseTier.CONTENDER) {
+      // Contender: Needs immediate starters
+      if (player.overall >= 80) {
+        value *= 1.3;
       }
     }
+    // Neutral: No distortion
 
-    // Future year picks are slightly discounted (uncertainty)
-    const currentYear = new Date().getFullYear();
-    if (pick.year > currentYear + 1) {
-      value *= 0.90;
+    return value;
+  }
+
+  /**
+   * Calculate value of a pick distorted by the AI's Franchise Tier.
+   */
+  private getContextualPickValue(pick: TeamDraftPick, tier: FranchiseTier): number {
+    let value = this.getBasePickValue(pick);
+
+    if (tier === FranchiseTier.REBUILDER) {
+      value *= 1.5; // Overvalues draft capital
+    } else if (tier === FranchiseTier.CONTENDER) {
+      value *= 0.8; // Doesn't care about the future
+    }
+    // Neutral: No distortion
+
+    return value;
+  }
+
+  // ─── Module 4: Resolution & The "Human Tax" ─────────────────────────────────
+
+  /**
+   * Evaluate a trade offer from the perspective of the Receiving Team (AI).
+   * Resolved Player[] and TeamDraftPick[] are passed by GameStateManager after
+   * it looks up the live references from the ID-based payload.
+   */
+  public evaluateTradeOffer(
+    _payload: TradeOfferPayload,
+    offeringPlayers: Player[],
+    receivingPlayers: Player[],
+    offeringPicks: TeamDraftPick[],
+    receivingPicks: TeamDraftPick[],
+    receivingTeam: Team,
+    currentWeek: number
+  ): TradeEvaluation {
+    const tier = this.determineFranchiseTier(receivingTeam, currentWeek);
+
+    // Calculate Perceived User Value (What AI Receives)
+    let perceivedUserValue = 0;
+    for (const player of offeringPlayers) {
+      perceivedUserValue += this.getContextualPlayerValue(player, tier);
+    }
+    for (const pick of offeringPicks) {
+      perceivedUserValue += this.getContextualPickValue(pick, tier);
     }
 
-    return Math.round(value);
-  }
+    // Calculate Perceived AI Value (What AI Gives Up)
+    let perceivedAiValue = 0;
+    for (const player of receivingPlayers) {
+      perceivedAiValue += this.getContextualPlayerValue(player, tier);
+    }
+    for (const pick of receivingPicks) {
+      perceivedAiValue += this.getContextualPickValue(pick, tier);
+    }
 
-  // ── Trade evaluation ────────────────────────────────────────────────────────
+    // Edge Case 1: Nothing for Nothing
+    if (perceivedUserValue === 0 && perceivedAiValue === 0) {
+      return {
+        accepted: false,
+        reason: "This trade does nothing for either of us.",
+        fairnessScore: 0
+      };
+    }
 
-  /**
-   * Evaluate a trade from the RECEIVING team's perspective.
-   * Returns whether the offering team's side is worth at least 85% of what
-   * the receiving team is giving up.
-   */
-  evaluateTrade(params: {
-    offeringPlayers:   Player[];
-    offeringPicks:     EvaluatedPick[];
-    receivingPlayers:  Player[];
-    receivingPicks:    EvaluatedPick[];
-    receivingTeam:     Team;
-    allPlayers:        Player[];
-    currentWeek:       number;
-  }): TradeOfferValuation {
-    const receivingTier = this.getFranchiseTier(params.receivingTeam, params.allPlayers);
+    // Edge Case 2: Donation (User gives assets for free)
+    if (perceivedAiValue === 0 && perceivedUserValue > 0) {
+      return {
+        accepted: true,
+        reason: "We gladly accept this donation.",
+        fairnessScore: Infinity
+      };
+    }
 
-    // What the offering team is sending
-    const offeringValue =
-      params.offeringPlayers.reduce(
-        (sum, p) => sum + this.calculatePlayerValue(p, receivingTier, params.currentWeek), 0
-      ) +
-      params.offeringPicks.reduce((sum, ep) => sum + ep.value, 0);
+    // Prevent division by zero
+    if (perceivedAiValue === 0) perceivedAiValue = 1;
 
-    // What the receiving team is sending away
-    const receivingValue =
-      params.receivingPlayers.reduce(
-        (sum, p) => sum + this.calculatePlayerValue(p, receivingTier, params.currentWeek), 0
-      ) +
-      params.receivingPicks.reduce((sum, ep) => sum + ep.value, 0);
+    const fairnessRatio = perceivedUserValue / perceivedAiValue;
 
-    const threshold = receivingValue * 0.85;
-
-    return {
-      offeringTeamValue: offeringValue,
-      receivingTeamValue: receivingValue,
-      isAcceptable: offeringValue >= threshold,
-      offeringSurplus: offeringValue - receivingValue,
-    };
-  }
-
-  // ── Rebuilder trade block logic ────────────────────────────────────────────
-
-  /**
-   * Determine which players a Rebuilder should actively shop.
-   * Returns player IDs the AI should put on the trade block.
-   */
-  getTradeBlockCandidates(team: Team, allPlayers: Player[], tier: FranchiseTier): string[] {
-    if (tier !== FranchiseTier.REBUILDER && tier !== FranchiseTier.PURGATORY) return [];
-
-    const roster = allPlayers.filter(p => p.teamId === team.id);
-    return roster
-      .filter(p => {
-        const isExpensive = (p.contract?.currentYearCap ?? 0) > 12_000_000;
-        const isVeteran = p.age >= 28;
-        const isNotElite = p.overall < 88;
-        return isExpensive && isVeteran && isNotElite;
-      })
-      .map(p => p.id);
-  }
-
-  // ── Helpers ─────────────────────────────────────────────────────────────────
-
-  private _getCapHit(team: Team, allPlayers: Player[]): number {
-    return allPlayers
-      .filter(p => p.teamId === team.id)
-      .reduce((sum, p) => sum + (p.contract?.currentYearCap ?? 0), 0);
-  }
-
-  private _getRosterRating(team: Team, allPlayers: Player[]): number {
-    const roster = allPlayers
-      .filter(p => p.teamId === team.id)
-      .sort((a, b) => b.overall - a.overall)
-      .slice(0, 22);
-    if (roster.length === 0) return 70;
-    return roster.reduce((sum, p) => sum + p.overall, 0) / roster.length;
+    // The Human Tax Logic
+    if (fairnessRatio >= 1.05) {
+      return {
+        accepted: true,
+        reason: "We accept. This makes sense for our timeline.",
+        fairnessScore: fairnessRatio
+      };
+    } else if (fairnessRatio >= 0.90) {
+      return {
+        accepted: false,
+        reason: "It's close, but we need a little more value on our end.",
+        fairnessScore: fairnessRatio
+      };
+    } else {
+      return {
+        accepted: false,
+        reason: "We are too far apart. We value our assets much higher than this.",
+        fairnessScore: fairnessRatio
+      };
+    }
   }
 }

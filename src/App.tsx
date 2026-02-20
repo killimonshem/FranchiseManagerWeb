@@ -153,7 +153,7 @@ export default function App() {
         return <RosterScreen setScreen={setScreen} setDetail={setDetail} players={teamPlayers} />;
       case "playerProfile":
         return <PlayerProfileScreen player={detail} setScreen={setScreen} />;
-      case "draft":      return <DraftScreen userTeamAbbr={userTeamMeta?.abbr ?? ""} />;
+      case "draft":      return <DraftScreen userTeamAbbr={userTeamMeta?.abbr ?? ""} gsm={gameStateManager} refresh={refresh} />;
       case "finances":   return <FinancesScreen />;
       case "inbox":      return <InboxScreen />;
       case "schedule":   return <ScheduleScreen />;
@@ -187,7 +187,7 @@ export default function App() {
 
   return (
     <div style={{
-      display: "flex", flexDirection: "row", height: "100vh", overflow: "hidden",
+      display: "flex", flexDirection: "row", height: "100dvh", overflow: "hidden",
       background: COLORS.bg, fontFamily: FONT.system, color: COLORS.light,
     }}>
       <style>{`
@@ -199,6 +199,8 @@ export default function App() {
         ::-webkit-scrollbar-track { background: ${COLORS.bg}; }
         ::-webkit-scrollbar-thumb { background: ${COLORS.darkMagenta}; border-radius: 3px; }
         select { outline: none; }
+        select:focus-visible { outline: 2px solid ${COLORS.lime}; outline-offset: 2px; }
+        button:focus-visible { outline: 2px solid ${COLORS.lime}; outline-offset: 2px; }
         button { transition: all 0.12s; }
         button:not(:disabled):hover { filter: brightness(1.15); }
         input { font-family: inherit; }
@@ -279,7 +281,7 @@ export default function App() {
       {/* Main Content */}
       <main style={{
         flex: 1, display: "flex", flexDirection: "column",
-        height: "100vh", overflow: "hidden",
+        height: "100%", overflow: "hidden",
       }}>
         {/* ── Persistent Top Nav ─────────────────────────────────────── */}
         <header style={{
@@ -292,7 +294,7 @@ export default function App() {
           zIndex: 100,
         }}>
           {/* Left: clock info */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div role="status" aria-label={`Current time: Week ${WEEK}, ${PHASE_LABEL}, Season ${SEASON}`} style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {isMobile && (
               <span style={{ fontSize: 13, fontWeight: 800, color: COLORS.light }}>FM 2025</span>
             )}
@@ -345,6 +347,7 @@ export default function App() {
             ) : null}
             <button
               onClick={handleAdvance}
+              aria-busy={isSimulating}
               disabled={advanceBtnDisabled}
               style={{
                 background: hasCriticalError
@@ -388,7 +391,12 @@ export default function App() {
         )}
 
         {/* ── Screen content ───────────────────────────────────────────── */}
-        <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? 16 : 30 }}>
+        <div style={{
+          flex: 1, overflowY: "auto",
+          padding: isMobile ? 16 : 30,
+          paddingBottom: isMobile ? "calc(80px + env(safe-area-inset-bottom))" : 30,
+          WebkitOverflowScrolling: "touch",
+        }}>
           {renderScreen()}
         </div>
       </main>
@@ -398,7 +406,8 @@ export default function App() {
         <nav style={{
           width: "100%", background: COLORS.bg, borderTop: `1px solid ${COLORS.darkMagenta}`,
           display: "flex", flexDirection: "row", flexShrink: 0,
-          position: "fixed", bottom: 0, left: 0, height: 65, zIndex: 200,
+          position: "fixed", bottom: 0, left: 0, zIndex: 200,
+          height: "calc(65px + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)",
         }}>
           {ARCHITECTURE.map(item => {
             const Icon = item.icon;
@@ -415,6 +424,17 @@ export default function App() {
               </button>
             );
           })}
+          {/* Mobile Inbox Item (Manually added to match Desktop Sidebar) */}
+          <button onClick={() => { setScreen("inbox"); setDetail(null); }} style={{
+            flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4,
+            background: screen === "inbox" ? "rgba(141,36,110,0.15)" : "transparent",
+            border: "none", borderTop: screen === "inbox" ? `3px solid ${COLORS.magenta}` : "3px solid transparent",
+            color: screen === "inbox" ? COLORS.light : COLORS.muted,
+            cursor: "pointer",
+          }}>
+            <Mail size={20} color={screen === "inbox" ? COLORS.lime : COLORS.muted} />
+            <span style={{ fontSize: 9, fontWeight: screen === "inbox" ? 700 : 500 }}>Inbox</span>
+          </button>
         </nav>
       )}
     </div>
