@@ -56,6 +56,7 @@ export function DashboardScreen({
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, animation: "fadeIn .4s" }}>
+      <style>{`@media (max-width: 640px) { .dash-morale { display: none !important; } }`}</style>
 
       {/* Hero */}
       <div style={{
@@ -127,7 +128,7 @@ export function DashboardScreen({
               </div>
             </div>
             <PosTag pos={p.position} />
-            <MoraleMeter value={p.morale} />
+            <span className="dash-morale"><MoraleMeter value={p.morale} /></span>
           </div>
         ))}
       </Section>

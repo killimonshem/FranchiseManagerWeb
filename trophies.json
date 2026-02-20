@@ -1,0 +1,474 @@
+{
+  "dataset_info": {
+    "as_of_season": 2026,
+    "last_updated": "2026-02-08"
+  },
+  "records": {
+    "ARI": {
+      "conference_championships": [
+        { "season": 2008, "opponent_abbr": "PHI", "points_for": 32, "points_against": 25, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 2008, "numeral": "XLIII", "opponent_abbr": "PIT", "points_for": 23, "points_against": 27, "won": false }
+      ]
+    },
+    "ATL": {
+      "conference_championships": [
+        { "season": 1998, "opponent_abbr": "MIN", "points_for": 30, "points_against": 27, "won": true },
+        { "season": 2016, "opponent_abbr": "GB", "points_for": 44, "points_against": 21, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 1998, "numeral": "XXXIII", "opponent_abbr": "DEN", "points_for": 19, "points_against": 34, "won": false },
+        { "season": 2016, "numeral": "LI", "opponent_abbr": "NE", "points_for": 28, "points_against": 34, "won": false }
+      ]
+    },
+    "BAL": {
+      "conference_championships": [
+        { "season": 2000, "opponent_abbr": "LV", "points_for": 16, "points_against": 3, "won": true },
+        { "season": 2012, "opponent_abbr": "NE", "points_for": 28, "points_against": 13, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 2000, "numeral": "XXXV", "opponent_abbr": "NYG", "points_for": 34, "points_against": 7, "won": true },
+        { "season": 2012, "numeral": "XLVII", "opponent_abbr": "SF", "points_for": 34, "points_against": 31, "won": true }
+      ]
+    },
+    "BUF": {
+      "conference_championships": [
+        { "season": 1990, "opponent_abbr": "LV", "points_for": 51, "points_against": 3, "won": true },
+        { "season": 1991, "opponent_abbr": "DEN", "points_for": 10, "points_against": 7, "won": true },
+        { "season": 1992, "opponent_abbr": "MIA", "points_for": 29, "points_against": 10, "won": true },
+        { "season": 1993, "opponent_abbr": "KC", "points_for": 30, "points_against": 13, "won": true },
+        { "season": 2020, "opponent_abbr": "KC", "points_for": 24, "points_against": 38, "won": false }
+      ],
+      "super_bowls": [
+        { "season": 1990, "numeral": "XXV", "opponent_abbr": "NYG", "points_for": 19, "points_against": 20, "won": false },
+        { "season": 1991, "numeral": "XXVI", "opponent_abbr": "WAS", "points_for": 24, "points_against": 37, "won": false },
+        { "season": 1992, "numeral": "XXVII", "opponent_abbr": "DAL", "points_for": 17, "points_against": 52, "won": false },
+        { "season": 1993, "numeral": "XXVIII", "opponent_abbr": "DAL", "points_for": 13, "points_against": 30, "won": false }
+      ]
+    },
+    "CAR": {
+      "conference_championships": [
+        { "season": 2003, "opponent_abbr": "PHI", "points_for": 14, "points_against": 29, "won": true },
+        { "season": 2015, "opponent_abbr": "ARI", "points_for": 49, "points_against": 15, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 2003, "numeral": "XXXVIII", "opponent_abbr": "NE", "points_for": 29, "points_against": 32, "won": false },
+        { "season": 2015, "numeral": "50", "opponent_abbr": "DEN", "points_for": 10, "points_against": 24, "won": false }
+      ]
+    },
+    "CHI": {
+      "conference_championships": [
+        { "season": 1963, "opponent_abbr": "NYG", "points_for": 14, "points_against": 10, "won": true },
+        { "season": 1985, "opponent_abbr": "LV", "points_for": 24, "points_against": 0, "won": true },
+        { "season": 2006, "opponent_abbr": "NO", "points_for": 39, "points_against": 14, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 1985, "numeral": "XX", "opponent_abbr": "NE", "points_for": 46, "points_against": 10, "won": true },
+        { "season": 2006, "numeral": "XLI", "opponent_abbr": "IND", "points_for": 17, "points_against": 29, "won": false }
+      ]
+    },
+    "CIN": {
+      "conference_championships": [
+        { "season": 1981, "opponent_abbr": "SD", "points_for": 27, "points_against": 7, "won": true },
+        { "season": 1988, "opponent_abbr": "BUF", "points_for": 21, "points_against": 10, "won": true },
+        { "season": 2021, "opponent_abbr": "KC", "points_for": 27, "points_against": 24, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 1981, "numeral": "XVI", "opponent_abbr": "SF", "points_for": 21, "points_against": 26, "won": false },
+        { "season": 1988, "numeral": "XXIII", "opponent_abbr": "SF", "points_for": 16, "points_against": 20, "won": false },
+        { "season": 2021, "numeral": "LVI", "opponent_abbr": "LV", "points_for": 20, "points_against": 23, "won": false }
+      ]
+    },
+    "CLE": {
+      "conference_championships": [
+        { "season": 1950, "opponent_abbr": "LV", "points_for": 30, "points_against": 28, "won": true },
+        { "season": 1954, "opponent_abbr": "DET", "points_for": 56, "points_against": 10, "won": true },
+        { "season": 1955, "opponent_abbr": "LV", "points_for": 38, "points_against": 14, "won": true },
+        { "season": 1964, "opponent_abbr": "BAL", "points_for": 27, "points_against": 0, "won": true }
+      ],
+      "super_bowls": []
+    },
+    "DAL": {
+      "conference_championships": [
+        { "season": 1970, "opponent_abbr": "SF", "points_for": 17, "points_against": 10, "won": true },
+        { "season": 1971, "opponent_abbr": "SF", "points_for": 14, "points_against": 3, "won": true },
+        { "season": 1975, "opponent_abbr": "LV", "points_for": 37, "points_against": 7, "won": true },
+        { "season": 1977, "opponent_abbr": "MIN", "points_for": 23, "points_against": 6, "won": true },
+        { "season": 1978, "opponent_abbr": "LV", "points_for": 28, "points_against": 0, "won": true },
+        { "season": 1992, "opponent_abbr": "SF", "points_for": 30, "points_against": 20, "won": true },
+        { "season": 1993, "opponent_abbr": "SF", "points_for": 38, "points_against": 21, "won": true },
+        { "season": 1995, "opponent_abbr": "GB", "points_for": 38, "points_against": 27, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 1970, "numeral": "V", "opponent_abbr": "BAL", "points_for": 13, "points_against": 16, "won": false },
+        { "season": 1971, "numeral": "VI", "opponent_abbr": "MIA", "points_for": 24, "points_against": 3, "won": true },
+        { "season": 1975, "numeral": "X", "opponent_abbr": "PIT", "points_for": 17, "points_against": 21, "won": false },
+        { "season": 1977, "numeral": "XII", "opponent_abbr": "DEN", "points_for": 27, "points_against": 10, "won": true },
+        { "season": 1978, "numeral": "XIII", "opponent_abbr": "PIT", "points_for": 31, "points_against": 35, "won": false },
+        { "season": 1992, "numeral": "XXVII", "opponent_abbr": "BUF", "points_for": 52, "points_against": 17, "won": true },
+        { "season": 1993, "numeral": "XXVIII", "opponent_abbr": "BUF", "points_for": 30, "points_against": 13, "won": true },
+        { "season": 1995, "numeral": "XXX", "opponent_abbr": "PIT", "points_for": 27, "points_against": 17, "won": true }
+      ]
+    },
+    "DEN": {
+      "conference_championships": [
+        { "season": 1977, "opponent_abbr": "LV", "points_for": 20, "points_against": 17, "won": true },
+        { "season": 1986, "opponent_abbr": "CLE", "points_for": 23, "points_against": 20, "won": true },
+        { "season": 1987, "opponent_abbr": "CLE", "points_for": 38, "points_against": 33, "won": true },
+        { "season": 1989, "opponent_abbr": "CLE", "points_for": 37, "points_against": 21, "won": true },
+        { "season": 1997, "opponent_abbr": "PIT", "points_for": 24, "points_against": 21, "won": true },
+        { "season": 1998, "opponent_abbr": "NYJ", "points_for": 23, "points_against": 10, "won": true },
+        { "season": 2013, "opponent_abbr": "NE", "points_for": 26, "points_against": 16, "won": true },
+        { "season": 2015, "opponent_abbr": "NE", "points_for": 20, "points_against": 18, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 1977, "numeral": "XII", "opponent_abbr": "DAL", "points_for": 10, "points_against": 27, "won": false },
+        { "season": 1986, "numeral": "XXI", "opponent_abbr": "NYG", "points_for": 20, "points_against": 39, "won": false },
+        { "season": 1987, "numeral": "XXII", "opponent_abbr": "WAS", "points_for": 10, "points_against": 42, "won": false },
+        { "season": 1989, "numeral": "XXIV", "opponent_abbr": "SF", "points_for": 10, "points_against": 55, "won": false },
+        { "season": 1997, "numeral": "XXXII", "opponent_abbr": "GB", "points_for": 31, "points_against": 24, "won": true },
+        { "season": 1998, "numeral": "XXXIII", "opponent_abbr": "ATL", "points_for": 34, "points_against": 19, "won": true },
+        { "season": 2013, "numeral": "XLVIII", "opponent_abbr": "SEA", "points_for": 8, "points_against": 43, "won": false },
+        { "season": 2015, "numeral": "50", "opponent_abbr": "CAR", "points_for": 24, "points_against": 10, "won": true }
+      ]
+    },
+    "DET": {
+      "conference_championships": [
+        { "season": 1935, "opponent_abbr": "NYG", "points_for": 26, "points_against": 7, "won": true },
+        { "season": 1952, "opponent_abbr": "CLE", "points_for": 17, "points_against": 7, "won": true },
+        { "season": 1953, "opponent_abbr": "CLE", "points_for": 17, "points_against": 16, "won": true },
+        { "season": 1957, "opponent_abbr": "CLE", "points_for": 59, "points_against": 14, "won": true }
+      ],
+      "super_bowls": []
+    },
+    "GB": {
+      "conference_championships": [
+        { "season": 1961, "opponent_abbr": "NYG", "points_for": 37, "points_against": 0, "won": true },
+        { "season": 1962, "opponent_abbr": "NYG", "points_for": 16, "points_against": 7, "won": true },
+        { "season": 1965, "opponent_abbr": "CLE", "points_for": 23, "points_against": 12, "won": true },
+        { "season": 1966, "opponent_abbr": "DAL", "points_for": 34, "points_against": 27, "won": true },
+        { "season": 1967, "opponent_abbr": "DAL", "points_for": 21, "points_against": 17, "won": true },
+        { "season": 1996, "opponent_abbr": "CAR", "points_for": 30, "points_against": 13, "won": true },
+        { "season": 1997, "opponent_abbr": "SF", "points_for": 23, "points_against": 10, "won": true },
+        { "season": 2010, "opponent_abbr": "CHI", "points_for": 21, "points_against": 14, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 1966, "numeral": "I", "opponent_abbr": "KC", "points_for": 35, "points_against": 10, "won": true },
+        { "season": 1967, "numeral": "II", "opponent_abbr": "LV", "points_for": 33, "points_against": 14, "won": true },
+        { "season": 1996, "numeral": "XXXI", "opponent_abbr": "NE", "points_for": 35, "points_against": 21, "won": true },
+        { "season": 1997, "numeral": "XXXII", "opponent_abbr": "DEN", "points_for": 24, "points_against": 31, "won": false },
+        { "season": 2010, "numeral": "XLV", "opponent_abbr": "PIT", "points_for": 31, "points_against": 25, "won": true }
+      ]
+    },
+    "HOU": {
+      "conference_championships": [],
+      "super_bowls": []
+    },
+    "IND": {
+      "conference_championships": [
+        { "season": 1958, "opponent_abbr": "NYG", "points_for": 23, "points_against": 17, "won": true },
+        { "season": 1959, "opponent_abbr": "NYG", "points_for": 31, "points_against": 16, "won": true },
+        { "season": 1968, "opponent_abbr": "CLE", "points_for": 34, "points_against": 0, "won": true },
+        { "season": 1970, "opponent_abbr": "LV", "points_for": 27, "points_against": 17, "won": true },
+        { "season": 2006, "opponent_abbr": "NE", "points_for": 38, "points_against": 34, "won": true },
+        { "season": 2009, "opponent_abbr": "NYJ", "points_for": 30, "points_against": 17, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 1968, "numeral": "III", "opponent_abbr": "NYJ", "points_for": 7, "points_against": 16, "won": false },
+        { "season": 1970, "numeral": "V", "opponent_abbr": "DAL", "points_for": 16, "points_against": 13, "won": true },
+        { "season": 2006, "numeral": "XLI", "opponent_abbr": "CHI", "points_for": 29, "points_against": 17, "won": true },
+        { "season": 2009, "numeral": "XLIV", "opponent_abbr": "NO", "points_for": 17, "points_against": 31, "won": false }
+      ]
+    },
+    "JAX": {
+      "conference_championships": [
+        { "season": 2017, "opponent_abbr": "NE", "points_for": 20, "points_against": 24, "won": false }
+      ],
+      "super_bowls": []
+    },
+    "KC": {
+      "conference_championships": [
+        { "season": 1962, "opponent_abbr": "HOU", "points_for": 20, "points_against": 17, "won": true },
+        { "season": 1966, "opponent_abbr": "BUF", "points_for": 31, "points_against": 7, "won": true },
+        { "season": 1969, "opponent_abbr": "LV", "points_for": 17, "points_against": 7, "won": true },
+        { "season": 2019, "opponent_abbr": "TEN", "points_for": 35, "points_against": 24, "won": true },
+        { "season": 2020, "opponent_abbr": "BUF", "points_for": 38, "points_against": 24, "won": true },
+        { "season": 2022, "opponent_abbr": "CIN", "points_for": 23, "points_against": 20, "won": true },
+        { "season": 2023, "opponent_abbr": "BAL", "points_for": 17, "points_against": 10, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 1966, "numeral": "I", "opponent_abbr": "GB", "points_for": 10, "points_against": 35, "won": false },
+        { "season": 1969, "numeral": "IV", "opponent_abbr": "MIN", "points_for": 23, "points_against": 7, "won": true },
+        { "season": 2019, "numeral": "LIV", "opponent_abbr": "SF", "points_for": 31, "points_against": 20, "won": true },
+        { "season": 2020, "numeral": "LV", "opponent_abbr": "TB", "points_for": 9, "points_against": 31, "won": false },
+        { "season": 2022, "numeral": "LVII", "opponent_abbr": "PHI", "points_for": 38, "points_against": 35, "won": true },
+        { "season": 2023, "numeral": "LVIII", "opponent_abbr": "SF", "points_for": 25, "points_against": 22, "won": true }
+      ]
+    },
+    "LV": {
+      "conference_championships": [
+        { "season": 1967, "opponent_abbr": "HOU", "points_for": 40, "points_against": 7, "won": true },
+        { "season": 1976, "opponent_abbr": "PIT", "points_for": 24, "points_against": 7, "won": true },
+        { "season": 1980, "opponent_abbr": "SD", "points_for": 34, "points_against": 27, "won": true },
+        { "season": 1983, "opponent_abbr": "SEA", "points_for": 30, "points_against": 14, "won": true },
+        { "season": 2002, "opponent_abbr": "TEN", "points_for": 41, "points_against": 24, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 1967, "numeral": "II", "opponent_abbr": "GB", "points_for": 14, "points_against": 33, "won": false },
+        { "season": 1976, "numeral": "XI", "opponent_abbr": "MIN", "points_for": 32, "points_against": 14, "won": true },
+        { "season": 1980, "numeral": "XV", "opponent_abbr": "PHI", "points_for": 27, "points_against": 10, "won": true },
+        { "season": 1983, "numeral": "XVIII", "opponent_abbr": "WAS", "points_for": 38, "points_against": 9, "won": true },
+        { "season": 2002, "numeral": "XXXVII", "opponent_abbr": "TB", "points_for": 21, "points_against": 48, "won": false }
+      ]
+    },
+    "LAC": {
+      "conference_championships": [
+        { "season": 1963, "opponent_abbr": "BOS", "points_for": 51, "points_against": 10, "won": true },
+        { "season": 1994, "opponent_abbr": "PIT", "points_for": 17, "points_against": 13, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 1994, "numeral": "XXIX", "opponent_abbr": "SF", "points_for": 26, "points_against": 49, "won": false }
+      ]
+    },
+    "LAR": {
+      "conference_championships": [
+        { "season": 1945, "opponent_abbr": "WAS", "points_for": 15, "points_against": 14, "won": true },
+        { "season": 1949, "opponent_abbr": "PHI", "points_for": 0, "points_against": 14, "won": false },
+        { "season": 1950, "opponent_abbr": "CLE", "points_for": 28, "points_against": 30, "won": false },
+        { "season": 1951, "opponent_abbr": "CLE", "points_for": 24, "points_against": 17, "won": true },
+        { "season": 1955, "opponent_abbr": "CLE", "points_for": 14, "points_against": 38, "won": false },
+        { "season": 1979, "opponent_abbr": "TB", "points_for": 9, "points_against": 0, "won": true },
+        { "season": 1999, "opponent_abbr": "TB", "points_for": 11, "points_against": 6, "won": true },
+        { "season": 2001, "opponent_abbr": "PHI", "points_for": 29, "points_against": 24, "won": true },
+        { "season": 2018, "opponent_abbr": "NO", "points_for": 26, "points_against": 23, "won": true },
+        { "season": 2021, "opponent_abbr": "SF", "points_for": 20, "points_against": 17, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 1979, "numeral": "XIV", "opponent_abbr": "PIT", "points_for": 19, "points_against": 31, "won": false },
+        { "season": 1999, "numeral": "XXXIV", "opponent_abbr": "TEN", "points_for": 23, "points_against": 16, "won": true },
+        { "season": 2001, "numeral": "XXXVI", "opponent_abbr": "NE", "points_for": 17, "points_against": 20, "won": false },
+        { "season": 2018, "numeral": "LIII", "opponent_abbr": "NE", "points_for": 3, "points_against": 13, "won": false },
+        { "season": 2021, "numeral": "LVI", "opponent_abbr": "CIN", "points_for": 23, "points_against": 20, "won": true }
+      ]
+    },
+    "MIA": {
+      "conference_championships": [
+        { "season": 1971, "opponent_abbr": "BAL", "points_for": 21, "points_against": 0, "won": true },
+        { "season": 1972, "opponent_abbr": "PIT", "points_for": 21, "points_against": 17, "won": true },
+        { "season": 1973, "opponent_abbr": "LV", "points_for": 27, "points_against": 10, "won": true },
+        { "season": 1982, "opponent_abbr": "NYJ", "points_for": 14, "points_against": 0, "won": true },
+        { "season": 1984, "opponent_abbr": "PIT", "points_for": 45, "points_against": 28, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 1971, "numeral": "VI", "opponent_abbr": "DAL", "points_for": 3, "points_against": 24, "won": false },
+        { "season": 1972, "numeral": "VII", "opponent_abbr": "WAS", "points_for": 14, "points_against": 7, "won": true },
+        { "season": 1973, "numeral": "VIII", "opponent_abbr": "MIN", "points_for": 24, "points_against": 7, "won": true },
+        { "season": 1982, "numeral": "XVII", "opponent_abbr": "WAS", "points_for": 17, "points_against": 27, "won": false },
+        { "season": 1984, "numeral": "XIX", "opponent_abbr": "SF", "points_for": 16, "points_against": 38, "won": false }
+      ]
+    },
+    "MIN": {
+      "conference_championships": [
+        { "season": 1969, "opponent_abbr": "CLE", "points_for": 27, "points_against": 7, "won": true },
+        { "season": 1973, "opponent_abbr": "DAL", "points_for": 27, "points_against": 10, "won": true },
+        { "season": 1974, "opponent_abbr": "LV", "points_for": 14, "points_against": 10, "won": true },
+        { "season": 1976, "opponent_abbr": "LV", "points_for": 24, "points_against": 13, "won": true },
+        { "season": 2017, "opponent_abbr": "PHI", "points_for": 7, "points_against": 38, "won": false }
+      ],
+      "super_bowls": [
+        { "season": 1969, "numeral": "IV", "opponent_abbr": "KC", "points_for": 7, "points_against": 23, "won": false },
+        { "season": 1973, "numeral": "VIII", "opponent_abbr": "MIA", "points_for": 7, "points_against": 24, "won": false },
+        { "season": 1974, "numeral": "IX", "opponent_abbr": "PIT", "points_for": 6, "points_against": 16, "won": false },
+        { "season": 1976, "numeral": "XI", "opponent_abbr": "LV", "points_for": 14, "points_against": 32, "won": false }
+      ]
+    },
+    "NE": {
+      "conference_championships": [
+        { "season": 1985, "opponent_abbr": "MIA", "points_for": 31, "points_against": 14, "won": true },
+        { "season": 1996, "opponent_abbr": "JAX", "points_for": 20, "points_against": 6, "won": true },
+        { "season": 2001, "opponent_abbr": "PIT", "points_for": 24, "points_against": 17, "won": true },
+        { "season": 2003, "opponent_abbr": "IND", "points_for": 24, "points_against": 14, "won": true },
+        { "season": 2004, "opponent_abbr": "PIT", "points_for": 41, "points_against": 27, "won": true },
+        { "season": 2007, "opponent_abbr": "SD", "points_for": 21, "points_against": 12, "won": true },
+        { "season": 2011, "opponent_abbr": "BAL", "points_for": 23, "points_against": 20, "won": true },
+        { "season": 2014, "opponent_abbr": "IND", "points_for": 45, "points_against": 7, "won": true },
+        { "season": 2016, "opponent_abbr": "PIT", "points_for": 36, "points_against": 17, "won": true },
+        { "season": 2017, "opponent_abbr": "JAX", "points_for": 24, "points_against": 20, "won": true },
+        { "season": 2018, "opponent_abbr": "KC", "points_for": 37, "points_against": 31, "won": true },
+        { "season": 2025, "opponent_abbr": "DEN", "points_for": 10, "points_against": 7, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 1985, "numeral": "XX", "opponent_abbr": "CHI", "points_for": 10, "points_against": 46, "won": false },
+        { "season": 1996, "numeral": "XXXI", "opponent_abbr": "GB", "points_for": 21, "points_against": 35, "won": false },
+        { "season": 2001, "numeral": "XXXVI", "opponent_abbr": "LV", "points_for": 20, "points_against": 17, "won": true },
+        { "season": 2003, "numeral": "XXXVIII", "opponent_abbr": "CAR", "points_for": 32, "points_against": 29, "won": true },
+        { "season": 2004, "numeral": "XXXIX", "opponent_abbr": "PHI", "points_for": 24, "points_against": 21, "won": true },
+        { "season": 2007, "numeral": "XLII", "opponent_abbr": "NYG", "points_for": 14, "points_against": 17, "won": false },
+        { "season": 2011, "numeral": "XLVI", "opponent_abbr": "NYG", "points_for": 17, "points_against": 21, "won": false },
+        { "season": 2014, "numeral": "XLIX", "opponent_abbr": "SEA", "points_for": 28, "points_against": 24, "won": true },
+        { "season": 2016, "numeral": "LI", "opponent_abbr": "ATL", "points_for": 34, "points_against": 28, "won": true },
+        { "season": 2017, "numeral": "LII", "opponent_abbr": "PHI", "points_for": 33, "points_against": 41, "won": false },
+        { "season": 2018, "numeral": "LIII", "opponent_abbr": "LV", "points_for": 13, "points_against": 3, "won": true },
+        { "season": 2025, "numeral": "LX", "opponent_abbr": "SEA", "points_for": 13, "points_against": 29, "won": false }
+      ]
+    },
+    "NO": {
+      "conference_championships": [
+        { "season": 2009, "opponent_abbr": "MIN", "points_for": 31, "points_against": 28, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 2009, "numeral": "XLIV", "opponent_abbr": "IND", "points_for": 31, "points_against": 17, "won": true }
+      ]
+    },
+    "NYG": {
+      "conference_championships": [
+        { "season": 1956, "opponent_abbr": "CHI", "points_for": 47, "points_against": 7, "won": true },
+        { "season": 1958, "opponent_abbr": "BAL", "points_for": 17, "points_against": 23, "won": false },
+        { "season": 1959, "opponent_abbr": "BAL", "points_for": 16, "points_against": 31, "won": false },
+        { "season": 1961, "opponent_abbr": "GB", "points_for": 0, "points_against": 37, "won": false },
+        { "season": 1962, "opponent_abbr": "GB", "points_for": 7, "points_against": 16, "won": false },
+        { "season": 1963, "opponent_abbr": "CHI", "points_for": 10, "points_against": 14, "won": false },
+        { "season": 1986, "opponent_abbr": "WAS", "points_for": 17, "points_against": 0, "won": true },
+        { "season": 1990, "opponent_abbr": "SF", "points_for": 15, "points_against": 13, "won": true },
+        { "season": 2000, "opponent_abbr": "MIN", "points_for": 41, "points_against": 0, "won": true },
+        { "season": 2007, "opponent_abbr": "GB", "points_for": 23, "points_against": 20, "won": true },
+        { "season": 2011, "opponent_abbr": "SF", "points_for": 20, "points_against": 17, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 1986, "numeral": "XXI", "opponent_abbr": "DEN", "points_for": 39, "points_against": 20, "won": true },
+        { "season": 1990, "numeral": "XXV", "opponent_abbr": "BUF", "points_for": 20, "points_against": 19, "won": true },
+        { "season": 2000, "numeral": "XXXV", "opponent_abbr": "BAL", "points_for": 7, "points_against": 34, "won": false },
+        { "season": 2007, "numeral": "XLII", "opponent_abbr": "NE", "points_for": 17, "points_against": 14, "won": true },
+        { "season": 2011, "numeral": "XLVI", "opponent_abbr": "NE", "points_for": 21, "points_against": 17, "won": true }
+      ]
+    },
+    "NYJ": {
+      "conference_championships": [
+        { "season": 1968, "opponent_abbr": "LV", "points_for": 27, "points_against": 23, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 1968, "numeral": "III", "opponent_abbr": "BAL", "points_for": 16, "points_against": 7, "won": true }
+      ]
+    },
+    "PHI": {
+      "conference_championships": [
+        { "season": 1948, "opponent_abbr": "CHI", "points_for": 7, "points_against": 0, "won": true },
+        { "season": 1949, "opponent_abbr": "LV", "points_for": 14, "points_against": 0, "won": true },
+        { "season": 1960, "opponent_abbr": "GB", "points_for": 17, "points_against": 13, "won": true },
+        { "season": 1980, "opponent_abbr": "DAL", "points_for": 20, "points_against": 7, "won": true },
+        { "season": 2004, "opponent_abbr": "ATL", "points_for": 27, "points_against": 10, "won": true },
+        { "season": 2017, "opponent_abbr": "MIN", "points_for": 38, "points_against": 7, "won": true },
+        { "season": 2022, "opponent_abbr": "SF", "points_for": 31, "points_against": 7, "won": true },
+        { "season": 2024, "opponent_abbr": "WAS", "points_for": 55, "points_against": 23, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 1980, "numeral": "XV", "opponent_abbr": "LV", "points_for": 10, "points_against": 27, "won": false },
+        { "season": 2004, "numeral": "XXXIX", "opponent_abbr": "NE", "points_for": 21, "points_against": 24, "won": false },
+        { "season": 2017, "numeral": "LII", "opponent_abbr": "NE", "points_for": 41, "points_against": 33, "won": true },
+        { "season": 2022, "numeral": "LVII", "opponent_abbr": "KC", "points_for": 35, "points_against": 38, "won": false },
+        { "season": 2024, "numeral": "LIX", "opponent_abbr": "KC", "points_for": 40, "points_against": 22, "won": true }
+      ]
+    },
+    "PIT": {
+      "conference_championships": [
+        { "season": 1974, "opponent_abbr": "LV", "points_for": 24, "points_against": 13, "won": true },
+        { "season": 1975, "opponent_abbr": "LV", "points_for": 16, "points_against": 10, "won": true },
+        { "season": 1978, "opponent_abbr": "HOU", "points_for": 34, "points_against": 5, "won": true },
+        { "season": 1979, "opponent_abbr": "HOU", "points_for": 27, "points_against": 13, "won": true },
+        { "season": 1995, "opponent_abbr": "IND", "points_for": 20, "points_against": 16, "won": true },
+        { "season": 2005, "opponent_abbr": "DEN", "points_for": 34, "points_against": 17, "won": true },
+        { "season": 2008, "opponent_abbr": "BAL", "points_for": 23, "points_against": 14, "won": true },
+        { "season": 2010, "opponent_abbr": "NYJ", "points_for": 24, "points_against": 19, "won": true },
+        { "season": 2016, "opponent_abbr": "NE", "points_for": 17, "points_against": 36, "won": false }
+      ],
+      "super_bowls": [
+        { "season": 1974, "numeral": "IX", "opponent_abbr": "MIN", "points_for": 16, "points_against": 6, "won": true },
+        { "season": 1975, "numeral": "X", "opponent_abbr": "DAL", "points_for": 21, "points_against": 17, "won": true },
+        { "season": 1978, "numeral": "XIII", "opponent_abbr": "DAL", "points_for": 35, "points_against": 31, "won": true },
+        { "season": 1979, "numeral": "XIV", "opponent_abbr": "LV", "points_for": 31, "points_against": 19, "won": true },
+        { "season": 1995, "numeral": "XXX", "opponent_abbr": "DAL", "points_for": 17, "points_against": 27, "won": false },
+        { "season": 2005, "numeral": "XL", "opponent_abbr": "SEA", "points_for": 21, "points_against": 10, "won": true },
+        { "season": 2008, "numeral": "XLIII", "opponent_abbr": "ARI", "points_for": 27, "points_against": 23, "won": true },
+        { "season": 2010, "numeral": "XLV", "opponent_abbr": "GB", "points_for": 25, "points_against": 31, "won": false }
+      ]
+    },
+    "SF": {
+      "conference_championships": [
+        { "season": 1981, "opponent_abbr": "DAL", "points_for": 28, "points_against": 27, "won": true },
+        { "season": 1984, "opponent_abbr": "CHI", "points_for": 23, "points_against": 0, "won": true },
+        { "season": 1988, "opponent_abbr": "CHI", "points_for": 28, "points_against": 3, "won": true },
+        { "season": 1989, "opponent_abbr": "LV", "points_for": 30, "points_against": 3, "won": true },
+        { "season": 1994, "opponent_abbr": "DAL", "points_for": 38, "points_against": 28, "won": true },
+        { "season": 2012, "opponent_abbr": "ATL", "points_for": 28, "points_against": 24, "won": true },
+        { "season": 2013, "opponent_abbr": "SEA", "points_for": 17, "points_against": 23, "won": false },
+        { "season": 2019, "opponent_abbr": "GB", "points_for": 37, "points_against": 20, "won": true },
+        { "season": 2023, "opponent_abbr": "DET", "points_for": 34, "points_against": 31, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 1981, "numeral": "XVI", "opponent_abbr": "CIN", "points_for": 26, "points_against": 21, "won": true },
+        { "season": 1984, "numeral": "XIX", "opponent_abbr": "MIA", "points_for": 38, "points_against": 16, "won": true },
+        { "season": 1988, "numeral": "XXIII", "opponent_abbr": "CIN", "points_for": 20, "points_against": 16, "won": true },
+        { "season": 1989, "numeral": "XXIV", "opponent_abbr": "DEN", "points_for": 55, "points_against": 10, "won": true },
+        { "season": 1994, "numeral": "XXIX", "opponent_abbr": "SD", "points_for": 49, "points_against": 26, "won": true },
+        { "season": 2012, "numeral": "XLVII", "opponent_abbr": "BAL", "points_for": 31, "points_against": 34, "won": false },
+        { "season": 2019, "numeral": "LIV", "opponent_abbr": "KC", "points_for": 20, "points_against": 31, "won": false },
+        { "season": 2023, "numeral": "LVIII", "opponent_abbr": "KC", "points_for": 22, "points_against": 25, "won": false }
+      ]
+    },
+    "SEA": {
+      "conference_championships": [
+        { "season": 2005, "opponent_abbr": "CAR", "points_for": 34, "points_against": 14, "won": true },
+        { "season": 2013, "opponent_abbr": "SF", "points_for": 23, "points_against": 17, "won": true },
+        { "season": 2014, "opponent_abbr": "GB", "points_for": 28, "points_against": 22, "won": true },
+        { "season": 2025, "opponent_abbr": "LV", "points_for": 31, "points_against": 27, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 2005, "numeral": "XL", "opponent_abbr": "PIT", "points_for": 10, "points_against": 21, "won": false },
+        { "season": 2013, "numeral": "XLVIII", "opponent_abbr": "DEN", "points_for": 43, "points_against": 8, "won": true },
+        { "season": 2014, "numeral": "XLIX", "opponent_abbr": "NE", "points_for": 24, "points_against": 28, "won": false },
+        { "season": 2025, "numeral": "LX", "opponent_abbr": "NE", "points_for": 29, "points_against": 13, "won": true }
+      ]
+    },
+    "TB": {
+      "conference_championships": [
+        { "season": 2002, "opponent_abbr": "PHI", "points_for": 27, "points_against": 10, "won": true },
+        { "season": 2020, "opponent_abbr": "GB", "points_for": 31, "points_against": 26, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 2002, "numeral": "XXXVII", "opponent_abbr": "LV", "points_for": 48, "points_against": 21, "won": true },
+        { "season": 2020, "numeral": "LV", "opponent_abbr": "KC", "points_for": 31, "points_against": 9, "won": true }
+      ]
+    },
+    "TEN": {
+      "conference_championships": [
+        { "season": 1960, "opponent_abbr": "LAC", "points_for": 24, "points_against": 16, "won": true },
+        { "season": 1961, "opponent_abbr": "SD", "points_for": 10, "points_against": 3, "won": true },
+        { "season": 1999, "opponent_abbr": "JAX", "points_for": 33, "points_against": 14, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 1999, "numeral": "XXXIV", "opponent_abbr": "LV", "points_for": 16, "points_against": 23, "won": false }
+      ]
+    },
+    "WAS": {
+      "conference_championships": [
+        { "season": 1937, "opponent_abbr": "CHI", "points_for": 28, "points_against": 21, "won": true },
+        { "season": 1940, "opponent_abbr": "CHI", "points_for": 14, "points_against": 73, "won": false },
+        { "season": 1942, "opponent_abbr": "CHI", "points_for": 14, "points_against": 6, "won": true },
+        { "season": 1943, "opponent_abbr": "CHI", "points_for": 21, "points_against": 41, "won": false },
+        { "season": 1945, "opponent_abbr": "CLE", "points_for": 14, "points_against": 15, "won": false },
+        { "season": 1972, "opponent_abbr": "DAL", "points_for": 26, "points_against": 3, "won": true },
+        { "season": 1982, "opponent_abbr": "DAL", "points_for": 31, "points_against": 17, "won": true },
+        { "season": 1983, "opponent_abbr": "SF", "points_for": 24, "points_against": 21, "won": true },
+        { "season": 1987, "opponent_abbr": "MIN", "points_for": 10, "points_against": 17, "won": false },
+        { "season": 1991, "opponent_abbr": "DET", "points_for": 41, "points_against": 10, "won": true }
+      ],
+      "super_bowls": [
+        { "season": 1972, "numeral": "VII", "opponent_abbr": "MIA", "points_for": 7, "points_against": 14, "won": false },
+        { "season": 1982, "numeral": "XVII", "opponent_abbr": "MIA", "points_for": 27, "points_against": 17, "won": true },
+        { "season": 1983, "numeral": "XVIII", "opponent_abbr": "LV", "points_for": 9, "points_against": 38, "won": false },
+        { "season": 1991, "numeral": "XXVI", "opponent_abbr": "BUF", "points_for": 37, "points_against": 24, "won": true }
+      ]
+    }
+  }
+}

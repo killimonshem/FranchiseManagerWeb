@@ -153,14 +153,14 @@ export default function App() {
         return <RosterScreen setScreen={setScreen} setDetail={setDetail} players={teamPlayers} />;
       case "playerProfile":
         return <PlayerProfileScreen player={detail} setScreen={setScreen} />;
-      case "draft":      return <DraftScreen />;
+      case "draft":      return <DraftScreen userTeamAbbr={userTeamMeta?.abbr ?? ""} />;
       case "finances":   return <FinancesScreen />;
       case "inbox":      return <InboxScreen />;
       case "schedule":   return <ScheduleScreen />;
       case "staff":      return <StaffScreen />;
       case "freeAgency": return <FreeAgencyScreen onRosterChange={refresh} />;
       case "trade":      return <TradeScreen />;
-      case "trophies":   return <TrophyScreen />;
+      case "trophies":   return <TrophyScreen teamAbbr={userTeamMeta?.abbr ?? ""} />;
       default:
         return (
           <DashboardScreen
