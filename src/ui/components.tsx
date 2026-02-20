@@ -244,6 +244,41 @@ export function PhaseTag({ phase, color }: { phase: string; color: string }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// STATUS BADGE — semantic status indicator (trade interest, injury, etc)
+// ═══════════════════════════════════════════════════════════════════
+type StatusVariant = "positive" | "negative" | "warning" | "neutral" | "info";
+
+const STATUS_COLORS: Record<StatusVariant, string> = {
+  positive: COLORS.lime,
+  negative: COLORS.coral,
+  warning:  COLORS.gold,
+  neutral:  COLORS.lavender,
+  info:     COLORS.sky,
+};
+
+export function StatusBadge({ label, variant }: { label: string; variant: StatusVariant }) {
+  const color = STATUS_COLORS[variant] || COLORS.neutral;
+  return (
+    <span style={{
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 5,
+      padding: "3px 8px",
+      borderRadius: 12,
+      fontSize: 9,
+      fontWeight: 700,
+      background: `${color}20`,
+      color: color,
+      border: `1px solid ${color}40`,
+      whiteSpace: "nowrap",
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
+      {label}
+    </span>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // CATEGORY ICON — maps inbox/notification categories to lucide icons
 // Single source of truth for category → icon mapping.
 // ═══════════════════════════════════════════════════════════════════
