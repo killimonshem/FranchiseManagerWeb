@@ -7,7 +7,7 @@
 import { Position, DraftProspect } from "./nfl-types";
 import { Player, PlayerStatus, createPlayer } from "./player";
 import { Team } from "./team";
-import { PlayerContract } from "./nfl-types";
+import type { PlayerContract } from "./nfl-types";
 import { CompPick } from "./CompensatoryPickSystem";
 
 // ============================================================================

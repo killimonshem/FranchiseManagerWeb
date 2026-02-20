@@ -1,12 +1,16 @@
 /**
  * Franchise Manager — Main App Shell
  *
- * - Phase: "setup" shows TeamSelectScreen, "playing" shows the main UI
- * - Real player data from CSV is passed down to each screen
- * - Navigation architecture: 4 pillars (Dashboard, Team, Office, League)
+ * Architecture rules (Observer Pattern):
+ *  - The GameStateManager is the single source of truth for ALL game data.
+ *  - This shell owns zero game state. It holds only UI/nav state.
+ *  - `refresh()` is registered as `gameStateManager.onEngineStateChange` so any
+ *    engine mutation (advance, interrupt, auto-save) triggers a React re-render.
+ *  - Components read data from the manager via props or direct import; they never
+ *    own a copy.
  */
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { COLORS, FONT } from "./ui/theme";
 import { LayoutDashboard, Users, Briefcase, Trophy, Mail } from "./ui/components";
 
@@ -23,6 +27,7 @@ import { FreeAgencyScreen } from "./screens/FreeAgencyScreen";
 import { TradeScreen } from "./screens/TradeScreen";
 import { TrophyScreen } from "./screens/TrophyScreen";
 import { gameStateManager } from "./types/GameStateManager";
+import { SimulationState } from "./types/GameStateManager";
 import { gameStore } from "./stores/GameStore";
 
 // ─── Navigation Architecture ───────────────────────────────────────
@@ -54,15 +59,14 @@ const ARCHITECTURE = [
 ];
 
 export default function App() {
-  // ── Game phase ────────────────────────────────────────────────────
+  // ── UI-only state (no game data here) ─────────────────────────────
   const [phase, setPhase]               = useState<"setup" | "playing">("setup");
-  const [userTeamAbbr, setUserTeamAbbr] = useState<string>("");
   const [userTeamMeta, setUserTeamMeta] = useState<TeamMeta | null>(null);
   const [gm, setGm]                     = useState<GMProfile | null>(null);
 
-  // Version counter: increment to trigger re-renders after manager mutations
+  // Version counter: increment to re-read manager state after mutations
   const [, setVersion] = useState(0);
-  const refresh = () => setVersion(v => v + 1);
+  const refresh = useCallback(() => setVersion(v => v + 1), []);
 
   // ── Nav state ─────────────────────────────────────────────────────
   const [primaryTab, setPrimaryTab] = useState("dashboard");
@@ -72,9 +76,20 @@ export default function App() {
     typeof window !== "undefined" ? window.innerWidth < 768 : false
   );
 
-  // Live week/season from the manager (falls back to defaults before game starts)
-  const WEEK   = gameStateManager.currentGameDate.week;
-  const SEASON = gameStateManager.currentGameDate.season;
+  if (typeof window !== "undefined") {
+    window.addEventListener("resize", () => setIsMobile(window.innerWidth < 768));
+  }
+
+  // ── Engine-derived values (read from manager, not local state) ────
+  // These are re-evaluated on every render triggered by refresh()
+  const WEEK    = gameStateManager.currentGameDate.week;
+  const SEASON  = gameStateManager.currentGameDate.season;
+  const PHASE_LABEL = gameStateManager.enginePhaseLabel;
+  const simState    = gameStateManager.simulationState;
+  const isSimulating = simState === SimulationState.SIMULATING;
+  const hasCriticalError = simState === SimulationState.CRITICAL_ERROR;
+  const activeInterrupt  = gameStateManager.engineActiveInterrupt;
+  const unreadInbox = gameStateManager.inbox.filter(m => !m.isRead).length;
 
   const handleScreenChange = (s: string) => {
     const parent = ARCHITECTURE.find(a => a.id === s || a.subs?.find(sub => sub.id === s));
@@ -83,32 +98,34 @@ export default function App() {
     setDetail(null);
   };
 
-  if (typeof window !== "undefined") {
-    window.addEventListener("resize", () => setIsMobile(window.innerWidth < 768));
-  }
-
   // ── Franchise start callback ──────────────────────────────────────
   function handleGameStart(data: GameStartData) {
-    // Initialise the manager as the single source of truth
+    // The manager is the single source of truth
     gameStateManager.initializeGM(data.gm.firstName, data.gm.lastName);
     gameStateManager.selectUserTeam(data.teamAbbr);
     gameStateManager.allPlayers = data.players;
     gameStateManager.updateAllTeamRatings();
 
-    // Register the auto-save callback (avoids circular import)
+    // Wire both callbacks to refresh so engine mutations trigger re-renders
     gameStateManager.onAutoSave = () => {
       gameStateManager.syncToStore(gameStore);
       gameStore.saveGame("AutoSave");
     };
+    gameStateManager.onEngineStateChange = refresh;
 
-    // Seed the store so saveGame has a valid profile
+    // Seed the store for saveGame
     gameStore.initializeNewGame(data.gm.firstName, data.gm.lastName, data.teamAbbr);
     gameStore.allPlayers = data.players;
 
-    setUserTeamAbbr(data.teamAbbr);
     setUserTeamMeta(data.teamMeta);
     setGm(data.gm);
     setPhase("playing");
+  }
+
+  // ── Advance Week handler ──────────────────────────────────────────
+  async function handleAdvance() {
+    await gameStateManager.advance();
+    refresh(); // final re-render after loop exits (catches any state missed by onEngineStateChange)
   }
 
   // ── Show setup until franchise is configured ──────────────────────
@@ -116,10 +133,9 @@ export default function App() {
     return <TeamSelectScreen onStart={handleGameStart} />;
   }
 
-  // ── Derived data — read from the manager, not local state ─────────
-  const teamPlayers   = gameStateManager.allPlayers.filter(p => p.teamId === userTeamAbbr);
+  // ── Derived data — always from the manager ────────────────────────
+  const teamPlayers   = gameStateManager.userRoster; // engine-owned, position-filtered getter
   const currentPillar = ARCHITECTURE.find(a => a.id === primaryTab);
-  const unreadInbox   = 0;
 
   const renderScreen = () => {
     switch (screen) {
@@ -158,6 +174,17 @@ export default function App() {
     }
   };
 
+  // ── Advance button label / state ──────────────────────────────────
+  const advanceBtnLabel = hasCriticalError
+    ? "Critical Error"
+    : activeInterrupt
+    ? "Resolve"
+    : isSimulating
+    ? gameStateManager.processingLabel || "Simulating…"
+    : "Advance Week";
+
+  const advanceBtnDisabled = isSimulating || hasCriticalError || !!activeInterrupt;
+
   return (
     <div style={{
       display: "flex", flexDirection: "row", height: "100vh", overflow: "hidden",
@@ -165,6 +192,7 @@ export default function App() {
     }}>
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { max-width: 100%; overflow-x: hidden; background: ${COLORS.bg}; }
         ::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -253,32 +281,113 @@ export default function App() {
         flex: 1, display: "flex", flexDirection: "column",
         height: "100vh", overflow: "hidden",
       }}>
-        {isMobile && (
-          <div style={{ background: COLORS.bg, borderBottom: `1px solid ${COLORS.darkMagenta}`, zIndex: 100, flexShrink: 0 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px" }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: COLORS.light }}>FM 2025</div>
-              <button onClick={() => handleScreenChange("inbox")} style={{
-                background: "rgba(141,36,110,0.2)", border: `1px solid ${COLORS.darkMagenta}`,
-                borderRadius: 8, padding: "6px 10px", color: COLORS.lime, fontSize: 11, fontWeight: 600, cursor: "pointer",
-              }}>Inbox</button>
-            </div>
-            {currentPillar?.subs && (
-              <div style={{ display: "flex", overflowX: "auto", padding: "0 16px 12px 16px", gap: 8 }}>
-                {currentPillar.subs.map(sub => (
-                  <button key={sub.id} onClick={() => setScreen(sub.id)} style={{
-                    padding: "6px 16px", borderRadius: 16, fontSize: 11, fontWeight: 700,
-                    whiteSpace: "nowrap", border: "none", cursor: "pointer",
-                    background: screen === sub.id ? COLORS.lime : "rgba(116,0,86,0.4)",
-                    color: screen === sub.id ? COLORS.bg : COLORS.light,
-                  }}>
-                    {sub.label}
-                  </button>
-                ))}
-              </div>
+        {/* ── Persistent Top Nav ─────────────────────────────────────── */}
+        <header style={{
+          flexShrink: 0,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: isMobile ? "10px 16px" : "0 24px",
+          height: isMobile ? "auto" : 48,
+          background: COLORS.bg,
+          borderBottom: `1px solid ${COLORS.darkMagenta}`,
+          zIndex: 100,
+        }}>
+          {/* Left: clock info */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {isMobile && (
+              <span style={{ fontSize: 13, fontWeight: 800, color: COLORS.light }}>FM 2025</span>
             )}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{
+                fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
+                background: "rgba(215,241,113,0.12)", color: COLORS.lime,
+                borderRadius: 4, padding: "2px 7px",
+                border: `1px solid rgba(215,241,113,0.25)`,
+              }}>
+                Week {WEEK}
+              </span>
+              <span style={{ fontSize: 10, color: COLORS.muted }}>
+                {PHASE_LABEL} · {SEASON}
+              </span>
+              {isSimulating && (
+                <span style={{
+                  fontSize: 9, color: COLORS.magenta, fontWeight: 700,
+                  animation: "pulse 1s ease-in-out infinite",
+                }}>
+                  ●
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Right: advance controls */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {activeInterrupt && (
+              <span style={{
+                fontSize: 9, fontWeight: 700, color: COLORS.light,
+                background: COLORS.magenta, borderRadius: 4, padding: "2px 7px",
+              }}>
+                {activeInterrupt.title}
+              </span>
+            )}
+            {isSimulating ? (
+              <button
+                onClick={() => { gameStateManager.enginePause(); refresh(); }}
+                style={{
+                  background: "rgba(141,36,110,0.3)",
+                  border: `1px solid ${COLORS.darkMagenta}`,
+                  borderRadius: 6, padding: "5px 14px",
+                  color: COLORS.muted, fontSize: 11, fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Pause
+              </button>
+            ) : null}
+            <button
+              onClick={handleAdvance}
+              disabled={advanceBtnDisabled}
+              style={{
+                background: hasCriticalError
+                  ? "rgba(255,50,50,0.2)"
+                  : advanceBtnDisabled
+                  ? "rgba(116,0,86,0.2)"
+                  : `linear-gradient(135deg, ${COLORS.magenta}, ${COLORS.darkMagenta})`,
+                border: `1px solid ${hasCriticalError ? "#ff3232" : COLORS.magenta}`,
+                borderRadius: 6, padding: "5px 16px",
+                color: advanceBtnDisabled ? COLORS.muted : COLORS.light,
+                fontSize: 11, fontWeight: 700,
+                cursor: advanceBtnDisabled ? "not-allowed" : "pointer",
+                whiteSpace: "nowrap",
+                minWidth: 110,
+              }}
+            >
+              {advanceBtnLabel}
+            </button>
+          </div>
+        </header>
+
+        {/* ── Mobile sub-tab bar (below header on mobile) ─────────────── */}
+        {isMobile && currentPillar?.subs && (
+          <div style={{
+            background: COLORS.bg, borderBottom: `1px solid ${COLORS.darkMagenta}`,
+            zIndex: 99, flexShrink: 0,
+          }}>
+            <div style={{ display: "flex", overflowX: "auto", padding: "8px 16px", gap: 8 }}>
+              {currentPillar.subs.map(sub => (
+                <button key={sub.id} onClick={() => setScreen(sub.id)} style={{
+                  padding: "6px 16px", borderRadius: 16, fontSize: 11, fontWeight: 700,
+                  whiteSpace: "nowrap", border: "none", cursor: "pointer",
+                  background: screen === sub.id ? COLORS.lime : "rgba(116,0,86,0.4)",
+                  color: screen === sub.id ? COLORS.bg : COLORS.light,
+                }}>
+                  {sub.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
+        {/* ── Screen content ───────────────────────────────────────────── */}
         <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? 16 : 30 }}>
           {renderScreen()}
         </div>

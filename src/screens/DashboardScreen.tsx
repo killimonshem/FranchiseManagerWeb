@@ -4,11 +4,10 @@
  * Data comes from real CSV-parsed players — no mock data.
  */
 
-import { ArrowRight } from "lucide-react";
 import { COLORS, FONT, fmtCurrency } from "../ui/theme";
 import {
   RatingBadge, Section, CapBar, PhaseTag, PosTag, MoraleMeter,
-  AlertDot, IconBtn,
+  AlertDot,
 } from "../ui/components";
 import { Player } from "../types/player";
 import { TeamMeta, GMProfile } from "./TeamSelectScreen";
@@ -96,7 +95,6 @@ export function DashboardScreen({
               </div>
             </div>
           </div>
-          <IconBtn icon={ArrowRight} label="Advance Week" variant="accent" onClick={() => {}} />
         </div>
 
         <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 6 }}>

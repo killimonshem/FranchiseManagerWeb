@@ -10,13 +10,44 @@ import { FreeAgencyTransaction, CompensatoryPickSystem, CompPick } from './Compe
 import { UserProfile, createUserProfile } from './UserProfile';
 import { AITeamManager, GameStateForAI } from './AITeamManager';
 
+// Engine v2 imports — types live in engine-types.ts, calendar in scheduled-events.ts
+import {
+  SeasonPhase as EnginePhase,
+  PHASE_WEEK_MAP,
+  TimeSlot as EngineTimeSlot,
+  TIME_SLOT_ORDER,
+  GAME_DAY_SLOT_ORDER,
+  makeEngineDate,
+  getEnginePhaseForWeek,
+  PHASE_LABELS,
+  HardStopReason,
+  SoftStopReason,
+  Interrupt,
+  InterruptResolution,
+  EngineGameDate,
+  EngineSnapshot,
+  EngineSimulationState,
+} from './engine-types';
+import { hasMajorEventThisWeek, getScheduledEvent } from './scheduled-events';
+import { AgentPersonalitySystem } from '../systems/AgentPersonalitySystem';
+import { TradeSystem } from '../systems/TradeSystem';
+import { FinanceSystem } from '../systems/FinanceSystem';
+import { DraftEngine } from '../systems/DraftEngine';
+import type { DraftPickResult } from '../systems/DraftEngine';
+
+// Re-export engine types so existing imports from this file still work
+export type { Interrupt, InterruptResolution, EngineGameDate, EngineSnapshot };
+export { EnginePhase, HardStopReason, SoftStopReason, EngineSimulationState, PHASE_LABELS };
+
 // MARK: - Placeholder Types & Enums
 
 // Game simulation execution state tracking (idle, simulating, or paused)
 export enum SimulationState {
-  IDLE = 'idle',
-  SIMULATING = 'simulating',
-  PAUSED_FOR_INTERRUPT = 'pausedForInterrupt'
+  IDLE                 = 'idle',
+  SIMULATING           = 'simulating',
+  PAUSED_FOR_INTERRUPT = 'pausedForInterrupt',
+  PROCESSING_INTERRUPT = 'processingInterrupt', // User is actively resolving an interrupt
+  CRITICAL_ERROR       = 'criticalError',       // Unrecoverable — only Save & Reset available
 }
 
 export enum SimulationSpeed {
@@ -206,15 +237,6 @@ export interface ProcessingInterrupt {
 export type InterruptType =
   | { type: 'hardStop'; reason: HardStopReason }
   | { type: 'userPause' };
-
-export type HardStopReason =
-  | { reason: 'starterInjured'; playerId: string }
-  | { reason: 'tradeOfferReceived'; offerId: string }
-  | { reason: 'gmFired'; reason: string }
-  | { reason: 'rosterCutsRequired'; activeCount: number; required: number }
-  | { reason: 'practiceSquadPoached'; playerId: string; poachingTeamId: string }
-  | { reason: 'waiverClaimAvailable'; playerId: string }
-  | { reason: 'contractDeadlineDay' };
 
 export interface NewsHeadline {
   id: string;
@@ -492,6 +514,12 @@ export class GameStateManager {
   compPicks: CompPick[] = [];
   compensatoryPickSystem: CompensatoryPickSystem = new CompensatoryPickSystem();
 
+  // ── Injected sub-systems (PRD §5 — pure TS classes, zero React) ────────────
+  agentPersonalitySystem: AgentPersonalitySystem = new AgentPersonalitySystem();
+  tradeSystem: TradeSystem = new TradeSystem();
+  financeSystem: FinanceSystem = new FinanceSystem();
+  draftEngine: DraftEngine | null = null; // Created when a draft begins
+
   // Constants
   static readonly MAX_PRACTICE_SQUAD_SIZE = 16;
   static readonly MAX_PS_PROTECTIONS = 4;
@@ -504,6 +532,48 @@ export class GameStateManager {
       dayOfWeek: 1,
       timeSlot: TimeSlots.earlyMorning
     };
+  }
+
+  // ── Draft engine factory ────────────────────────────────────────────────────
+
+  /**
+   * Initialise the DraftEngine just before the draft begins.
+   * The engine is created fresh each draft so its pick history is clean.
+   */
+  initDraftEngine(): DraftEngine {
+    const self = this;
+    this.draftEngine = new DraftEngine({
+      get allPlayers()    { return self.allPlayers; },
+      get teams()         { return self.teams; },
+      get userTeamId()    { return self.userTeamId; },
+      get draftProspects(){ return self.draftProspects; },
+      get draftOrder()    { return self.draftOrder; },
+      get currentDraftRound() { return self.currentDraftRound; },
+      get currentDraftPick()  { return self.currentDraftPick; },
+      get isDraftActive() { return self.isDraftActive; },
+      pushEngineInterrupt(reason, payload, title, description) {
+        self._handleEngineInterrupt(self._buildEngineInterrupt(reason, payload as any, title, description));
+      },
+      onDraftPickMade(result: DraftPickResult) {
+        self.currentDraftPick = result.pickNumber + 1;
+        if ((result.pickNumber) % self.draftOrder.length === 0) {
+          self.currentDraftRound = result.round + 1;
+        }
+        self.onEngineStateChange?.();
+        self.onAutoSave?.();
+      },
+      onDraftComplete() {
+        self.isDraftActive = false;
+        self.draftCompletionManager.isDraftCompleted = true;
+        self.draftCompletionManager.canAdvanceWeek = true;
+        self.addNotification('Draft Complete', 'All rounds of the NFL Draft are complete.', 'draft' as any, 'high' as any);
+        self.onEngineStateChange?.();
+      },
+      addHeadline(title, body, category, importance) {
+        self.addHeadline(title, body, category as any, importance as any);
+      },
+    });
+    return this.draftEngine;
   }
 
   // MARK: - Computed Properties
@@ -647,7 +717,7 @@ export class GameStateManager {
     this.userTeamId = teamId;
     this.addNotification(
       'Team Selected',
-      `GM of ${this.userTeam?.fullName || 'Team'}`,
+      `GM of ${this.userTeam ? `${this.userTeam.city} ${this.userTeam.name}` : 'Team'}`,
       NotificationType.MILESTONE,
       NotificationPriority.HIGH
     );
@@ -755,15 +825,9 @@ export class GameStateManager {
     const offensivePositions = [
       Position.QB,
       Position.RB,
-      Position.FB,
       Position.WR,
       Position.TE,
       Position.OL,
-      Position.C,
-      Position.LG,
-      Position.RG,
-      Position.LT,
-      Position.RT
     ];
     return offensivePositions.includes(position);
   }
@@ -1008,7 +1072,7 @@ export class GameStateManager {
     }
 
     console.log(`\n${'='.repeat(60)}`);
-    console.log(`📋 ROSTER DEBUG INFO - ${this.userTeam.fullName} - Week ${this.currentWeek}`);
+    console.log(`📋 ROSTER DEBUG INFO - ${this.userTeam.city} ${this.userTeam.name} - Week ${this.currentWeek}`);
     console.log(`${'='.repeat(60)}`);
 
     const teamPlayers = this.allPlayers.filter(p => p.teamId === this.userTeamId);
@@ -1089,7 +1153,7 @@ export class GameStateManager {
       snapPercentage,
       isAllPro,
       isProBowl,
-      isUnrestrictedFreeAgent: player.experience > 3,
+      isUnrestrictedFreeAgent: player.accruedSeasons > 3,
       contractExpiredNaturally: true, // Assume contract expiration for now
       signedBeforeDeadline: true, // Assume early signing
       transactionDate: new Date()
@@ -1425,6 +1489,523 @@ export class GameStateManager {
     aiManager.simulateAITeamDecisions();
   }
 
+  // MARK: - Engine v2: Event-Driven Loop
+
+  // ── State ──────────────────────────────────────────────────────────────────
+
+  /** The week the current advance() run is targeting (inclusive). */
+  private _engineTargetWeek: number = 0;
+
+  /** Whether the engine loop is running (guards against re-entrant calls). */
+  private _engineRunning: boolean = false;
+
+  /** Current time slot within the engine's new loop. */
+  private _engineSlot: EngineTimeSlot = EngineTimeSlot.EARLY_MORNING;
+
+  /** Current day of week within the engine's loop. */
+  private _engineDay: number = 1;
+
+  /** Calendar events that have already fired this season (prevents double-firing). */
+  private _engineProcessedEvents: Set<string> = new Set();
+
+  /** New interrupt queue for the v2 engine. */
+  engineInterruptQueue: Interrupt[] = [];
+
+  /** The interrupt the UI should currently be displaying, or null. */
+  engineActiveInterrupt: Interrupt | null = null;
+
+  /** Short label describing what the engine is currently doing (for progress UI). */
+  processingLabel: string = '';
+
+  /**
+   * Optional callback invoked every time the engine state changes.
+   * App.tsx should set this to its `refresh()` function so the UI stays reactive.
+   */
+  onEngineStateChange?: () => void;
+
+  // ── Public entry point ────────────────────────────────────────────────────
+
+  /**
+   * Advance the simulation.
+   *
+   *  - No argument  → advance exactly one week and stop.
+   *  - With `targetPhase` → run at full speed until the week BEFORE that phase
+   *    begins, then stop. Hard interrupts still fully block. Soft interrupts
+   *    surface and auto-dismiss.
+   *
+   * Calling advance() while not IDLE is a silent no-op (concurrency guard).
+   */
+  async advance(targetPhase?: EnginePhase): Promise<void> {
+    if (this.simulationState !== SimulationState.IDLE) return;
+
+    const currentWeek = this.currentGameDate.week;
+
+    if (targetPhase) {
+      // Run until the week BEFORE the phase begins
+      this._engineTargetWeek = PHASE_WEEK_MAP[targetPhase].start - 1;
+    } else {
+      // Advance exactly one week
+      this._engineTargetWeek = currentWeek;
+    }
+
+    this.simulationState = SimulationState.SIMULATING;
+    this._engineRunning = true;
+    this.onEngineStateChange?.();
+
+    try {
+      await this._advanceWeekLoop();
+    } catch (error) {
+      console.error('[Engine] Critical error in advance():', error);
+      this.simulationState = SimulationState.CRITICAL_ERROR;
+      this._engineRunning = false;
+      this.onEngineStateChange?.();
+      // Do not rethrow — let the UI surface the error state gracefully
+    }
+  }
+
+  /** Stop a running simulation (user pause). */
+  enginePause(): void {
+    if (this.simulationState === SimulationState.SIMULATING) {
+      this.simulationState = SimulationState.IDLE;
+      this._engineRunning = false;
+      this.onEngineStateChange?.();
+    }
+  }
+
+  // ── Core loop ─────────────────────────────────────────────────────────────
+
+  private async _advanceWeekLoop(): Promise<void> {
+    // Sync the internal engine day/slot from currentGameDate on first entry
+    this._engineDay  = this.currentGameDate.dayOfWeek;
+    this._engineSlot = EngineTimeSlot.EARLY_MORNING;
+
+    while (true) {
+      // EXIT 1: Target reached — ran past the requested week boundary.
+      if (this.currentGameDate.week > this._engineTargetWeek) {
+        this.simulationState = SimulationState.IDLE;
+        this._engineRunning = false;
+        this.onEngineStateChange?.();
+        break;
+      }
+
+      // EXIT 2: Hard interrupt — blocked until resolved.
+      if (this.simulationState === SimulationState.PAUSED_FOR_INTERRUPT) {
+        this._engineRunning = false;
+        this.onEngineStateChange?.();
+        break;
+      }
+
+      // EXIT 3: User pause — engine was set to IDLE externally.
+      if (this.simulationState === SimulationState.IDLE) {
+        this._engineRunning = false;
+        this.onEngineStateChange?.();
+        break;
+      }
+
+      await this._processWeekOrSkip();
+
+      const interrupt = this._checkForEngineInterrupts();
+      if (interrupt) {
+        this._handleEngineInterrupt(interrupt);
+        if (interrupt.kind === 'HARD') continue; // EXIT 2 fires on next iteration
+      }
+
+      // Non-blocking yield — keeps the browser paint loop alive
+      await new Promise<void>(resolve => setTimeout(resolve, 0));
+    }
+  }
+
+  // ── Dead-zone batch skipper ───────────────────────────────────────────────
+
+  private async _processWeekOrSkip(): Promise<void> {
+    const week = this.currentGameDate.week;
+    const isDead = week < 25 && !hasMajorEventThisWeek(week);
+
+    if (isDead) {
+      // Batch-skip: collapse the whole week into one computation unit
+      this.processingLabel = `Week ${week} — ${PHASE_LABELS[getEnginePhaseForWeek(week)]}`;
+      this._runOffseasonDevelopmentIfGated();
+      this.simulateAIDecisionsBatched();
+      this._generateWeeklyRecap();
+      this._rollToNextWeek();
+
+      // Single yield for the entire dead week
+      await new Promise<void>(resolve => setTimeout(resolve, 0));
+    } else {
+      // Live week: iterate through every time slot of every day
+      await this._processLiveWeek();
+    }
+  }
+
+  private async _processLiveWeek(): Promise<void> {
+    const week = this.currentGameDate.week;
+    const isGameWeek = week >= 29; // Regular season / playoffs
+
+    for (this._engineDay = 1; this._engineDay <= 7; this._engineDay++) {
+      const isGameDay = isGameWeek && this._engineDay === 7; // Sunday game day
+      const slots = isGameDay ? GAME_DAY_SLOT_ORDER : TIME_SLOT_ORDER;
+
+      for (const slot of slots) {
+        this._engineSlot = slot;
+
+        // Check exits before each slot
+        if (this.simulationState !== SimulationState.SIMULATING) return;
+
+        await this._processEngineTimeSlot(slot);
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
+      }
+    }
+
+    this._rollToNextWeek();
+  }
+
+  // ── Time slot router ──────────────────────────────────────────────────────
+
+  private async _processEngineTimeSlot(slot: EngineTimeSlot): Promise<void> {
+    const { week } = this.currentGameDate;
+    const phase = getEnginePhaseForWeek(week);
+    this.processingLabel = this._buildProcessingLabel(phase, slot);
+    this.onEngineStateChange?.();
+
+    switch (slot) {
+      case EngineTimeSlot.EARLY_MORNING:
+        // Injuries & practice reports (stub — injury module to be wired here)
+        if (week === 4 && this._engineDay === 7) {
+          // League Year expiration — will fire LEAGUE_YEAR_RESET interrupt via checkForInterrupts
+        }
+        break;
+
+      case EngineTimeSlot.MID_MORNING:
+        if (!this._isGameDay(this._engineDay) && week < 42) {
+          // AI roster evaluation (batch: 8 teams)
+          this._runOffseasonDevelopmentIfGated();
+        }
+        break;
+
+      case EngineTimeSlot.AFTERNOON:
+        if (!this._isGameDay(this._engineDay) && week <= 42) {
+          this.simulateAIDecisionsBatched();
+        }
+        break;
+
+      case EngineTimeSlot.EVENING:
+        // News & headlines
+        break;
+
+      case EngineTimeSlot.GAME_PREP:
+        // Lock lineups
+        break;
+
+      case EngineTimeSlot.GAME_IN_PROGRESS:
+        // Simulate game (stub — game module to be wired here)
+        break;
+
+      case EngineTimeSlot.GAME_COMPLETE:
+        // Process stats & post-game injuries
+        break;
+
+      case EngineTimeSlot.RECAP:
+        this.updateAllTeamRatings();
+        this._generateWeeklyRecap();
+        this.onAutoSave?.();
+        break;
+    }
+  }
+
+  // ── Clock utilities ───────────────────────────────────────────────────────
+
+  private _rollToNextWeek(): void {
+    const newWeek = this.currentGameDate.week + 1;
+    this.currentGameDate = {
+      ...this.currentGameDate,
+      week: newWeek,
+      dayOfWeek: 1,
+      timeSlot: TimeSlots.earlyMorning,
+    };
+    this._engineDay = 1;
+    this._engineSlot = EngineTimeSlot.EARLY_MORNING;
+
+    if (newWeek === 25 || newWeek === 37) {
+      this.updateAllTeamRatings();
+    }
+
+    // Weekly cap deduction (regular season)
+    if (newWeek >= 29 && newWeek <= 46 && this.userTeamId) {
+      const weeklyExpense = this.getCapHit(this.userTeamId) / 18;
+      const idx = this.teams.findIndex(t => t.id === this.userTeamId);
+      if (idx !== -1) {
+        this.teams[idx].cashReserves = Math.max(0, this.teams[idx].cashReserves - weeklyExpense);
+      }
+    }
+  }
+
+  private _isGameDay(dayOfWeek: number): boolean {
+    return dayOfWeek === 7; // Sunday
+  }
+
+  private _buildProcessingLabel(phase: EnginePhase, slot: EngineTimeSlot): string {
+    const phaseLabel = PHASE_LABELS[phase];
+    const slotLabel = slot.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+    return `${phaseLabel} · ${slotLabel}`;
+  }
+
+  // ── Interrupt system ──────────────────────────────────────────────────────
+
+  /**
+   * Called after every processed time slot. Returns the highest-priority
+   * interrupt found, or null. Checks are ordered critical → low.
+   */
+  _checkForEngineInterrupts(): Interrupt | null {
+    const { week } = this.currentGameDate;
+
+    // 1. Pending AI trade offers targeting the user's team
+    const pendingTrade = this.receivedTradeOffers.find(o => o.status === 'pending');
+    if (pendingTrade) {
+      return this._buildEngineInterrupt(HardStopReason.TRADE_OFFER_RECEIVED, {
+        reason: HardStopReason.TRADE_OFFER_RECEIVED,
+        offerId: pendingTrade.id,
+      }, 'Trade Offer Received', (() => { const t = this.teams.find(t => t.id === pendingTrade.offeringTeamId); return `${t ? `${t.city} ${t.name}` : 'A team'} wants to make a deal.`; })());
+    }
+
+    // 2. Roster out of compliance (53-man cutdown, IR, etc.)
+    if (this.userTeamId && week >= 28) {
+      const activeRoster = this.allPlayers.filter(p => p.teamId === this.userTeamId && p.status === PlayerStatus.ACTIVE);
+      if (activeRoster.length > 53) {
+        return this._buildEngineInterrupt(HardStopReason.ROSTER_CUTS_REQUIRED, {
+          reason: HardStopReason.ROSTER_CUTS_REQUIRED,
+          currentCount: activeRoster.length,
+          targetCount: 53,
+        }, 'Roster Cuts Required', `Your active roster has ${activeRoster.length} players. Cut to 53.`);
+      }
+    }
+
+    // 3. Scheduled calendar hard stops (fires once per season per event)
+    const calendarEvent = getScheduledEvent(week);
+    if (calendarEvent?.triggerInterrupt && !this._engineProcessedEvents.has(calendarEvent.name)) {
+      this._engineProcessedEvents.add(calendarEvent.name);
+      const payload = this._buildCalendarPayload(calendarEvent.triggerInterrupt);
+      if (payload) {
+        return this._buildEngineInterrupt(
+          calendarEvent.triggerInterrupt,
+          payload,
+          calendarEvent.name,
+          `${calendarEvent.name} — action required.`,
+        );
+      }
+    }
+
+    return null;
+  }
+
+  private _buildCalendarPayload(reason: HardStopReason): import('./engine-types').InterruptPayload | null {
+    switch (reason) {
+      case HardStopReason.LEAGUE_YEAR_RESET:
+        return { reason, expiringContracts: [] };
+      case HardStopReason.FREE_AGENCY_OPEN:
+        return { reason, topFreeAgents: [] };
+      case HardStopReason.DRAFT_PICK_READY:
+        return { reason, pickNumber: 1, round: 1, draftedBy: '' };
+      case HardStopReason.ROSTER_CUTS_REQUIRED:
+        return { reason, currentCount: 90, targetCount: 53 };
+      default:
+        return null;
+    }
+  }
+
+  private _buildEngineInterrupt(
+    reason: HardStopReason | SoftStopReason,
+    payload: import('./engine-types').InterruptPayload,
+    title: string,
+    description: string,
+    kind: 'HARD' | 'SOFT' = 'HARD',
+  ): Interrupt {
+    return {
+      id: uuidv4(),
+      kind,
+      reason,
+      priority: kind === 'HARD' ? 'HIGH' : 'LOW',
+      title,
+      description,
+      timestamp: makeEngineDate(
+        this.currentGameDate.season,
+        this.currentGameDate.week,
+        this._engineDay,
+        this._engineSlot,
+      ),
+      payload,
+    };
+  }
+
+  private _handleEngineInterrupt(interrupt: Interrupt): void {
+    if (interrupt.kind === 'HARD') {
+      this.engineInterruptQueue.push(interrupt);
+      this.engineActiveInterrupt = interrupt;
+      this.simulationState = SimulationState.PAUSED_FOR_INTERRUPT;
+      this.onEngineStateChange?.();
+    } else {
+      // Soft stop: surface to UI, auto-dismiss, engine keeps running
+      this.engineInterruptQueue.push(interrupt);
+      this.engineActiveInterrupt = interrupt;
+      this.onEngineStateChange?.();
+      setTimeout(() => {
+        this._dismissSoftInterrupt(interrupt.id);
+      }, interrupt.autoDismissMs ?? 2000);
+    }
+  }
+
+  private _dismissSoftInterrupt(id: string): void {
+    if (this.engineActiveInterrupt?.id === id) {
+      this.engineActiveInterrupt = null;
+    }
+    this.engineInterruptQueue = this.engineInterruptQueue.filter(i => i.id !== id);
+    this.onEngineStateChange?.();
+  }
+
+  /**
+   * Called by the UI when the user completes their decision on a hard stop.
+   * Applies the resolution to game state and returns the engine to IDLE.
+   * The UI is then responsible for calling advance() again if it wants to resume.
+   */
+  resolveEngineInterrupt(resolution: InterruptResolution): void {
+    switch (resolution.reason) {
+      case HardStopReason.TRADE_OFFER_RECEIVED:
+        if (resolution.accepted) {
+          const offer = this.receivedTradeOffers.find(o => o.id === (this.engineActiveInterrupt?.payload as any)?.offerId);
+          if (offer) offer.status = 'accepted';
+        } else {
+          const offer = this.receivedTradeOffers.find(o => o.id === (this.engineActiveInterrupt?.payload as any)?.offerId);
+          if (offer) offer.status = 'rejected';
+        }
+        break;
+
+      case HardStopReason.ROSTER_CUTS_REQUIRED:
+        for (const id of resolution.releasedPlayerIds) {
+          const idx = this.allPlayers.findIndex(p => p.id === id);
+          if (idx !== -1) {
+            this.allPlayers[idx].teamId = undefined;
+            this.allPlayers[idx].status = PlayerStatus.FREE_AGENT;
+          }
+        }
+        break;
+
+      case HardStopReason.DRAFT_PICK_READY:
+        // Draft manager will handle player selection — stub for now
+        console.log(`[Engine] Draft pick resolved: ${resolution.selectedPlayerId}`);
+        break;
+
+      case HardStopReason.LEAGUE_YEAR_RESET:
+      case HardStopReason.FREE_AGENCY_OPEN:
+      case HardStopReason.STARTER_INJURED:
+        // Acknowledgement-only; no state change needed
+        break;
+
+      case HardStopReason.CONTRACT_EXTENSION_EXPIRING:
+        if (resolution.released) {
+          const payload = this.engineActiveInterrupt?.payload as any;
+          if (payload?.playerId) {
+            const idx = this.allPlayers.findIndex(p => p.id === payload.playerId);
+            if (idx !== -1) {
+              this.allPlayers[idx].teamId = undefined;
+              this.allPlayers[idx].status = PlayerStatus.FREE_AGENT;
+            }
+          }
+        }
+        break;
+    }
+
+    // Remove the resolved interrupt
+    if (this.engineActiveInterrupt) {
+      this.engineInterruptQueue = this.engineInterruptQueue.filter(
+        i => i.id !== this.engineActiveInterrupt?.id,
+      );
+      this.engineActiveInterrupt = null;
+    }
+
+    // If more hard interrupts are queued, surface the next one
+    const next = this.engineInterruptQueue.find(i => i.kind === 'HARD');
+    if (next) {
+      this.engineActiveInterrupt = next;
+      this.onEngineStateChange?.();
+      return; // Stay PAUSED_FOR_INTERRUPT
+    }
+
+    // Queue is clear — return to IDLE. The UI decides whether to call advance() again.
+    this.simulationState = SimulationState.IDLE;
+    this.onEngineStateChange?.();
+  }
+
+  // ── Snapshot / persistence ────────────────────────────────────────────────
+
+  serializeEngineSnapshot(): EngineSnapshot {
+    return {
+      version: 1,
+      currentGameDate: makeEngineDate(
+        this.currentGameDate.season,
+        this.currentGameDate.week,
+        this.currentGameDate.dayOfWeek,
+        this._engineSlot,
+      ),
+      simulationState: EngineSimulationState.IDLE, // always serialize as IDLE
+      interruptQueue: this.engineInterruptQueue,
+      processedEvents: Array.from(this._engineProcessedEvents),
+      targetWeek: this._engineTargetWeek,
+    };
+  }
+
+  loadEngineSnapshot(snapshot: EngineSnapshot): void {
+    this.currentGameDate = {
+      ...this.currentGameDate,
+      season: snapshot.currentGameDate.season,
+      week: snapshot.currentGameDate.week,
+      dayOfWeek: snapshot.currentGameDate.dayOfWeek,
+    };
+    this._engineSlot = snapshot.currentGameDate.timeSlot;
+    this.engineInterruptQueue = snapshot.interruptQueue;
+    this._engineProcessedEvents = new Set(snapshot.processedEvents);
+    this._engineTargetWeek = snapshot.targetWeek;
+    this.simulationState = SimulationState.IDLE;
+  }
+
+  // ── Private helpers ───────────────────────────────────────────────────────
+
+  private _runOffseasonDevelopmentIfGated(): void {
+    const { week } = this.currentGameDate;
+    if (week >= 16 && week <= 20 && this.developmentState.lastProcessedWeek !== week) {
+      this.processOffseasonDevelopmentPublic();
+    }
+  }
+
+  private simulateAIDecisionsBatched(): void {
+    // Lightweight version for dead-zone weeks — same adapter, fewer decisions
+    const adapter: GameStateForAI = {
+      teams: this.teams,
+      allPlayers: this.allPlayers,
+      freeAgents: this.freeAgents,
+      draftPicks: this.draftPicks.map(p => ({
+        year: p.year, round: p.round,
+        originalTeamId: p.originalTeamId, currentTeamId: p.currentTeamId,
+      })),
+      userTeamId: this.userTeamId ?? undefined,
+      currentSeason: this.currentSeason,
+      currentWeek: this.currentWeek,
+      currentPhase: this.currentPhase.toString(),
+      leagueTradeBlock: this.leagueTradeBlock,
+      addHeadline: h => this.addHeadline(h.title, h.body, h.category as any, h.importance as any),
+      addSocialPost: _p => {},
+    };
+    new AITeamManager(adapter).simulateAITeamDecisions();
+  }
+
+  private _generateWeeklyRecap(): void {
+    const phase = getEnginePhaseForWeek(this.currentGameDate.week);
+    this.addHeadline(
+      `Week ${this.currentGameDate.week} Recap`,
+      `${PHASE_LABELS[phase]} — another week in the books.`,
+      'standings' as any,
+      'low' as any,
+    );
+  }
+
   // MARK: - Offseason Development
 
   /**
@@ -1455,6 +2036,16 @@ export class GameStateManager {
     this.developmentState.lastProcessedWeek = currentWeek;
     this.developmentState.lastProcessedSlot = this.currentGameDate.timeSlot.rawValue;
     console.log(`✅ [OffseasonDev] ${developedCount} players improved`);
+  }
+
+  /** Public wrapper used by the new engine's _runOffseasonDevelopmentIfGated(). */
+  processOffseasonDevelopmentPublic(): void {
+    this.processOffseasonDevelopment();
+  }
+
+  /** Convenience: current engine phase label for UI display. */
+  get enginePhaseLabel(): string {
+    return PHASE_LABELS[getEnginePhaseForWeek(this.currentGameDate.week)];
   }
 }
 

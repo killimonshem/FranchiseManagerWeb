@@ -7,6 +7,15 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+    <style>
+      /* Immediate fallback if Google Fonts is unavailable (offline, CDN block, etc.) */
+      @font-face {
+        font-family: 'JetBrains Mono';
+        src: local('JetBrains Mono'), local('Menlo'), local('Monaco'), local('Consolas'), local('Courier New');
+        font-weight: 400 700;
+        font-display: swap;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

@@ -219,7 +219,7 @@ export class GameStore {
       this.playtimeMins = hydratedSaveData.playtimeMins;
 
       console.log(`✅ [GameStore] Game loaded successfully from slot: ${slotName}`);
-      console.log(`   GM: ${this.userProfile.firstName} ${this.userProfile.lastName}`);
+      console.log(`   GM: ${this.userProfile?.firstName} ${this.userProfile?.lastName}`);
       console.log(`   Week: ${this.currentDate.week}, Year: ${this.currentDate.year}`);
       console.log(`   Playtime: ${this.playtimeMins} minutes`);
 
