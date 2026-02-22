@@ -464,7 +464,7 @@ export function TradeScreen({
                   whiteSpace: "nowrap",
                 }}
               >
-                Clear
+                Clear All
               </button>
             )}
           </div>

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { COLORS, fmtCurrency } from "../ui/theme";
 import { Section, DataRow, RatingBadge, PosTag } from "../ui/components";
 import { gameStateManager } from "../types/GameStateManager";
-import { Player } from "../types/player";
+import { Player, PlayerStatus } from "../types/player";
 import { calculatePlayerMarketValue } from "../types/player";
 
 interface Props {
@@ -20,7 +20,20 @@ export function FreeAgencyScreen({ onRosterChange }: Props) {
     if (!userTeamId) return;
     setSigningId(player.id);
 
-    const apy = player.contract?.currentYearCap ?? gameStateManager.leagueMinimumSalary;
+    // ─── FA Contract System (spec 1.2) ───────────────────────────────────────
+    const NFL_MIN_SALARY = 795_000;
+    const baseSalary = Math.max(player.contract?.currentYearCap ?? NFL_MIN_SALARY, NFL_MIN_SALARY);
+
+    // Prorate cap hit if mid-season (weeks 29-46 = regular season)
+    const { week } = gameStateManager.currentGameDate;
+    let capHit = baseSalary;
+    if (week >= 29 && week <= 46) {
+      const weeksRemaining = 46 - week + 1; // +1 to include current week
+      const weeksInRegularSeason = 18;
+      capHit = Math.round((weeksRemaining / weeksInRegularSeason) * baseSalary);
+    }
+
+    const apy = capHit;
 
     // Record for compensatory pick tracking
     gameStateManager.recordFreeAgentSigning(
@@ -30,12 +43,33 @@ export function FreeAgencyScreen({ onRosterChange }: Props) {
       apy
     );
 
-    // Move player onto the user's roster
+    // Move player onto the user's roster and update contract
     const idx = gameStateManager.allPlayers.findIndex(p => p.id === player.id);
-    if (idx !== -1) gameStateManager.allPlayers[idx].teamId = userTeamId;
+    if (idx !== -1) {
+      const signedPlayer = gameStateManager.allPlayers[idx];
+      signedPlayer.teamId = userTeamId;
+      signedPlayer.status = PlayerStatus.ACTIVE; // Spec 1.2: Set to ACTIVE when signed
+      // Generate default 1-year contract at calculated cap hit
+      signedPlayer.contract = {
+        totalValue: baseSalary,
+        yearsRemaining: 1,
+        guaranteedMoney: 0,
+        currentYearCap: capHit,
+        signingBonus: 0,
+        incentives: 0,
+        canRestructure: false,
+        canCut: true,
+        deadCap: 0,
+        hasNoTradeClause: false,
+        approvedTradeDestinations: [],
+      };
+    }
 
     // Remove from free agent pool
     gameStateManager.freeAgents = gameStateManager.freeAgents.filter(p => p.id !== player.id);
+
+    // Validate roster constraints after signing
+    gameStateManager.validateRosterConstraints();
 
     setSigningId(null);
     onRosterChange?.();
