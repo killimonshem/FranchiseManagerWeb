@@ -183,6 +183,8 @@ export default function App() {
     gameStateManager.selectUserTeam(data.teamAbbr);
     gameStateManager.allPlayers = data.players;
     gameStateManager.generateInitialDraftPicks();
+    // Generate initial draft prospects for the current season
+    gameStateManager.initializeDraftProspects();
     gameStateManager.updateAllTeamRatings();
 
     // Wire both callbacks to refresh so engine mutations trigger re-renders
@@ -207,14 +209,19 @@ export default function App() {
     // 1. Hydrate manager from store (which was populated by LoadGameScreen calling gameStore.loadGame)
     gameStateManager.hydrateFromStore(gameStore);
 
-    // 2. Wire callbacks
+    // 2. Ensure draft prospects are loaded (for saves that might not have them)
+    if (!gameStateManager.draftProspects || gameStateManager.draftProspects.length === 0) {
+      gameStateManager.initializeDraftProspects();
+    }
+
+    // 3. Wire callbacks
     gameStateManager.onAutoSave = () => {
       gameStateManager.syncToStore(gameStore);
       gameStore.saveGame("AutoSave");
     };
     gameStateManager.onEngineStateChange = refresh;
 
-    // 3. Restore UI state
+    // 4. Restore UI state
     const teamId = gameStateManager.userTeamId;
     const teamMeta = NFL_TEAMS.find(t => t.abbr === teamId);
     if (teamMeta) setUserTeamMeta(teamMeta);
@@ -228,7 +235,7 @@ export default function App() {
       });
     }
 
-    // 4. Start game
+    // 5. Start game
     setPhase("playing");
   }
 
@@ -267,6 +274,32 @@ export default function App() {
   // Force show Post-Draft Summary if triggered
   if (gameStateManager.draftCompletionManager.showingSummaryScreen) {
     return <PostDraftSummaryScreen gsm={gameStateManager} onDismiss={refresh} />;
+  }
+
+  // Force show Offseason Grade after draft summary is dismissed
+  if (gameStateManager.draftCompletionManager.showOffseasonGradeScreen) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: 30 }}>
+        <OffseasonGradeScreen
+          gsm={gameStateManager}
+          refresh={refresh}
+        />
+        <button
+          onClick={() => {
+            gameStateManager.draftCompletionManager.showOffseasonGradeScreen = false;
+            gameStateManager.draftCompletionManager.canAdvanceWeek = true;
+            refresh();
+          }}
+          style={{
+            marginTop: "auto", padding: "12px 24px", borderRadius: 8,
+            background: COLORS.lime, color: COLORS.bg, border: "none",
+            fontSize: 12, fontWeight: 700, cursor: "pointer", alignSelf: "flex-start"
+          }}
+        >
+          Advance to Season
+        </button>
+      </div>
+    );
   }
 
   const renderScreen = () => {

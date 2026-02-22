@@ -455,6 +455,7 @@ export function DraftScreen({
 }) {
   const [tab, setTab] = useState("board");
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [targetedPlayers, setTargetedPlayers] = useState<Set<string>>(new Set());
   const [showSnipeAlert, setShowSnipeAlert] = useState<DraftProspect | null>(null);
   const [showAdvisor, setShowAdvisor] = useState(false);
@@ -473,16 +474,28 @@ export function DraftScreen({
   const prospects = gsm.draftProspects;
   const scoutPtsLeft = gsm.scoutingPointsAvailable;
 
+  // Filter prospects by search query
+  const filteredProspects = useMemo(() => {
+    if (!searchQuery.trim()) return prospects;
+
+    const query = searchQuery.toLowerCase();
+    return prospects.filter(p =>
+      p.name.toLowerCase().includes(query) ||
+      p.position.toLowerCase().includes(query) ||
+      p.college.toLowerCase().includes(query)
+    );
+  }, [prospects, searchQuery]);
+
   const sortedProspects = useMemo(() => {
-    if (!sortConfig) return prospects;
-    return [...prospects].sort((a, b) => {
+    if (!sortConfig) return filteredProspects;
+    return [...filteredProspects].sort((a, b) => {
       let aVal: any = 0;
       let bVal: any = 0;
 
       switch (sortConfig.key) {
         case "#":
-          aVal = prospects.indexOf(a);
-          bVal = prospects.indexOf(b);
+          aVal = filteredProspects.indexOf(a);
+          bVal = filteredProspects.indexOf(b);
           break;
         case "Name":
           aVal = a.name;
@@ -513,7 +526,7 @@ export function DraftScreen({
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [prospects, sortConfig, prospects.length, scoutPtsLeft]);
+  }, [filteredProspects, sortConfig, filteredProspects.length, scoutPtsLeft]);
 
   const requestSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -679,6 +692,23 @@ export function DraftScreen({
             </div>
           ) : (
             <>
+              <div style={{ padding: "12px 14px", borderBottom: `1px solid rgba(255,255,255,0.1)` }}>
+                <input
+                  type="text"
+                  placeholder="Search by name, position, or college..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    width: "100%", padding: "8px 12px", borderRadius: 6,
+                    background: "rgba(255,255,255,0.05)", border: `1px solid ${COLORS.darkMagenta}`,
+                    color: COLORS.light, fontSize: 12, fontFamily: "inherit",
+                  }}
+                />
+                <div style={{ fontSize: 10, color: COLORS.muted, marginTop: 6 }}>
+                  {filteredProspects.length} of {prospects.length} prospects
+                </div>
+              </div>
+
               <DataRow header>
                 {["#", "Name", "Pos", "College", "OVR", "Proj", "Target", "Scout"].map(h => {
                   const isSortable = ["#", "Name", "Pos", "College", "OVR", "Proj"].includes(h);
@@ -705,7 +735,7 @@ export function DraftScreen({
               {sortedProspects.map((p, i) => {
                 const canScout = scoutPtsLeft >= 1 && p.scoutingPointsSpent < 2;
                 const isTarget = targetedPlayers.has(p.id);
-                const rank = prospects.indexOf(p) + 1;
+                const rank = filteredProspects.indexOf(p) + 1;
                 return (
                   <DataRow key={p.id} even={i % 2 === 0} hover onClick={() => setViewProspect(p)}>
                     <span style={{ flex: 1, fontSize: 10, fontFamily: "monospace", color: COLORS.muted }}>{rank}</span>

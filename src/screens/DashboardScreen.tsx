@@ -19,15 +19,14 @@ import { gameStore } from "../stores/GameStore";
 
 const SEASON_PHASES = [
   { id: "offseason",     label: "Offseason",           weeks: [1,  4],  color: "#9990A0" },
-  { id: "combine",       label: "Scouting Combine",    weeks: [5,  7],  color: "#811765" },
-  { id: "freeAgency",    label: "Free Agency",         weeks: [8,  11], color: "#D7F171" },
-  { id: "draftPrep",     label: "Draft Preparation",   weeks: [12, 20], color: "#9990A0" },
-  { id: "draft",         label: "NFL Draft",           weeks: [21, 21], color: "#F0EEF2" },
-  { id: "postDraft",     label: "Post-Draft / UDFA",   weeks: [22, 29], color: "#8D246E" },
-  { id: "trainingCamp",  label: "Training Camp",       weeks: [30, 30], color: "#811765" },
-  { id: "preseason",     label: "Preseason",           weeks: [31, 33], color: "#740056" },
-  { id: "regularSeason", label: "Regular Season",      weeks: [34, 49], color: "#D7F171" },
-  { id: "playoffs",      label: "Playoffs",            weeks: [50, 51], color: "#8D246E" },
+  { id: "freeAgency",    label: "Free Agency",         weeks: [5,  10], color: "#D7F171" },
+  { id: "postFreeAgency",label: "Post-Free Agency",    weeks: [11, 14], color: "#811765" },
+  { id: "draft",         label: "NFL Draft",           weeks: [15, 15], color: "#F0EEF2" },
+  { id: "postDraft",     label: "Post-Draft / UDFA",   weeks: [16, 20], color: "#8D246E" },
+  { id: "trainingCamp",  label: "Training Camp",       weeks: [21, 24], color: "#811765" },
+  { id: "preseason",     label: "Preseason",           weeks: [25, 28], color: "#740056" },
+  { id: "regularSeason", label: "Regular Season",      weeks: [29, 46], color: "#D7F171" },
+  { id: "playoffs",      label: "Playoffs",            weeks: [47, 51], color: "#8D246E" },
   { id: "superBowl",     label: "Super Bowl",          weeks: [52, 52], color: "#F0EEF2" },
 ];
 

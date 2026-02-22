@@ -36,7 +36,7 @@ import { AgentPersonalitySystem } from '../systems/AgentPersonalitySystem';
 import type { PlayerNegotiationState } from '../systems/AgentPersonalitySystem';
 import { TradeSystem } from '../systems/TradeSystem';
 import { FinanceSystem } from '../systems/FinanceSystem';
-import type { RestructureResult } from '../systems/FinanceSystem';
+import type { RestructureResult, WeeklyFinanceReport } from '../systems/FinanceSystem';
 import { DraftEngine, generateDraftClass } from '../systems/DraftEngine';
 import type { DraftPickResult } from '../systems/DraftEngine';
 import type { TradeOfferPayloadUI, TradeEvaluation } from '../systems/TradeSystem';
@@ -468,6 +468,7 @@ export interface DraftCompletionManager {
   isDraftCompleted: boolean;
   draftIsLocked: boolean;
   showingSummaryScreen: boolean;
+  showOffseasonGradeScreen: boolean;
   draftSummary?: any;
   canAdvanceWeek: boolean;
 }
@@ -545,6 +546,9 @@ export class GameStateManager {
 
   debugMode: boolean = false;
 
+  // Phase tracking for transition detection
+  private _lastPhase: SeasonPhase = SeasonPhase.OFFSEASON;
+
   // Draft Properties
   draftOrder: string[] = [];
   isDraftOrderLocked: boolean = false;
@@ -558,6 +562,7 @@ export class GameStateManager {
     isDraftCompleted: false,
     draftIsLocked: false,
     showingSummaryScreen: false,
+    showOffseasonGradeScreen: false,
     canAdvanceWeek: false
   };
 
@@ -584,6 +589,9 @@ export class GameStateManager {
   offseasonTransactions: FreeAgencyTransaction[] = [];
   compPicks: CompPick[] = [];
   compensatoryPickSystem: CompensatoryPickSystem = new CompensatoryPickSystem();
+
+  // Weekly Finance Reports (weeks 29–46 regular season)
+  financeReports: WeeklyFinanceReport[] = [];
 
   // ── Injected sub-systems (PRD §5 — pure TS classes, zero React) ────────────
   agentPersonalitySystem: AgentPersonalitySystem = new AgentPersonalitySystem();
@@ -810,6 +818,14 @@ export class GameStateManager {
 
   get userTeamCapSpace(): number {
     return this.userTeamId ? this.getCapSpace(this.userTeamId) : 0;
+  }
+
+  /**
+   * Get the most recent weekly finance report for the user's team.
+   * Returns the latest report if available, otherwise undefined.
+   */
+  getLatestFinanceReport(): WeeklyFinanceReport | undefined {
+    return this.financeReports.length > 0 ? this.financeReports[this.financeReports.length - 1] : undefined;
   }
 
   getCapHit(teamId: string): number {
@@ -1122,6 +1138,17 @@ export class GameStateManager {
   }
 
   /**
+   * Initialize draft prospects for the current season (called at game start)
+   * Generates the draft class without setting up compensatory picks yet
+   */
+  initializeDraftProspects(): void {
+    this.draftProspects = generateDraftClass(this.currentGameDate.season);
+    this.draftBoard = [...this.draftProspects];
+    this.scoutingPointsAvailable = 15;
+    console.log(`[Draft] Generated ${this.draftProspects.length} prospects for season ${this.currentGameDate.season}`);
+  }
+
+  /**
    * Handle phase transition to DRAFT
    * Sets up compensatory picks before draft begins
    * Should be called when currentPhase transitions to DRAFT
@@ -1129,11 +1156,10 @@ export class GameStateManager {
   onEnterDraftPhase(): Map<number, number> {
     console.log('\n🏈 Entering Draft Phase...');
 
-    // Generate the draft class for this season (real data 2026, procedural 2027+)
-    this.draftProspects = generateDraftClass(this.currentGameDate.season);
-    this.draftBoard = [...this.draftProspects];
-    this.scoutingPointsAvailable = 15;
-    console.log(`[Draft] Generated ${this.draftProspects.length} prospects for season ${this.currentGameDate.season}`);
+    // Re-generate the draft class if not already present (in case of save/load)
+    if (this.draftProspects.length === 0) {
+      this.initializeDraftProspects();
+    }
 
     // Setup draft with compensatory picks
     const compPicksPerRound = this.setupDraftWithCompensatoryPicks();
@@ -1534,6 +1560,10 @@ export class GameStateManager {
     if (raw.completedTrades) this.completedTrades = raw.completedTrades;
     if (raw.draftPicks) this.draftPicks = raw.draftPicks;
     if (raw.scoutingPointsAvailable != null) this.scoutingPointsAvailable = raw.scoutingPointsAvailable;
+
+    // Initialize phase tracking with current phase
+    this._lastPhase = this.currentPhase;
+
     console.log(`✅ [GameStateManager] Hydrated from store — Week ${this.currentWeek}, Season ${this.currentSeason}`);
   }
 
@@ -1984,6 +2014,19 @@ export class GameStateManager {
       case EngineTimeSlot.RECAP:
         this.updateAllTeamRatings();
         this._generateWeeklyRecap();
+        // Process weekly finances for user team during regular season (weeks 29–46)
+        if (this.userTeamId && this.currentGameDate.week >= 29 && this.currentGameDate.week <= 46) {
+          const userTeam = this.teams.find(t => t.id === this.userTeamId);
+          if (userTeam) {
+            const report = this.financeSystem.processWeeklyFinances(
+              userTeam,
+              this.allPlayers,
+              this.currentGameDate.week,
+              true // isRegularSeason
+            );
+            this.financeReports.push(report);
+          }
+        }
         this.onAutoSave?.();
         break;
     }
@@ -2001,6 +2044,15 @@ export class GameStateManager {
     };
     this._engineDay = 1;
     this._engineSlot = EngineTimeSlot.EARLY_MORNING;
+
+    // Detect phase transitions
+    const newPhase = this.currentPhase;
+    if (newPhase !== this._lastPhase) {
+      if (newPhase === SeasonPhase.DRAFT) {
+        this.onEnterDraftPhase();
+      }
+      this._lastPhase = newPhase;
+    }
 
     if (newWeek === 25 || newWeek === 37) {
       this.updateAllTeamRatings();

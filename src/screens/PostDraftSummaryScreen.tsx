@@ -13,7 +13,16 @@ export function PostDraftSummaryScreen({ gsm, onDismiss }: { gsm: GameStateManag
     return (
       <div style={{ padding: 40, textAlign: "center", color: COLORS.muted }}>
         No draft summary available.
-        <button onClick={onDismiss} style={{ display: "block", margin: "20px auto", padding: "10px 20px" }}>Continue</button>
+        <button
+          onClick={() => {
+            gsm.draftCompletionManager.showingSummaryScreen = false;
+            gsm.draftCompletionManager.showOffseasonGradeScreen = true;
+            onDismiss();
+          }}
+          style={{ display: "block", margin: "20px auto", padding: "10px 20px" }}
+        >
+          Continue to Offseason Grade
+        </button>
       </div>
     );
   }
@@ -48,7 +57,7 @@ export function PostDraftSummaryScreen({ gsm, onDismiss }: { gsm: GameStateManag
         <button
           onClick={() => {
             gsm.draftCompletionManager.showingSummaryScreen = false;
-            gsm.draftCompletionManager.canAdvanceWeek = true;
+            gsm.draftCompletionManager.showOffseasonGradeScreen = true;
             onDismiss();
           }}
           style={{
@@ -57,7 +66,7 @@ export function PostDraftSummaryScreen({ gsm, onDismiss }: { gsm: GameStateManag
             cursor: "pointer", display: "flex", alignItems: "center", gap: 8
           }}
         >
-          Advance to Season <ArrowRight size={14} />
+          View Offseason Grade <ArrowRight size={14} />
         </button>
       </div>
 

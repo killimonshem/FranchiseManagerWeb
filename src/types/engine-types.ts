@@ -7,30 +7,32 @@
 // ─── Season Phase ─────────────────────────────────────────────────────────────
 
 export enum SeasonPhase {
-  SUPER_BOWL      = 'SUPER_BOWL',       // Week 1–2   (Championship + offseason begins)
-  LEAGUE_YEAR_END = 'LEAGUE_YEAR_END',  // Week 3–4   (Franchise tags, contract expirations)
-  FREE_AGENCY     = 'FREE_AGENCY',      // Week 5–8   (FA opens, signings, cuts)
-  DRAFT_PREP      = 'DRAFT_PREP',       // Week 9–20  (Combine, pro days, pre-draft trades)
-  NFL_DRAFT       = 'NFL_DRAFT',        // Week 21    (Draft rounds 1–7)
-  POST_DRAFT      = 'POST_DRAFT',       // Week 22–24 (UDFA, rookie signings, mini-camp)
-  PRESEASON       = 'PRESEASON',        // Week 25–28 (Games, depth chart battles)
-  REGULAR_SEASON  = 'REGULAR_SEASON',   // Week 29–46 (17 games + bye weeks)
-  TRADE_DEADLINE  = 'TRADE_DEADLINE',   // Week 42    (Embedded within regular season)
-  PLAYOFFS        = 'PLAYOFFS',         // Week 47–51 (Wild Card through Super Bowl)
+  OFFSEASON       = 'OFFSEASON',         // Week 1–4   (Championship + offseason begins)
+  FREE_AGENCY     = 'FREE_AGENCY',       // Week 5–10  (FA opens, signings, cuts)
+  POST_FREE_AGENCY = 'POST_FREE_AGENCY', // Week 11–14 (Draft prep, combine, pro days)
+  DRAFT           = 'DRAFT',             // Week 15    (Draft rounds 1–7)
+  POST_DRAFT      = 'POST_DRAFT',        // Week 16–20 (UDFA, rookie signings)
+  TRAINING_CAMP   = 'TRAINING_CAMP',     // Week 21–24 (Mini-camp, depth chart battles)
+  PRESEASON       = 'PRESEASON',         // Week 25–28 (Games, depth chart battles)
+  REGULAR_SEASON  = 'REGULAR_SEASON',    // Week 29–46 (17 games + bye weeks)
+  TRADE_DEADLINE  = 'TRADE_DEADLINE',    // Week 42    (Embedded within regular season)
+  PLAYOFFS        = 'PLAYOFFS',          // Week 47–51 (Wild Card through Super Bowl)
+  SUPER_BOWL      = 'SUPER_BOWL',        // Week 52    (Championship)
 }
 
 /** Maps each SeasonPhase to its week range for boundary checks. */
 export const PHASE_WEEK_MAP: Record<SeasonPhase, { start: number; end: number }> = {
-  [SeasonPhase.SUPER_BOWL]:      { start: 1,  end: 2  },
-  [SeasonPhase.LEAGUE_YEAR_END]: { start: 3,  end: 4  },
-  [SeasonPhase.FREE_AGENCY]:     { start: 5,  end: 8  },
-  [SeasonPhase.DRAFT_PREP]:      { start: 9,  end: 20 },
-  [SeasonPhase.NFL_DRAFT]:       { start: 21, end: 21 },
-  [SeasonPhase.POST_DRAFT]:      { start: 22, end: 24 },
+  [SeasonPhase.OFFSEASON]:       { start: 1,  end: 4  },
+  [SeasonPhase.FREE_AGENCY]:     { start: 5,  end: 10 },
+  [SeasonPhase.POST_FREE_AGENCY]:{ start: 11, end: 14 },
+  [SeasonPhase.DRAFT]:           { start: 15, end: 15 },
+  [SeasonPhase.POST_DRAFT]:      { start: 16, end: 20 },
+  [SeasonPhase.TRAINING_CAMP]:   { start: 21, end: 24 },
   [SeasonPhase.PRESEASON]:       { start: 25, end: 28 },
   [SeasonPhase.REGULAR_SEASON]:  { start: 29, end: 46 },
   [SeasonPhase.TRADE_DEADLINE]:  { start: 42, end: 42 },
   [SeasonPhase.PLAYOFFS]:        { start: 47, end: 51 },
+  [SeasonPhase.SUPER_BOWL]:      { start: 52, end: 52 },
 };
 
 /** Derive the engine SeasonPhase from a week number. */
@@ -43,16 +45,17 @@ export function getEnginePhaseForWeek(week: number): SeasonPhase {
 
 /** Human-readable label for display. */
 export const PHASE_LABELS: Record<SeasonPhase, string> = {
-  [SeasonPhase.SUPER_BOWL]:      'Super Bowl / Offseason Begins',
-  [SeasonPhase.LEAGUE_YEAR_END]: 'League Year End',
+  [SeasonPhase.OFFSEASON]:       'Offseason',
   [SeasonPhase.FREE_AGENCY]:     'Free Agency',
-  [SeasonPhase.DRAFT_PREP]:      'Draft Prep',
-  [SeasonPhase.NFL_DRAFT]:       'NFL Draft',
+  [SeasonPhase.POST_FREE_AGENCY]: 'Draft Prep',
+  [SeasonPhase.DRAFT]:           'NFL Draft',
   [SeasonPhase.POST_DRAFT]:      'Post-Draft',
+  [SeasonPhase.TRAINING_CAMP]:   'Training Camp',
   [SeasonPhase.PRESEASON]:       'Preseason',
   [SeasonPhase.REGULAR_SEASON]:  'Regular Season',
   [SeasonPhase.TRADE_DEADLINE]:  'Trade Deadline',
   [SeasonPhase.PLAYOFFS]:        'Playoffs',
+  [SeasonPhase.SUPER_BOWL]:      'Super Bowl',
 };
 
 // ─── Time Slot ────────────────────────────────────────────────────────────────
