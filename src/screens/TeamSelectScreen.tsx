@@ -144,12 +144,29 @@ export function TeamSelectScreen({ onStart }: { onStart: (data: GameStartData) =
   const [nflData, setNflData] = useState<Map<string, NflverseTeam>>(new Map());
 
   useEffect(() => {
-    fetch("https://github.com/nflverse/nflverse-data/releases/download/manually_updated/teams_colors_logos.json")
-      .then(r => r.json())
-      .then((data: NflverseTeam[]) => {
+    // Asset Resilience (P0 0.2): Try local first, fallback to GitHub
+    const fetchTeamsData = async () => {
+      try {
+        // Try local path first (relative to public root)
+        const response = await fetch("/data/teams_colors_logos.json");
+        if (!response.ok) throw new Error("Local not found");
+        const data: NflverseTeam[] = await response.json();
         setNflData(new Map(data.map(t => [t.team_abbr, t])));
-      })
-      .catch(() => { /* silent — cards still render without enrichment */ });
+      } catch {
+        try {
+          // Fallback to GitHub if local fails
+          const response = await fetch(
+            "https://github.com/nflverse/nflverse-data/releases/download/manually_updated/teams_colors_logos.json"
+          );
+          const data: NflverseTeam[] = await response.json();
+          setNflData(new Map(data.map(t => [t.team_abbr, t])));
+        } catch {
+          // Silent fail — cards render without enrichment
+          console.warn("[Asset Resilience] Could not load teams_colors_logos.json from local or GitHub");
+        }
+      }
+    };
+    fetchTeamsData();
   }, []);
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
