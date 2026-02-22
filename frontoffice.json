@@ -1,0 +1,2386 @@
+{
+  "dataset_info": {
+    "season": 2026,
+    "last_updated": "2026-02-20",
+    "notes": {
+      "front_office": "Verified Feb 2026 from official team sites & news sources",
+      "coaching_staff": "Placeholder \u2014 load from staff.json when available",
+      "free_agents": "Confirmed unemployed NFL FO executives as of Feb 20 2026"
+    }
+  },
+  "free_agents": [
+    {
+      "name": "Kwesi Adofo-Mensah",
+      "role": "gm",
+      "effectiveness": 75,
+      "last_team": "MIN",
+      "note": "Fired Vikings GM Jan 30 2026",
+      "contract": {
+        "salary": 0,
+        "years_remaining": 0
+      }
+    },
+    {
+      "name": "Chris Grier",
+      "role": "gm",
+      "effectiveness": 72,
+      "last_team": "MIA",
+      "note": "Mutually departed Dolphins GM Oct 31 2025",
+      "contract": {
+        "salary": 0,
+        "years_remaining": 0
+      }
+    },
+    {
+      "name": "Trent Baalke",
+      "role": "gm",
+      "effectiveness": 62,
+      "last_team": "JAX",
+      "note": "Fired Jaguars GM Jan 22 2025; HC candidates refused to interview with him",
+      "contract": {
+        "salary": 0,
+        "years_remaining": 0
+      }
+    },
+    {
+      "name": "Tom Telesco",
+      "role": "gm",
+      "effectiveness": 73,
+      "last_team": "LV",
+      "note": "Fired Raiders GM Jan 2025; now SiriusXM radio host",
+      "contract": {
+        "salary": 0,
+        "years_remaining": 0
+      }
+    },
+    {
+      "name": "Dave Gettleman",
+      "role": "gm",
+      "effectiveness": 60,
+      "last_team": "NYG",
+      "note": "Retired from Giants GM Jan 2022; health concerns",
+      "contract": {
+        "salary": 0,
+        "years_remaining": 0
+      }
+    }
+  ],
+  "teams": {
+    "ARI": {
+      "full_name": "Arizona Cardinals",
+      "front_office": [
+        {
+          "name": "Monti Ossenfort",
+          "role": "gm",
+          "effectiveness": 76,
+          "contract": {
+            "salary": 6400000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Dave Sears",
+          "role": "assistant_gm",
+          "effectiveness": 70,
+          "contract": {
+            "salary": 1900000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Rob Kisiel",
+          "role": "vp_player_personnel",
+          "effectiveness": 75,
+          "contract": {
+            "salary": 1700000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Matt Caracciolo",
+          "role": "vp_football_ops",
+          "effectiveness": 64,
+          "contract": {
+            "salary": 1450000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Glenn Fox",
+          "role": "dir_pro_scouting",
+          "effectiveness": 59,
+          "contract": {
+            "salary": 700000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Matt Harriss",
+          "role": "dir_football_ops",
+          "effectiveness": 56,
+          "contract": {
+            "salary": 550000,
+            "years_remaining": 4
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "ATL": {
+      "full_name": "Atlanta Falcons",
+      "front_office": [
+        {
+          "name": "Terry Fontenot",
+          "role": "gm",
+          "effectiveness": 78,
+          "contract": {
+            "salary": 9950000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Kyle Smith",
+          "role": "assistant_gm",
+          "effectiveness": 78,
+          "contract": {
+            "salary": 1400000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Ryan Pace",
+          "role": "vp_player_personnel",
+          "effectiveness": 74,
+          "contract": {
+            "salary": 1800000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Adetokunbo Abanikanda",
+          "role": "dir_college_scouting",
+          "effectiveness": 54,
+          "contract": {
+            "salary": 750000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Harrison Ritcher",
+          "role": "national_scout",
+          "effectiveness": 62,
+          "contract": {
+            "salary": 350000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Cami Pasqualoni",
+          "role": "scouting_assistant",
+          "effectiveness": 40,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Kevin Weisman",
+          "role": "scouting_assistant",
+          "effectiveness": 41,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 5
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "BAL": {
+      "full_name": "Baltimore Ravens",
+      "front_office": [
+        {
+          "name": "Eric DeCosta",
+          "role": "gm",
+          "effectiveness": 85,
+          "contract": {
+            "salary": 10000000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Ozzie Newsome",
+          "role": "advisor",
+          "effectiveness": 64,
+          "contract": {
+            "salary": 1500000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Sashi Brown",
+          "role": "dir_football_ops",
+          "effectiveness": 64,
+          "contract": {
+            "salary": 350000,
+            "years_remaining": 4
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "BUF": {
+      "full_name": "Buffalo Bills",
+      "front_office": [
+        {
+          "name": "Brandon Beane",
+          "role": "gm",
+          "effectiveness": 86,
+          "contract": {
+            "salary": 9450000,
+            "years_remaining": 3
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "CAR": {
+      "full_name": "Carolina Panthers",
+      "front_office": [
+        {
+          "name": "Dan Morgan",
+          "role": "gm",
+          "effectiveness": 76,
+          "contract": {
+            "salary": 6600000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Jeff Brown",
+          "role": "vp_football_ops",
+          "effectiveness": 62,
+          "contract": {
+            "salary": 1400000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Kevin Winston",
+          "role": "vp_player_affairs",
+          "effectiveness": 66,
+          "contract": {
+            "salary": 700000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Eric Eager",
+          "role": "vp_analytics",
+          "effectiveness": 68,
+          "contract": {
+            "salary": 1050000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Brian Decker",
+          "role": "vp_football_ops",
+          "effectiveness": 68,
+          "contract": {
+            "salary": 1500000,
+            "years_remaining": 1
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "CHI": {
+      "full_name": "Chicago Bears",
+      "front_office": [
+        {
+          "name": "Ryan Poles",
+          "role": "gm",
+          "effectiveness": 79,
+          "contract": {
+            "salary": 5600000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Ian Cunningham",
+          "role": "assistant_gm",
+          "effectiveness": 77,
+          "contract": {
+            "salary": 2600000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Matt Feinstein",
+          "role": "vp_football_ops",
+          "effectiveness": 70,
+          "contract": {
+            "salary": 650000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Jeff King",
+          "role": "dir_player_personnel",
+          "effectiveness": 69,
+          "contract": {
+            "salary": 850000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Trey Koziol",
+          "role": "dir_player_personnel",
+          "effectiveness": 71,
+          "contract": {
+            "salary": 550000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Breck Ackley",
+          "role": "dir_college_scouting",
+          "effectiveness": 60,
+          "contract": {
+            "salary": 750000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Francis Saint-Paul",
+          "role": "asst_dir_scouting",
+          "effectiveness": 53,
+          "contract": {
+            "salary": 250000,
+            "years_remaining": 2
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "CIN": {
+      "full_name": "Cincinnati Bengals",
+      "front_office": [
+        {
+          "name": "Mike Brown",
+          "role": "gm",
+          "effectiveness": 61,
+          "contract": {
+            "salary": 6050000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Duke Tobin",
+          "role": "dir_player_personnel",
+          "effectiveness": 60,
+          "contract": {
+            "salary": 750000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Steven Radicevic",
+          "role": "assistant_gm",
+          "effectiveness": 64,
+          "contract": {
+            "salary": 2650000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Mike Potts",
+          "role": "assistant_gm",
+          "effectiveness": 72,
+          "contract": {
+            "salary": 1250000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Trey Brown",
+          "role": "assistant_gm",
+          "effectiveness": 69,
+          "contract": {
+            "salary": 1000000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Andrew Johnson",
+          "role": "college_scout",
+          "effectiveness": 45,
+          "contract": {
+            "salary": 200000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Christian Sarkisian",
+          "role": "college_scout",
+          "effectiveness": 55,
+          "contract": {
+            "salary": 150000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Debbie LaRocco",
+          "role": "scouting_assistant",
+          "effectiveness": 38,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 2
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "CLE": {
+      "full_name": "Cleveland Browns",
+      "front_office": [
+        {
+          "name": "Andrew Berry",
+          "role": "gm",
+          "effectiveness": 81,
+          "contract": {
+            "salary": 9400000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Glenn Cook",
+          "role": "assistant_gm",
+          "effectiveness": 77,
+          "contract": {
+            "salary": 1800000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Chris Cooper",
+          "role": "vp_football_ops",
+          "effectiveness": 67,
+          "contract": {
+            "salary": 1100000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Adam Al-Khayyal",
+          "role": "dir_pro_scouting",
+          "effectiveness": 70,
+          "contract": {
+            "salary": 450000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Taylor Young",
+          "role": "dir_football_ops",
+          "effectiveness": 60,
+          "contract": {
+            "salary": 450000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Megan Rock",
+          "role": "dir_football_ops",
+          "effectiveness": 66,
+          "contract": {
+            "salary": 550000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Branden Francis",
+          "role": "pro_scout",
+          "effectiveness": 57,
+          "contract": {
+            "salary": 300000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Hajriz Aliu",
+          "role": "scouting_assistant",
+          "effectiveness": 51,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Ryan Conway",
+          "role": "scouting_assistant",
+          "effectiveness": 40,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Nick Henkel",
+          "role": "scouting_assistant",
+          "effectiveness": 39,
+          "contract": {
+            "salary": 50000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Greg Livingston",
+          "role": "scouting_assistant",
+          "effectiveness": 43,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "John Nussman",
+          "role": "scouting_assistant",
+          "effectiveness": 54,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Alice Sullivan",
+          "role": "scouting_assistant",
+          "effectiveness": 47,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Josh Temple",
+          "role": "scouting_assistant",
+          "effectiveness": 40,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Cyrus Wolford",
+          "role": "scouting_assistant",
+          "effectiveness": 40,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 5
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "DAL": {
+      "full_name": "Dallas Cowboys",
+      "front_office": [
+        {
+          "name": "Jerry Jones",
+          "role": "gm",
+          "effectiveness": 65,
+          "contract": {
+            "salary": 4650000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Stephen Jones",
+          "role": "vp_player_personnel",
+          "effectiveness": 75,
+          "contract": {
+            "salary": 1100000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Will McClay",
+          "role": "vp_player_personnel",
+          "effectiveness": 66,
+          "contract": {
+            "salary": 1950000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Alex Loomis",
+          "role": "dir_pro_scouting",
+          "effectiveness": 66,
+          "contract": {
+            "salary": 750000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Mitch LaPoint",
+          "role": "dir_college_scouting",
+          "effectiveness": 62,
+          "contract": {
+            "salary": 600000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Chris Vaughn",
+          "role": "asst_dir_scouting",
+          "effectiveness": 57,
+          "contract": {
+            "salary": 450000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Chris Hall",
+          "role": "scouting_coordinator",
+          "effectiveness": 49,
+          "contract": {
+            "salary": 250000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Terry Gray",
+          "role": "scouting_coordinator",
+          "effectiveness": 46,
+          "contract": {
+            "salary": 250000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Keith O'Quinn",
+          "role": "area_scout",
+          "effectiveness": 45,
+          "contract": {
+            "salary": 150000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Ross Wuensche",
+          "role": "national_scout",
+          "effectiveness": 54,
+          "contract": {
+            "salary": 400000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Jessica Gaffney",
+          "role": "scouting_coordinator",
+          "effectiveness": 59,
+          "contract": {
+            "salary": 200000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "JT Dooley",
+          "role": "scouting_assistant",
+          "effectiveness": 42,
+          "contract": {
+            "salary": 50000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Kane Doyle-Durde",
+          "role": "scouting_assistant",
+          "effectiveness": 51,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Shy Anderson",
+          "role": "scouting_assistant",
+          "effectiveness": 38,
+          "contract": {
+            "salary": 50000,
+            "years_remaining": 5
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "DEN": {
+      "full_name": "Denver Broncos",
+      "front_office": [
+        {
+          "name": "George Paton",
+          "role": "gm",
+          "effectiveness": 79,
+          "contract": {
+            "salary": 8600000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Reed Burckhardt",
+          "role": "assistant_gm",
+          "effectiveness": 68,
+          "contract": {
+            "salary": 2800000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Cody Rager",
+          "role": "vp_player_personnel",
+          "effectiveness": 64,
+          "contract": {
+            "salary": 800000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "A.J. Durso",
+          "role": "dir_player_personnel",
+          "effectiveness": 55,
+          "contract": {
+            "salary": 750000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Cam Williams",
+          "role": "dir_player_personnel",
+          "effectiveness": 60,
+          "contract": {
+            "salary": 750000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Jordon Dizon",
+          "role": "dir_pro_scouting",
+          "effectiveness": 65,
+          "contract": {
+            "salary": 500000,
+            "years_remaining": 1
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "DET": {
+      "full_name": "Detroit Lions",
+      "front_office": [
+        {
+          "name": "Brad Holmes",
+          "role": "gm",
+          "effectiveness": 84,
+          "contract": {
+            "salary": 4650000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Chris Spielman",
+          "role": "advisor",
+          "effectiveness": 58,
+          "contract": {
+            "salary": 550000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Mike Disner",
+          "role": "dir_football_ops",
+          "effectiveness": 57,
+          "contract": {
+            "salary": 550000,
+            "years_remaining": 3
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "GB": {
+      "full_name": "Green Bay Packers",
+      "front_office": [
+        {
+          "name": "Brian Gutekunst",
+          "role": "gm",
+          "effectiveness": 87,
+          "contract": {
+            "salary": 10750000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Luke Benuska",
+          "role": "college_scout",
+          "effectiveness": 46,
+          "contract": {
+            "salary": 150000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Venzell Boulware",
+          "role": "pro_scout",
+          "effectiveness": 62,
+          "contract": {
+            "salary": 200000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Quandon Christian",
+          "role": "college_scout",
+          "effectiveness": 58,
+          "contract": {
+            "salary": 150000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Sam Fleming",
+          "role": "pro_scout",
+          "effectiveness": 64,
+          "contract": {
+            "salary": 300000,
+            "years_remaining": 5
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "HOU": {
+      "full_name": "Houston Texans",
+      "front_office": [
+        {
+          "name": "Nick Caserio",
+          "role": "gm",
+          "effectiveness": 83,
+          "contract": {
+            "salary": 4650000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "James Liipfert",
+          "role": "assistant_gm",
+          "effectiveness": 74,
+          "contract": {
+            "salary": 1600000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Chris Blanco",
+          "role": "assistant_gm",
+          "effectiveness": 68,
+          "contract": {
+            "salary": 1750000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "DJ Debick",
+          "role": "dir_pro_scouting",
+          "effectiveness": 72,
+          "contract": {
+            "salary": 550000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Steve Cargile",
+          "role": "senior_scout",
+          "effectiveness": 71,
+          "contract": {
+            "salary": 550000,
+            "years_remaining": 2
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "IND": {
+      "full_name": "Indianapolis Colts",
+      "front_office": [
+        {
+          "name": "Chris Ballard",
+          "role": "gm",
+          "effectiveness": 80,
+          "contract": {
+            "salary": 6050000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Ed Dodds",
+          "role": "vp_player_personnel",
+          "effectiveness": 60,
+          "contract": {
+            "salary": 1950000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Rex Hogan",
+          "role": "dir_college_scouting",
+          "effectiveness": 56,
+          "contract": {
+            "salary": 700000,
+            "years_remaining": 1
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "JAX": {
+      "full_name": "Jacksonville Jaguars",
+      "front_office": [
+        {
+          "name": "James Gladstone",
+          "role": "gm",
+          "effectiveness": 70,
+          "contract": {
+            "salary": 8450000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Ethan Waugh",
+          "role": "assistant_gm",
+          "effectiveness": 73,
+          "contract": {
+            "salary": 1650000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Tony Khan",
+          "role": "vp_football_ops",
+          "effectiveness": 59,
+          "contract": {
+            "salary": 1400000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Michael Davis",
+          "role": "dir_college_scouting",
+          "effectiveness": 54,
+          "contract": {
+            "salary": 800000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "DeJuan Polk",
+          "role": "dir_pro_scouting",
+          "effectiveness": 63,
+          "contract": {
+            "salary": 650000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Regis Eller",
+          "role": "dir_player_personnel",
+          "effectiveness": 55,
+          "contract": {
+            "salary": 650000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Ryan Stamper",
+          "role": "dir_player_personnel",
+          "effectiveness": 70,
+          "contract": {
+            "salary": 700000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Tim Walsh",
+          "role": "dir_football_ops",
+          "effectiveness": 61,
+          "contract": {
+            "salary": 350000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Marcus Pollard",
+          "role": "dir_player_dev",
+          "effectiveness": 59,
+          "contract": {
+            "salary": 350000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Ryan Paganetti",
+          "role": "vp_analytics",
+          "effectiveness": 61,
+          "contract": {
+            "salary": 600000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Zach Beistline",
+          "role": "dir_football_ops",
+          "effectiveness": 66,
+          "contract": {
+            "salary": 450000,
+            "years_remaining": 1
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "KC": {
+      "full_name": "Kansas City Chiefs",
+      "front_office": [
+        {
+          "name": "Brett Veach",
+          "role": "gm",
+          "effectiveness": 87,
+          "contract": {
+            "salary": 5000000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Mike Bradway",
+          "role": "assistant_gm",
+          "effectiveness": 62,
+          "contract": {
+            "salary": 1150000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Chris Shea",
+          "role": "svp_football_ops",
+          "effectiveness": 60,
+          "contract": {
+            "salary": 1000000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Curtis McGhee",
+          "role": "scouting_assistant",
+          "effectiveness": 43,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Brayden Nagy",
+          "role": "scouting_assistant",
+          "effectiveness": 52,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Ryan O'Conner",
+          "role": "scouting_assistant",
+          "effectiveness": 44,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 5
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "LV": {
+      "full_name": "Las Vegas Raiders",
+      "front_office": [
+        {
+          "name": "John Spytek",
+          "role": "gm",
+          "effectiveness": 71,
+          "contract": {
+            "salary": 8500000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Brian Stark",
+          "role": "assistant_gm",
+          "effectiveness": 68,
+          "contract": {
+            "salary": 1450000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Johnathon Stigall",
+          "role": "asst_dir_scouting",
+          "effectiveness": 53,
+          "contract": {
+            "salary": 250000,
+            "years_remaining": 4
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "LAC": {
+      "full_name": "Los Angeles Chargers",
+      "front_office": [
+        {
+          "name": "Joe Hortiz",
+          "role": "gm",
+          "effectiveness": 76,
+          "contract": {
+            "salary": 5150000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Chad Alexander",
+          "role": "assistant_gm",
+          "effectiveness": 68,
+          "contract": {
+            "salary": 2350000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Louis Clark",
+          "role": "dir_pro_scouting",
+          "effectiveness": 65,
+          "contract": {
+            "salary": 600000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Dennis Abraham",
+          "role": "dir_pro_scouting",
+          "effectiveness": 54,
+          "contract": {
+            "salary": 550000,
+            "years_remaining": 1
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "LAR": {
+      "full_name": "Los Angeles Rams",
+      "front_office": [
+        {
+          "name": "Les Snead",
+          "role": "gm",
+          "effectiveness": 84,
+          "contract": {
+            "salary": 8450000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "John McKay",
+          "role": "assistant_gm",
+          "effectiveness": 70,
+          "contract": {
+            "salary": 1200000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Nicole Blake",
+          "role": "dir_college_scouting",
+          "effectiveness": 71,
+          "contract": {
+            "salary": 650000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Ray Farmer",
+          "role": "advisor",
+          "effectiveness": 64,
+          "contract": {
+            "salary": 800000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Kellen Clemens",
+          "role": "scouting_assistant",
+          "effectiveness": 46,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 4
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "MIA": {
+      "full_name": "Miami Dolphins",
+      "front_office": [
+        {
+          "name": "Jon-Eric Sullivan",
+          "role": "gm",
+          "effectiveness": 71,
+          "contract": {
+            "salary": 6900000,
+            "years_remaining": 3
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "MIN": {
+      "full_name": "Minnesota Vikings",
+      "front_office": [
+        {
+          "name": "Rob Brzezinski",
+          "role": "acting_gm",
+          "effectiveness": 69,
+          "contract": {
+            "salary": 2000000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Ryan Grigson",
+          "role": "vp_player_personnel",
+          "effectiveness": 67,
+          "contract": {
+            "salary": 950000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Demitrius Washington",
+          "role": "vp_football_ops",
+          "effectiveness": 58,
+          "contract": {
+            "salary": 600000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Ryan Monnens",
+          "role": "dir_player_personnel",
+          "effectiveness": 67,
+          "contract": {
+            "salary": 500000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Jamaal Stephenson",
+          "role": "senior_scout",
+          "effectiveness": 66,
+          "contract": {
+            "salary": 650000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Chisom Opara",
+          "role": "asst_dir_scouting",
+          "effectiveness": 61,
+          "contract": {
+            "salary": 300000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Rick Spielman",
+          "role": "advisor",
+          "effectiveness": 73,
+          "contract": {
+            "salary": 1400000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Jack Murphy",
+          "role": "college_scout",
+          "effectiveness": 60,
+          "contract": {
+            "salary": 250000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Salli Clavelle",
+          "role": "pro_scout",
+          "effectiveness": 56,
+          "contract": {
+            "salary": 250000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Alex Dale",
+          "role": "pro_scout",
+          "effectiveness": 60,
+          "contract": {
+            "salary": 250000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Mitch Johnson-Martin",
+          "role": "scouting_coordinator",
+          "effectiveness": 46,
+          "contract": {
+            "salary": 300000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Kaitlin Zarecki",
+          "role": "scouting_coordinator",
+          "effectiveness": 52,
+          "contract": {
+            "salary": 300000,
+            "years_remaining": 2
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "NE": {
+      "full_name": "New England Patriots",
+      "front_office": [
+        {
+          "name": "Eliot Wolf",
+          "role": "gm",
+          "effectiveness": 74,
+          "contract": {
+            "salary": 9450000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Ryan Cowden",
+          "role": "vp_player_personnel",
+          "effectiveness": 75,
+          "contract": {
+            "salary": 1600000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Matt Groh",
+          "role": "vp_football_ops",
+          "effectiveness": 64,
+          "contract": {
+            "salary": 950000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Sam Fioroni",
+          "role": "asst_dir_scouting",
+          "effectiveness": 51,
+          "contract": {
+            "salary": 300000,
+            "years_remaining": 2
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "NO": {
+      "full_name": "New Orleans Saints",
+      "front_office": [
+        {
+          "name": "Mickey Loomis",
+          "role": "gm",
+          "effectiveness": 82,
+          "contract": {
+            "salary": 5050000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Jeff Ireland",
+          "role": "assistant_gm",
+          "effectiveness": 78,
+          "contract": {
+            "salary": 2450000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Thomas Dimitroff",
+          "role": "advisor",
+          "effectiveness": 56,
+          "contract": {
+            "salary": 550000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Randy Mueller",
+          "role": "advisor",
+          "effectiveness": 61,
+          "contract": {
+            "salary": 1000000,
+            "years_remaining": 1
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "NYG": {
+      "full_name": "New York Giants",
+      "front_office": [
+        {
+          "name": "Joe Schoen",
+          "role": "gm",
+          "effectiveness": 72,
+          "contract": {
+            "salary": 5000000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Dawn Aponte",
+          "role": "svp_football_ops",
+          "effectiveness": 76,
+          "contract": {
+            "salary": 2050000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Brandon Brown",
+          "role": "assistant_gm",
+          "effectiveness": 67,
+          "contract": {
+            "salary": 2500000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Dennis Hickey",
+          "role": "asst_dir_scouting",
+          "effectiveness": 58,
+          "contract": {
+            "salary": 250000,
+            "years_remaining": 1
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "NYJ": {
+      "full_name": "New York Jets",
+      "front_office": [
+        {
+          "name": "Darren Mougey",
+          "role": "gm",
+          "effectiveness": 70,
+          "contract": {
+            "salary": 5600000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Rick Spielman",
+          "role": "advisor",
+          "effectiveness": 73,
+          "contract": {
+            "salary": 1400000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Phil Savage",
+          "role": "advisor",
+          "effectiveness": 70,
+          "contract": {
+            "salary": 750000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Greg Nejmeh",
+          "role": "dir_pro_scouting",
+          "effectiveness": 61,
+          "contract": {
+            "salary": 500000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Kevin Murphy",
+          "role": "asst_dir_scouting",
+          "effectiveness": 65,
+          "contract": {
+            "salary": 250000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Dan Zbojovsky",
+          "role": "dir_football_ops",
+          "effectiveness": 60,
+          "contract": {
+            "salary": 350000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Chris Nolan",
+          "role": "college_scout",
+          "effectiveness": 51,
+          "contract": {
+            "salary": 250000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Drew Morris",
+          "role": "college_scout",
+          "effectiveness": 59,
+          "contract": {
+            "salary": 200000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Thomas Witty",
+          "role": "scouting_assistant",
+          "effectiveness": 52,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 5
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "PHI": {
+      "full_name": "Philadelphia Eagles",
+      "front_office": [
+        {
+          "name": "Howie Roseman",
+          "role": "gm",
+          "effectiveness": 93,
+          "contract": {
+            "salary": 4200000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Jon Ferrari",
+          "role": "assistant_gm",
+          "effectiveness": 74,
+          "contract": {
+            "salary": 2600000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Alec Halaby",
+          "role": "assistant_gm",
+          "effectiveness": 77,
+          "contract": {
+            "salary": 1800000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Bryce Johnston",
+          "role": "vp_player_personnel",
+          "effectiveness": 58,
+          "contract": {
+            "salary": 700000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Dom DiSandro",
+          "role": "advisor",
+          "effectiveness": 68,
+          "contract": {
+            "salary": 450000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Phil Bhaya",
+          "role": "dir_college_scouting",
+          "effectiveness": 58,
+          "contract": {
+            "salary": 350000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "James Gilman",
+          "role": "vp_analytics",
+          "effectiveness": 66,
+          "contract": {
+            "salary": 650000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Connor Barwin",
+          "role": "dir_player_dev",
+          "effectiveness": 51,
+          "contract": {
+            "salary": 300000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Jeff Scott",
+          "role": "dir_football_ops",
+          "effectiveness": 56,
+          "contract": {
+            "salary": 550000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Rod Streater",
+          "role": "national_scout",
+          "effectiveness": 56,
+          "contract": {
+            "salary": 400000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Jarrod Kilburn",
+          "role": "college_scout",
+          "effectiveness": 59,
+          "contract": {
+            "salary": 200000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Ben Ijalana",
+          "role": "scouting_assistant",
+          "effectiveness": 52,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 4
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "PIT": {
+      "full_name": "Pittsburgh Steelers",
+      "front_office": [
+        {
+          "name": "Omar Khan",
+          "role": "gm",
+          "effectiveness": 80,
+          "contract": {
+            "salary": 7300000,
+            "years_remaining": 3
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "SF": {
+      "full_name": "San Francisco 49ers",
+      "front_office": [
+        {
+          "name": "John Lynch",
+          "role": "gm",
+          "effectiveness": 88,
+          "contract": {
+            "salary": 4050000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Keena Turner",
+          "role": "advisor",
+          "effectiveness": 62,
+          "contract": {
+            "salary": 1050000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Frank Gore",
+          "role": "advisor",
+          "effectiveness": 66,
+          "contract": {
+            "salary": 1350000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Tariq Ahmad",
+          "role": "dir_player_personnel",
+          "effectiveness": 67,
+          "contract": {
+            "salary": 650000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "RJ Gillen",
+          "role": "dir_player_personnel",
+          "effectiveness": 71,
+          "contract": {
+            "salary": 500000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Justin Chabot",
+          "role": "asst_dir_scouting",
+          "effectiveness": 62,
+          "contract": {
+            "salary": 350000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Chip Flanagan",
+          "role": "national_scout",
+          "effectiveness": 63,
+          "contract": {
+            "salary": 400000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Josh Williams",
+          "role": "national_scout",
+          "effectiveness": 65,
+          "contract": {
+            "salary": 250000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Dominic DeCicco",
+          "role": "national_scout",
+          "effectiveness": 52,
+          "contract": {
+            "salary": 350000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Warren Ball",
+          "role": "area_scout",
+          "effectiveness": 45,
+          "contract": {
+            "salary": 150000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Hayden Frey",
+          "role": "area_scout",
+          "effectiveness": 48,
+          "contract": {
+            "salary": 200000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Crowley Hanlon",
+          "role": "area_scout",
+          "effectiveness": 56,
+          "contract": {
+            "salary": 250000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Ryan Kessenich",
+          "role": "area_scout",
+          "effectiveness": 62,
+          "contract": {
+            "salary": 150000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Steve Rubio",
+          "role": "area_scout",
+          "effectiveness": 47,
+          "contract": {
+            "salary": 250000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Eric Thatcher",
+          "role": "area_scout",
+          "effectiveness": 55,
+          "contract": {
+            "salary": 200000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Fred Gammage III",
+          "role": "pro_scout",
+          "effectiveness": 54,
+          "contract": {
+            "salary": 300000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Steve Slowik",
+          "role": "pro_scout",
+          "effectiveness": 53,
+          "contract": {
+            "salary": 250000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Michael Zyskowski",
+          "role": "national_scout",
+          "effectiveness": 63,
+          "contract": {
+            "salary": 300000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Jessi Seumalo",
+          "role": "scouting_coordinator",
+          "effectiveness": 46,
+          "contract": {
+            "salary": 200000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Tyren Gatson",
+          "role": "scouting_assistant",
+          "effectiveness": 46,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Jason Kwon",
+          "role": "scouting_assistant",
+          "effectiveness": 54,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Jack Quagliarello",
+          "role": "scouting_assistant",
+          "effectiveness": 45,
+          "contract": {
+            "salary": 50000,
+            "years_remaining": 4
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "SEA": {
+      "full_name": "Seattle Seahawks",
+      "front_office": [
+        {
+          "name": "John Schneider",
+          "role": "gm",
+          "effectiveness": 88,
+          "contract": {
+            "salary": 10700000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Nolan Teasley",
+          "role": "assistant_gm",
+          "effectiveness": 79,
+          "contract": {
+            "salary": 2350000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Trent Kirchner",
+          "role": "vp_player_personnel",
+          "effectiveness": 62,
+          "contract": {
+            "salary": 1400000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Matt Berry",
+          "role": "dir_player_personnel",
+          "effectiveness": 67,
+          "contract": {
+            "salary": 500000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Aaron Hineline",
+          "role": "dir_college_scouting",
+          "effectiveness": 56,
+          "contract": {
+            "salary": 500000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Willie Schneider",
+          "role": "dir_pro_scouting",
+          "effectiveness": 68,
+          "contract": {
+            "salary": 450000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Jason Barnes",
+          "role": "asst_dir_scouting",
+          "effectiveness": 59,
+          "contract": {
+            "salary": 300000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "DJ Hord",
+          "role": "asst_dir_scouting",
+          "effectiveness": 55,
+          "contract": {
+            "salary": 200000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Steve Hutchinson",
+          "role": "advisor",
+          "effectiveness": 72,
+          "contract": {
+            "salary": 1150000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Todd Brunner",
+          "role": "area_scout",
+          "effectiveness": 56,
+          "contract": {
+            "salary": 200000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Ryan Florence",
+          "role": "area_scout",
+          "effectiveness": 45,
+          "contract": {
+            "salary": 200000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Josh Graff",
+          "role": "area_scout",
+          "effectiveness": 46,
+          "contract": {
+            "salary": 150000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Kirk Parrish",
+          "role": "area_scout",
+          "effectiveness": 55,
+          "contract": {
+            "salary": 150000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Armani Perez",
+          "role": "pro_scout",
+          "effectiveness": 61,
+          "contract": {
+            "salary": 250000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Hailey Holtz",
+          "role": "scouting_assistant",
+          "effectiveness": 54,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Sarah Ruttkay",
+          "role": "scouting_assistant",
+          "effectiveness": 38,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Joey Schneider",
+          "role": "scouting_assistant",
+          "effectiveness": 41,
+          "contract": {
+            "salary": 50000,
+            "years_remaining": 4
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "TB": {
+      "full_name": "Tampa Bay Buccaneers",
+      "front_office": [
+        {
+          "name": "Jason Licht",
+          "role": "gm",
+          "effectiveness": 85,
+          "contract": {
+            "salary": 4200000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Mike Greenberg",
+          "role": "assistant_gm",
+          "effectiveness": 79,
+          "contract": {
+            "salary": 2150000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Rob McCartney",
+          "role": "assistant_gm",
+          "effectiveness": 69,
+          "contract": {
+            "salary": 2500000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Mike Biehl",
+          "role": "vp_player_personnel",
+          "effectiveness": 69,
+          "contract": {
+            "salary": 1050000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Jacqueline Davidson",
+          "role": "vp_player_personnel",
+          "effectiveness": 63,
+          "contract": {
+            "salary": 1200000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Jeremiah Bogan",
+          "role": "college_scout",
+          "effectiveness": 47,
+          "contract": {
+            "salary": 200000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Korey Finnie",
+          "role": "college_scout",
+          "effectiveness": 58,
+          "contract": {
+            "salary": 150000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Jordan Morrow",
+          "role": "national_scout",
+          "effectiveness": 52,
+          "contract": {
+            "salary": 400000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Shane Scannell",
+          "role": "dir_football_ops",
+          "effectiveness": 57,
+          "contract": {
+            "salary": 450000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Tony Hardie",
+          "role": "scouting_assistant",
+          "effectiveness": 42,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Shelton Quarles",
+          "role": "scouting_assistant",
+          "effectiveness": 42,
+          "contract": {
+            "salary": 100000,
+            "years_remaining": 1
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "TEN": {
+      "full_name": "Tennessee Titans",
+      "front_office": [
+        {
+          "name": "Mike Borgonzi",
+          "role": "gm",
+          "effectiveness": 74,
+          "contract": {
+            "salary": 9550000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Dave Ziegler",
+          "role": "assistant_gm",
+          "effectiveness": 80,
+          "contract": {
+            "salary": 2750000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Reggie McKenzie",
+          "role": "advisor",
+          "effectiveness": 68,
+          "contract": {
+            "salary": 1400000,
+            "years_remaining": 4
+          }
+        },
+        {
+          "name": "Dan Saganey",
+          "role": "vp_player_personnel",
+          "effectiveness": 70,
+          "contract": {
+            "salary": 1550000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Jon Salge",
+          "role": "dir_college_scouting",
+          "effectiveness": 69,
+          "contract": {
+            "salary": 550000,
+            "years_remaining": 2
+          }
+        }
+      ],
+      "coaching_staff": []
+    },
+    "WAS": {
+      "full_name": "Washington Commanders",
+      "front_office": [
+        {
+          "name": "Adam Peters",
+          "role": "gm",
+          "effectiveness": 76,
+          "contract": {
+            "salary": 7750000,
+            "years_remaining": 5
+          }
+        },
+        {
+          "name": "Eric Stokes",
+          "role": "dir_player_personnel",
+          "effectiveness": 68,
+          "contract": {
+            "salary": 850000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Chris Polian",
+          "role": "dir_pro_scouting",
+          "effectiveness": 68,
+          "contract": {
+            "salary": 700000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Tim Gribble",
+          "role": "dir_college_scouting",
+          "effectiveness": 57,
+          "contract": {
+            "salary": 700000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Marty Hurney",
+          "role": "advisor",
+          "effectiveness": 67,
+          "contract": {
+            "salary": 850000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Brent Caprio",
+          "role": "pro_scout",
+          "effectiveness": 47,
+          "contract": {
+            "salary": 150000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Connor Barringer",
+          "role": "pro_scout",
+          "effectiveness": 53,
+          "contract": {
+            "salary": 250000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "David Whittington",
+          "role": "national_scout",
+          "effectiveness": 60,
+          "contract": {
+            "salary": 350000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Jeff Beathard",
+          "role": "national_scout",
+          "effectiveness": 57,
+          "contract": {
+            "salary": 300000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Chuck Cook",
+          "role": "college_scout",
+          "effectiveness": 45,
+          "contract": {
+            "salary": 250000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Peter Picerelli",
+          "role": "college_scout",
+          "effectiveness": 55,
+          "contract": {
+            "salary": 250000,
+            "years_remaining": 1
+          }
+        },
+        {
+          "name": "Harrison Ritcher",
+          "role": "college_scout",
+          "effectiveness": 59,
+          "contract": {
+            "salary": 200000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Ronald Rose",
+          "role": "college_scout",
+          "effectiveness": 44,
+          "contract": {
+            "salary": 150000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Paul Skansi",
+          "role": "college_scout",
+          "effectiveness": 48,
+          "contract": {
+            "salary": 200000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Roger Terry",
+          "role": "college_scout",
+          "effectiveness": 55,
+          "contract": {
+            "salary": 150000,
+            "years_remaining": 2
+          }
+        },
+        {
+          "name": "Tyler Claytor",
+          "role": "college_scout",
+          "effectiveness": 53,
+          "contract": {
+            "salary": 200000,
+            "years_remaining": 3
+          }
+        },
+        {
+          "name": "Ashley Cohrs",
+          "role": "scouting_assistant",
+          "effectiveness": 52,
+          "contract": {
+            "salary": 50000,
+            "years_remaining": 3
+          }
+        }
+      ],
+      "coaching_staff": []
+    }
+  }
+}

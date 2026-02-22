@@ -177,13 +177,37 @@ export interface Interrupt {
  * The engine uses this to mutate game state before resuming.
  */
 export type InterruptResolution =
-  | { reason: HardStopReason.TRADE_OFFER_RECEIVED;        accepted: boolean; counterOffer?: Record<string, unknown> }
+  | { reason: HardStopReason.TRADE_OFFER_RECEIVED;        accepted: boolean; navigate?: boolean }
   | { reason: HardStopReason.STARTER_INJURED;             acknowledged: true }
   | { reason: HardStopReason.ROSTER_CUTS_REQUIRED;        releasedPlayerIds: string[] }
   | { reason: HardStopReason.DRAFT_PICK_READY;            selectedPlayerId: string }
   | { reason: HardStopReason.CONTRACT_EXTENSION_EXPIRING; signedContract?: Record<string, unknown>; released?: boolean }
   | { reason: HardStopReason.LEAGUE_YEAR_RESET;           acknowledged: true }
   | { reason: HardStopReason.FREE_AGENCY_OPEN;            acknowledged: true };
+
+// ─── Action Item Queue ────────────────────────────────────────────────────────
+
+/**
+ * Actionable blockers that prevent progression without requiring hard stops.
+ * UI checks this queue to disable the Advance Week button and show diagnostics.
+ */
+export enum ActionItemType {
+  ROSTER_OVER_LIMIT  = 'ROSTER_OVER_LIMIT',  // > 54 players on roster
+  CAP_EXCEEDED       = 'CAP_EXCEEDED',        // Team salary exceeds cap
+  INVALID_LINEUP     = 'INVALID_LINEUP',      // Missing required positions
+}
+
+export interface ActionItem {
+  id: string;                    // uuid
+  type: ActionItemType;
+  teamId: string;                // Which team is blocked
+  description: string;           // Human-readable explanation
+  resolution: {
+    route: string;               // Navigation target (e.g., '/roster', '/finances')
+    actionLabel: string;          // Button text (e.g., 'Go to Roster', 'Cut Players')
+  };
+  timestamp: EngineGameDate;     // When detected
+}
 
 // ─── Snapshot ─────────────────────────────────────────────────────────────────
 
@@ -193,6 +217,7 @@ export interface EngineSnapshot {
   currentGameDate: EngineGameDate;
   simulationState: EngineSimulationState;
   interruptQueue: Interrupt[];
+  actionItemQueue: ActionItem[];     // Progression blockers
   processedEvents: string[];         // Names of calendar events already fired this season
   targetWeek: number;
 }

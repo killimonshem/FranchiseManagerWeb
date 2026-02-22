@@ -28,6 +28,7 @@ import { TradeScreen } from "./screens/TradeScreen";
 import { TrophyScreen } from "./screens/TrophyScreen";
 import { gameStateManager } from "./types/GameStateManager";
 import { SimulationState } from "./types/GameStateManager";
+import { HardStopReason } from "./types/engine-types";
 import { gameStore } from "./stores/GameStore";
 
 // ─── Navigation Architecture ───────────────────────────────────────
@@ -128,6 +129,19 @@ export default function App() {
     refresh(); // final re-render after loop exits (catches any state missed by onEngineStateChange)
   }
 
+  // ── AI Trade Offer response ───────────────────────────────────────
+  function handleTradeResponse(action: "accept" | "reject" | "negotiate") {
+    gameStateManager.resolveEngineInterrupt({
+      reason:   HardStopReason.TRADE_OFFER_RECEIVED,
+      accepted: action === "accept",
+      navigate: action === "negotiate" ? true : undefined,
+    });
+    if (action === "negotiate") {
+      handleScreenChange("trade"); // navigate to trade screen; pendingAITradeOffer stays set
+    }
+    refresh();
+  }
+
   // ── Show setup until franchise is configured ──────────────────────
   if (phase === "setup") {
     return <TeamSelectScreen onStart={handleGameStart} />;
@@ -159,7 +173,7 @@ export default function App() {
       case "schedule":   return <ScheduleScreen />;
       case "staff":      return <StaffScreen />;
       case "freeAgency": return <FreeAgencyScreen onRosterChange={refresh} />;
-      case "trade":      return <TradeScreen />;
+      case "trade":      return <TradeScreen gsm={gameStateManager} refresh={refresh} />;
       case "trophies":   return <TrophyScreen teamAbbr={userTeamMeta?.abbr ?? ""} />;
       default:
         return (
@@ -400,6 +414,85 @@ export default function App() {
           {renderScreen()}
         </div>
       </main>
+
+      {/* ── TRADE_OFFER_RECEIVED modal overlay ───────────────────────────── */}
+      {activeInterrupt?.reason === HardStopReason.TRADE_OFFER_RECEIVED && (() => {
+        const pending    = gameStateManager.pendingAITradeOffer;
+        const offeringTeam = pending ? gameStateManager.teams.find(t => t.id === pending.offeringTeamId) : null;
+        const wantedPlayers = (pending?.receivingPlayerIds ?? [])
+          .map(id => gameStateManager.allPlayers.find(p => p.id === id))
+          .filter(Boolean) as { firstName: string; lastName: string; overall: number }[];
+        const offeredPickIds = pending?.offeringPickIds ?? [];
+
+        return (
+          <div style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)",
+            zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <div style={{
+              background: COLORS.bg, border: `1px solid ${COLORS.darkMagenta}`,
+              borderRadius: 12, padding: 28, maxWidth: 420, width: "90%",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+            }}>
+              <div style={{ fontSize: 10, color: COLORS.magenta, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6 }}>
+                Incoming Trade Offer
+              </div>
+              <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 800, color: COLORS.light }}>
+                {offeringTeam ? `${offeringTeam.city} ${offeringTeam.name}` : "Unknown Team"}
+              </h3>
+
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 9, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700, marginBottom: 4 }}>They want</div>
+                {wantedPlayers.length > 0 ? wantedPlayers.map((p, i) => (
+                  <div key={i} style={{ fontSize: 12, color: COLORS.light, padding: "3px 0" }}>
+                    {p.firstName} {p.lastName} <span style={{ color: COLORS.muted, fontSize: 10 }}>({p.overall} OVR)</span>
+                  </div>
+                )) : <div style={{ fontSize: 11, color: COLORS.muted }}>No players requested</div>}
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 9, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700, marginBottom: 4 }}>They offer</div>
+                {offeredPickIds.length > 0 ? offeredPickIds.map((pid, i) => (
+                  <div key={i} style={{ fontSize: 12, color: COLORS.lime, fontFamily: "monospace", padding: "2px 0" }}>{pid}</div>
+                )) : <div style={{ fontSize: 11, color: COLORS.muted }}>No picks offered</div>}
+              </div>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => handleTradeResponse("accept")}
+                  style={{
+                    flex: 1, padding: "8px 0", borderRadius: 6, fontSize: 12, fontWeight: 700,
+                    background: `linear-gradient(135deg, ${COLORS.magenta}, rgba(116,0,86,0.8))`,
+                    border: `1px solid ${COLORS.magenta}`, color: COLORS.light, cursor: "pointer",
+                  }}
+                >
+                  Accept
+                </button>
+                <button
+                  onClick={() => handleTradeResponse("negotiate")}
+                  style={{
+                    flex: 1, padding: "8px 0", borderRadius: 6, fontSize: 12, fontWeight: 700,
+                    background: "rgba(245,166,35,0.15)", border: "1px solid rgba(245,166,35,0.4)",
+                    color: "#f5a623", cursor: "pointer",
+                  }}
+                >
+                  Negotiate
+                </button>
+                <button
+                  onClick={() => handleTradeResponse("reject")}
+                  style={{
+                    flex: 1, padding: "8px 0", borderRadius: 6, fontSize: 12, fontWeight: 700,
+                    background: "transparent", border: `1px solid ${COLORS.darkMagenta}`,
+                    color: COLORS.muted, cursor: "pointer",
+                  }}
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Mobile Bottom Nav */}
       {isMobile && (

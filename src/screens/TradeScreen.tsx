@@ -238,7 +238,7 @@ export function TradeScreen({
       className="trade-grid"
       >
         <style>{`
-          @media (max-width: 768px) {
+          @media (max-width: 767px) {
             .trade-grid {
               grid-template-columns: 1fr !important;
               gap: 14px !important;
@@ -246,15 +246,15 @@ export function TradeScreen({
             .trade-arrow {
               display: none !important;
             }
-            .trade-footer {
+            .trade-sticky-footer {
+              bottom: calc(65px + env(safe-area-inset-bottom)) !important;
+              background: ${COLORS.bg} !important;
+              border-top: 1px solid ${COLORS.darkMagenta} !important;
+            }
+            .trade-footer-content {
               flex-direction: column !important;
               gap: 12px !important;
               align-items: stretch !important;
-            }
-            .trade-summary {
-              flex-direction: column !important;
-              gap: 8px !important;
-              align-items: flex-start !important;
             }
             .trade-buttons {
               width: 100% !important;
@@ -265,6 +265,18 @@ export function TradeScreen({
               padding: 12px 16px !important;
               font-size: 13px !important;
               min-height: 44px !important;
+            }
+            .trade-summary {
+              flex-direction: column !important;
+              gap: 8px !important;
+              align-items: flex-start !important;
+            }
+            .trade-summary > div {
+              font-size: 13px !important;
+              color: ${COLORS.light} !important;
+            }
+            .trade-spacer {
+              height: 220px !important;
             }
           }
         `}</style>
@@ -394,7 +406,7 @@ export function TradeScreen({
         borderTop: `1px solid ${COLORS.darkMagenta}`,
         padding: "16px",
         paddingBottom: "12px",
-      }} className="trade-footer">
+      }} className="trade-sticky-footer">
         <div style={{
           maxWidth: 1200,
           margin: "0 auto",
@@ -403,7 +415,7 @@ export function TradeScreen({
           gap: 16,
           alignItems: "center",
           justifyContent: "space-between",
-        }} className="trade-footer">
+        }} className="trade-footer-content">
           {/* Trade Summary */}
           <div style={{ display: "flex", gap: 24, alignItems: "center" }} className="trade-summary">
             <div style={{ fontSize: 11, color: COLORS.muted }}>
@@ -454,7 +466,7 @@ export function TradeScreen({
       </div>
 
       {/* Spacer to account for fixed footer */}
-      <div style={{ height: 100 }} />
+      <div style={{ height: 100 }} className="trade-spacer" />
 
       {/* Evaluation result — positioned before sticky footer to avoid overlap */}
       {evaluation && (

@@ -1,181 +1,235 @@
 /**
- * Storage Service
- * Handles persistent storage of game state using browser localStorage
- * Replaces Apple FileManager from Swift implementation
+ * StorageService.ts
+ *
+ * IndexedDB-backed persistence layer using Dexie.js.
+ * Replaces localStorage which hits 5MB quota limits.
+ *
+ * Rules:
+ * - All reads/writes are async
+ * - UI must render skeleton loaders during hydration
+ * - Schema version in constructor; increment on breaking changes
  */
 
-const STORAGE_PREFIX = 'franchise_manager_';
+import Dexie, { Table } from 'dexie';
+import type { Player } from '../types/player';
+import type { Team } from '../types/team';
+import type { TeamDraftPick } from '../types/GameStateManager';
 
-/**
- * Utility class for browser storage operations
- */
-export class StorageService {
-  /**
-   * Check if localStorage is available
-   */
-  static isAvailable(): boolean {
-    try {
-      const test = '__test__';
-      localStorage.setItem(test, test);
-      localStorage.removeItem(test);
-      return true;
-    } catch {
-      console.warn('⚠️ [Storage] localStorage is not available (private browsing or quota exceeded)');
-      return false;
-    }
-  }
+// ─── Database Schema ──────────────────────────────────────────────────────────
 
-  /**
-   * Save data to localStorage with error handling
-   * @param key - The storage key
-   * @param data - The data to save (will be serialized to JSON)
-   * @returns true if save was successful, false otherwise
-   */
-  static save<T>(key: string, data: T): boolean {
-    if (!this.isAvailable()) {
-      console.error('❌ [Storage] Cannot save: localStorage not available');
-      return false;
-    }
+interface GameStateRecord {
+  id: string;
+  currentWeek: number;
+  userTeamId: string;
+  currentPhase: string;
+  simulationState: string;
+  snapshot: string; // JSON
+  lastSaved: number;
+}
 
-    try {
-      const prefixedKey = `${STORAGE_PREFIX}${key}`;
-      const json = JSON.stringify(data);
-      localStorage.setItem(prefixedKey, json);
-      console.log(`💾 [Storage] Saved '${key}' (${(json.length / 1024).toFixed(2)} KB)`);
-      return true;
-    } catch (error) {
-      if (error instanceof DOMException) {
-        if (error.code === 22) { // QuotaExceededError
-          console.error('❌ [Storage] Quota exceeded - localStorage is full');
-        } else {
-          console.error(`❌ [Storage] Error code ${error.code}: ${error.message}`);
-        }
-      } else {
-        console.error('❌ [Storage] Unknown error:', error);
-      }
-      return false;
-    }
-  }
+interface PlayerRecord extends Player {
+  teamId: string;
+  status: string;
+  overallRating: number;
+}
 
-  /**
-   * Load data from localStorage with error handling
-   * @param key - The storage key
-   * @returns The loaded data, or null if not found or error occurred
-   */
-  static load<T>(key: string): T | null {
-    if (!this.isAvailable()) {
-      console.error('❌ [Storage] Cannot load: localStorage not available');
-      return null;
-    }
+interface TeamRecord extends Team {}
 
-    try {
-      const prefixedKey = `${STORAGE_PREFIX}${key}`;
-      const json = localStorage.getItem(prefixedKey);
+interface DraftPickRecord {
+  id: string; // "${year}-${round}-${originalTeamId}"
+  year: number;
+  round: number;
+  originalTeamId: string;
+  currentTeamId: string;
+  position?: string;
+  nflTeamId?: string;
+}
 
-      if (json === null) {
-        console.log(`ℹ️ [Storage] No data found for key '${key}'`);
-        return null;
-      }
+interface StaffRecord {
+  id: string;
+  teamId: string;
+  role: string;
+  category: 'COACHING' | 'FRONT_OFFICE';
+  name: string;
+}
 
-      const data = JSON.parse(json) as T;
-      console.log(`📂 [Storage] Loaded '${key}' (${(json.length / 1024).toFixed(2)} KB)`);
-      return data;
-    } catch (error) {
-      if (error instanceof SyntaxError) {
-        console.error(`❌ [Storage] Failed to parse JSON for key '${key}': Data may be corrupted`);
-      } else {
-        console.error(`❌ [Storage] Error loading '${key}':`, error);
-      }
-      return null;
-    }
-  }
+interface SaveSlotRecord {
+  slotName: string;
+  timestamp: number;
+  schemaVersion: number;
+  snapshot: string; // Full serialized game state
+}
 
-  /**
-   * Remove data from localStorage
-   * @param key - The storage key
-   * @returns true if removal was successful, false otherwise
-   */
-  static remove(key: string): boolean {
-    if (!this.isAvailable()) {
-      return false;
-    }
+// ─── Dexie Database ───────────────────────────────────────────────────────────
 
-    try {
-      const prefixedKey = `${STORAGE_PREFIX}${key}`;
-      localStorage.removeItem(prefixedKey);
-      console.log(`🗑️ [Storage] Removed '${key}'`);
-      return true;
-    } catch (error) {
-      console.error(`❌ [Storage] Error removing '${key}':`, error);
-      return false;
-    }
-  }
+class FranchiseManagerDB extends Dexie {
+  gameState!: Table<GameStateRecord>;
+  players!: Table<PlayerRecord>;
+  teams!: Table<TeamRecord>;
+  draftPicks!: Table<DraftPickRecord>;
+  staff!: Table<StaffRecord>;
+  saves!: Table<SaveSlotRecord>;
 
-  /**
-   * Check if a key exists in localStorage
-   */
-  static exists(key: string): boolean {
-    if (!this.isAvailable()) {
-      return false;
-    }
-
-    const prefixedKey = `${STORAGE_PREFIX}${key}`;
-    return localStorage.getItem(prefixedKey) !== null;
-  }
-
-  /**
-   * Get all save slots (returns array of slot names)
-   */
-  static getAllSlots(): string[] {
-    if (!this.isAvailable()) {
-      return [];
-    }
-
-    const slots: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith(STORAGE_PREFIX)) {
-        slots.push(key.substring(STORAGE_PREFIX.length));
-      }
-    }
-    return slots;
-  }
-
-  /**
-   * Clear all game saves (DESTRUCTIVE - use with caution)
-   */
-  static clearAllSaves(): boolean {
-    if (!this.isAvailable()) {
-      return false;
-    }
-
-    try {
-      const slots = this.getAllSlots();
-      slots.forEach(slot => this.remove(slot));
-      console.log(`🗑️ [Storage] Cleared ${slots.length} save(s)`);
-      return true;
-    } catch (error) {
-      console.error('❌ [Storage] Error clearing saves:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Hydrate Date objects in parsed data
-   * localStorage serializes Dates as ISO strings, this converts them back
-   */
-  static hydrateDate(data: any, dateFields: string[]): any {
-    if (!data || typeof data !== 'object') {
-      return data;
-    }
-
-    const hydrated = { ...data };
-    dateFields.forEach(field => {
-      if (hydrated[field] && typeof hydrated[field] === 'string') {
-        hydrated[field] = new Date(hydrated[field]);
-      }
+  constructor() {
+    super('FranchiseManager');
+    this.version(1).stores({
+      gameState:  'id, currentWeek, userTeamId, currentPhase',
+      players:    'id, teamId, status, overallRating',
+      teams:      'id, abbreviation',
+      draftPicks: '[year+round+originalTeamId], currentTeamId',
+      staff:      'id, teamId, role, category',
+      saves:      'slotName, timestamp, schemaVersion',
     });
-
-    return hydrated;
   }
 }
+
+const db = new FranchiseManagerDB();
+
+// ─── StorageService API ───────────────────────────────────────────────────────
+
+export class StorageService {
+  private static instance: StorageService;
+
+  private constructor() {}
+
+  static getInstance(): StorageService {
+    if (!StorageService.instance) {
+      StorageService.instance = new StorageService();
+    }
+    return StorageService.instance;
+  }
+
+  // Game State
+  async saveGameState(gameState: Partial<GameStateRecord>): Promise<void> {
+    const record: GameStateRecord = {
+      id: 'main',
+      currentWeek: gameState.currentWeek ?? 1,
+      userTeamId: gameState.userTeamId ?? '',
+      currentPhase: gameState.currentPhase ?? 'OFFSEASON',
+      simulationState: gameState.simulationState ?? 'IDLE',
+      snapshot: gameState.snapshot ?? '{}',
+      lastSaved: Date.now(),
+    };
+    await db.gameState.put(record);
+  }
+
+  async loadGameState(): Promise<GameStateRecord | undefined> {
+    return db.gameState.get('main');
+  }
+
+  async clearGameState(): Promise<void> {
+    await db.gameState.clear();
+  }
+
+  // Players
+  async savePlayers(players: PlayerRecord[]): Promise<void> {
+    await db.players.bulkPut(players);
+  }
+
+  async loadPlayersByTeam(teamId: string): Promise<PlayerRecord[]> {
+    return db.players.where('teamId').equals(teamId).toArray();
+  }
+
+  async loadAllPlayers(): Promise<PlayerRecord[]> {
+    return db.players.toArray();
+  }
+
+  async updatePlayer(playerId: string, updates: Partial<PlayerRecord>): Promise<void> {
+    await db.players.update(playerId, updates);
+  }
+
+  async deletePlayer(playerId: string): Promise<void> {
+    await db.players.delete(playerId);
+  }
+
+  async clearPlayers(): Promise<void> {
+    await db.players.clear();
+  }
+
+  // Teams
+  async saveTeams(teams: TeamRecord[]): Promise<void> {
+    await db.teams.bulkPut(teams);
+  }
+
+  async loadTeams(): Promise<TeamRecord[]> {
+    return db.teams.toArray();
+  }
+
+  async updateTeam(teamId: string, updates: Partial<TeamRecord>): Promise<void> {
+    await db.teams.update(teamId, updates);
+  }
+
+  async clearTeams(): Promise<void> {
+    await db.teams.clear();
+  }
+
+  // Draft Picks
+  async saveDraftPicks(picks: DraftPickRecord[]): Promise<void> {
+    await db.draftPicks.bulkPut(picks);
+  }
+
+  async loadDraftPicksByTeam(teamId: string): Promise<DraftPickRecord[]> {
+    return db.draftPicks.where('currentTeamId').equals(teamId).toArray();
+  }
+
+  async loadAllDraftPicks(): Promise<DraftPickRecord[]> {
+    return db.draftPicks.toArray();
+  }
+
+  async updateDraftPick(pickId: string, updates: Partial<DraftPickRecord>): Promise<void> {
+    await db.draftPicks.update(pickId, updates);
+  }
+
+  async clearDraftPicks(): Promise<void> {
+    await db.draftPicks.clear();
+  }
+
+  // Staff
+  async saveStaff(staff: StaffRecord[]): Promise<void> {
+    await db.staff.bulkPut(staff);
+  }
+
+  async loadStaffByTeam(teamId: string): Promise<StaffRecord[]> {
+    return db.staff.where('teamId').equals(teamId).toArray();
+  }
+
+  async clearStaff(): Promise<void> {
+    await db.staff.clear();
+  }
+
+  // Save Slots
+  async saveSaveSlot(slotName: string, snapshot: string, schemaVersion: number = 1): Promise<void> {
+    const record: SaveSlotRecord = {
+      slotName,
+      timestamp: Date.now(),
+      schemaVersion,
+      snapshot,
+    };
+    await db.saves.put(record);
+  }
+
+  async loadSaveSlot(slotName: string): Promise<SaveSlotRecord | undefined> {
+    return db.saves.get(slotName);
+  }
+
+  async deleteSaveSlot(slotName: string): Promise<void> {
+    await db.saves.delete(slotName);
+  }
+
+  async listSaveSlots(): Promise<SaveSlotRecord[]> {
+    return db.saves.toArray();
+  }
+
+  // Bulk operations
+  async clearAll(): Promise<void> {
+    await db.delete();
+    await db.open();
+  }
+
+  async isHydrated(): Promise<boolean> {
+    const gameState = await this.loadGameState();
+    return !!gameState;
+  }
+}
+
+export const storage = StorageService.getInstance();

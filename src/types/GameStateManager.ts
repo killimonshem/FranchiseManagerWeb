@@ -27,6 +27,8 @@ import {
   EngineGameDate,
   EngineSnapshot,
   EngineSimulationState,
+  ActionItem,
+  ActionItemType,
 } from './engine-types';
 import { hasMajorEventThisWeek, getScheduledEvent } from './scheduled-events';
 import { AgentPersonalitySystem } from '../systems/AgentPersonalitySystem';
@@ -34,11 +36,12 @@ import { TradeSystem } from '../systems/TradeSystem';
 import { FinanceSystem } from '../systems/FinanceSystem';
 import { DraftEngine, generateDraftClass } from '../systems/DraftEngine';
 import type { DraftPickResult } from '../systems/DraftEngine';
-import type { TradeOfferPayload, TradeEvaluation } from '../systems/TradeSystem';
+import type { TradeOfferPayloadUI, TradeEvaluation } from '../systems/TradeSystem';
+import { FranchiseTier } from '../systems/TradeSystem';
 
 // Re-export engine types so existing imports from this file still work
-export type { Interrupt, InterruptResolution, EngineGameDate, EngineSnapshot };
-export { EnginePhase, HardStopReason, SoftStopReason, EngineSimulationState, PHASE_LABELS };
+export type { Interrupt, InterruptResolution, EngineGameDate, EngineSnapshot, ActionItem };
+export { EnginePhase, HardStopReason, SoftStopReason, EngineSimulationState, PHASE_LABELS, ActionItemType };
 
 // MARK: - Placeholder Types & Enums
 
@@ -456,6 +459,7 @@ export class GameStateManager {
   currentProcessingDescription: string = '';
   currentProcessingProgress: number = 0;
   interruptQueue: ProcessingInterrupt[] = [];
+  actionItemQueue: ActionItem[] = []; // Progression blockers (roster, cap, etc.)
   activeInterrupt: ProcessingInterrupt | null = null;
   recentHeadlines: NewsHeadline[] = [];
   simulationSpeedMultiplier: number = 1.0;
@@ -534,6 +538,9 @@ export class GameStateManager {
   agentPersonalitySystem: AgentPersonalitySystem = new AgentPersonalitySystem();
   tradeSystem: TradeSystem = new TradeSystem();
   financeSystem: FinanceSystem = new FinanceSystem();
+  /** Populated by AI initiative; TradeScreen reads this on mount for Negotiate flow. */
+  pendingAITradeOffer: TradeOfferPayloadUI | null = null;
+  private _negotiationAttempts = new Map<string, number>();
   draftEngine: DraftEngine | null = null; // Created when a draft begins
 
   // Constants
@@ -1722,6 +1729,9 @@ export class GameStateManager {
           // AI roster evaluation (batch: 8 teams)
           this._runOffseasonDevelopmentIfGated();
         }
+        if (!this._isGameDay(this._engineDay) && week >= 29 && week <= 39) {
+          this.evaluateTradeOpportunities();
+        }
         break;
 
       case EngineTimeSlot.AFTERNOON:
@@ -1910,15 +1920,24 @@ export class GameStateManager {
    */
   resolveEngineInterrupt(resolution: InterruptResolution): void {
     switch (resolution.reason) {
-      case HardStopReason.TRADE_OFFER_RECEIVED:
-        if (resolution.accepted) {
-          const offer = this.receivedTradeOffers.find(o => o.id === (this.engineActiveInterrupt?.payload as any)?.offerId);
-          if (offer) offer.status = 'accepted';
-        } else {
-          const offer = this.receivedTradeOffers.find(o => o.id === (this.engineActiveInterrupt?.payload as any)?.offerId);
+      case HardStopReason.TRADE_OFFER_RECEIVED: {
+        const offerId = (this.engineActiveInterrupt?.payload as any)?.offerId as string | undefined;
+        const offer   = offerId ? this.receivedTradeOffers.find(o => o.id === offerId) : undefined;
+
+        if (resolution.navigate) {
+          // User chose "Negotiate" — dismiss interrupt, leave pendingAITradeOffer set
+          // so TradeScreen can read it on mount. App.tsx handles the navigation.
           if (offer) offer.status = 'rejected';
+        } else if (resolution.accepted && this.pendingAITradeOffer) {
+          if (offer) offer.status = 'accepted';
+          this.executeTrade(this.pendingAITradeOffer);
+          this.pendingAITradeOffer = null;
+        } else {
+          if (offer) offer.status = 'rejected';
+          this.pendingAITradeOffer = null;
         }
         break;
+      }
 
       case HardStopReason.ROSTER_CUTS_REQUIRED:
         for (const id of resolution.releasedPlayerIds) {
@@ -1989,6 +2008,7 @@ export class GameStateManager {
       ),
       simulationState: EngineSimulationState.IDLE, // always serialize as IDLE
       interruptQueue: this.engineInterruptQueue,
+      actionItemQueue: this.actionItemQueue,
       processedEvents: Array.from(this._engineProcessedEvents),
       targetWeek: this._engineTargetWeek,
     };
@@ -2003,9 +2023,66 @@ export class GameStateManager {
     };
     this._engineSlot = snapshot.currentGameDate.timeSlot;
     this.engineInterruptQueue = snapshot.interruptQueue;
+    this.actionItemQueue = snapshot.actionItemQueue ?? [];
     this._engineProcessedEvents = new Set(snapshot.processedEvents);
     this._engineTargetWeek = snapshot.targetWeek;
     this.simulationState = SimulationState.IDLE;
+  }
+
+  /**
+   * Validates roster constraints and populates actionItemQueue.
+   * Called after every roster mutation and before each advance.
+   * Prevents Week 4 hard stop by making blockers visible in UI.
+   */
+  validateRosterConstraints(): void {
+    const userTeam = this.userTeam;
+    if (!userTeam) return;
+
+    this.actionItemQueue = []; // Clear and rebuild
+
+    const rosterPlayers = this.allPlayers.filter(p => p.teamId === userTeam.id);
+    const rosterCount = rosterPlayers.length;
+
+    // Create a proper timestamp for action items
+    const timestamp = makeEngineDate(
+      this.currentGameDate.season,
+      this.currentGameDate.week,
+      this.currentGameDate.dayOfWeek,
+      this._engineSlot,
+    );
+
+    // Check 1: Roster size (max 54 in preseason/regular season)
+    if (this.currentGameDate.week >= 25 && rosterCount > 54) {
+      this.actionItemQueue.push({
+        id: uuidv4(),
+        type: ActionItemType.ROSTER_OVER_LIMIT,
+        teamId: userTeam.id,
+        description: `Roster has ${rosterCount} players; max 54 required. Cut ${rosterCount - 54} player(s) to proceed.`,
+        resolution: {
+          route: '/roster',
+          actionLabel: 'Go to Roster',
+        },
+        timestamp,
+      });
+    }
+
+    // Check 2: Salary cap exceeded
+    if (userTeam.capSpace < 0) {
+      this.actionItemQueue.push({
+        id: uuidv4(),
+        type: ActionItemType.CAP_EXCEEDED,
+        teamId: userTeam.id,
+        description: `Team salary exceeds cap by $${Math.abs(userTeam.capSpace).toLocaleString()}. Cut or trade players to get under cap.`,
+        resolution: {
+          route: '/finances',
+          actionLabel: 'View Finances',
+        },
+        timestamp,
+      });
+    }
+
+    // Check 3: Invalid lineup (placeholder for future depth chart validation)
+    // This would check for missing required positions once depth chart system is added
   }
 
   // ── Private helpers ───────────────────────────────────────────────────────
@@ -2200,51 +2277,350 @@ get enginePhaseLabel(): string {
     return true;
   }
 
-  // MARK: - Trade Execution
+  // MARK: - Trade Negotiation
+
+  /** Fibonacci penalty table indexed by rejection count. 2.5 triggers lockout. */
+  private _getFibPenalty(attempts: number): number {
+    const FIB = [1.0, 1.05, 1.08, 1.13, 1.21, 2.5];
+    return FIB[Math.min(attempts, FIB.length - 1)];
+  }
+
+  /** Shared pick ID parser. Compound key: "${year}-${round}-${originalTeamId}" */
+  private _findPickById(pickId: string): TeamDraftPick | undefined {
+    const parts = pickId.split('-');
+    const orig = parts.slice(2).join('-'); // handle team IDs with hyphens
+    const y = parseInt(parts[0]);
+    const r = parseInt(parts[1]);
+    return this.draftPicks.find(
+      dp => dp.year === y && dp.round === r && dp.originalTeamId === orig
+    );
+  }
 
   /**
-   * Evaluate and, if accepted, apply a trade offer.
-   * Accepts an ID-based payload; resolves live references internally so that
-   * React UI shallow copies cannot corrupt the engine's authoritative arrays.
+   * Validate and evaluate a trade offer. Does NOT mutate state.
+   * TradeScreen calls proposeTrade() first; if accepted, calls executeTrade().
    */
-  public applyTradeOffer(payload: TradeOfferPayload): TradeEvaluation {
+  public proposeTrade(payload: TradeOfferPayloadUI): TradeEvaluation {
+    const week = this.currentGameDate.week;
+
+    // 1. Deadline gate
+    if (week > 39) {
+      return { accepted: false, reason: 'The trade deadline has passed.', fairnessScore: 0, errorState: 'DEADLINE_PASSED' };
+    }
+
+    // 2. Asset ownership validation
+    for (const id of payload.offeringPlayerIds) {
+      const p = this.allPlayers.find(pl => pl.id === id);
+      if (!p || p.teamId !== payload.offeringTeamId) {
+        return { accepted: false, reason: 'One or more assets are no longer owned by your team.', fairnessScore: 0, errorState: 'ASSET_INVALID' };
+      }
+    }
+
     const partnerTeam = this.teams.find(t => t.id === payload.receivingTeamId);
     if (!partnerTeam) {
-      return { accepted: false, reason: 'Partner team not found.', fairnessScore: 0 };
+      return { accepted: false, reason: 'Trade partner team not found.', fairnessScore: 0, errorState: 'ASSET_INVALID' };
+    }
+    const offeringTeam = this.teams.find(t => t.id === payload.offeringTeamId);
+
+    // 3. Resolve IDs → live references
+    const offeringPlayers  = payload.offeringPlayerIds.map(id => this.allPlayers.find(p => p.id === id)).filter(Boolean) as Player[];
+    const receivingPlayers = payload.receivingPlayerIds.map(id => this.allPlayers.find(p => p.id === id)).filter(Boolean) as Player[];
+    const offeringPicks    = payload.offeringPickIds.map(id => this._findPickById(id)).filter(Boolean) as TeamDraftPick[];
+    const receivingPicks   = payload.receivingPickIds.map(id => this._findPickById(id)).filter(Boolean) as TeamDraftPick[];
+
+    // 4. Cap space validation (both sides)
+    const incomingCapPartner  = offeringPlayers.reduce((s, p) => s + (p.contract?.currentYearCap ?? 0), 0);
+    const outgoingCapPartner  = receivingPlayers.reduce((s, p) => s + (p.contract?.currentYearCap ?? 0), 0);
+    if (partnerTeam.capSpace - (incomingCapPartner - outgoingCapPartner) < 0) {
+      return { accepted: false, reason: `${partnerTeam.abbreviation} does not have enough cap space for this trade.`, fairnessScore: 0, errorState: 'CAP_VIOLATION' };
+    }
+    if (offeringTeam) {
+      const incomingCapOffering = receivingPlayers.reduce((s, p) => s + (p.contract?.currentYearCap ?? 0), 0);
+      const outgoingCapOffering = offeringPlayers.reduce((s, p) => s + (p.contract?.currentYearCap ?? 0), 0);
+      if (offeringTeam.capSpace - (incomingCapOffering - outgoingCapOffering) < 0) {
+        return { accepted: false, reason: 'Your team does not have enough cap space for this trade.', fairnessScore: 0, errorState: 'CAP_VIOLATION' };
+      }
     }
 
-    // Resolve IDs → live references from authoritative arrays
-    const offeringPlayers  = payload.offeringPlayerIds
-      .map(id => this.allPlayers.find(p => p.id === id)).filter(Boolean) as Player[];
-    const receivingPlayers = payload.receivingPlayerIds
-      .map(id => this.allPlayers.find(p => p.id === id)).filter(Boolean) as Player[];
-    // Pick IDs use compound key format: "${year}-${round}-${originalTeamId}"
-    const findPick = (pickId: string) => {
-      const [y, r, orig] = pickId.split('-');
-      return this.draftPicks.find(
-        dp => dp.year === parseInt(y) && dp.round === parseInt(r) && dp.originalTeamId === orig
-      );
-    };
-    const offeringPicks  = payload.offeringPickIds.map(findPick).filter(Boolean) as TeamDraftPick[];
-    const receivingPicks = payload.receivingPickIds.map(findPick).filter(Boolean) as TeamDraftPick[];
+    // 5. Negotiation fatigue multiplier
+    const attempts   = this._negotiationAttempts.get(payload.receivingTeamId) ?? 0;
+    const multiplier = this._getFibPenalty(attempts);
 
+    // 6. Evaluate
     const result = this.tradeSystem.evaluateTradeOffer(
-      payload,
-      offeringPlayers,
-      receivingPlayers,
-      offeringPicks,
-      receivingPicks,
-      partnerTeam,
-      this.currentGameDate.week,
+      payload, offeringPlayers, receivingPlayers, offeringPicks, receivingPicks,
+      partnerTeam, week, multiplier,
     );
 
-    if (result.accepted) {
-      for (const p of offeringPlayers)   p.teamId = payload.receivingTeamId;
-      for (const p of receivingPlayers)  p.teamId = payload.offeringTeamId;
-      for (const pick of offeringPicks)  pick.currentTeamId = payload.receivingTeamId;
-      for (const pick of receivingPicks) pick.currentTeamId = payload.offeringTeamId;
+    // 7. Track negotiation attempts
+    if (!result.accepted && !result.errorState) {
+      this._negotiationAttempts.set(payload.receivingTeamId, attempts + 1);
+    } else if (result.accepted) {
+      this._negotiationAttempts.delete(payload.receivingTeamId);
     }
+
+    // 8. Generate counter-offer if "close" (fairness >= 0.85, not a hard error)
+    if (
+      !result.accepted &&
+      result.fairnessScore >= 0.85 &&
+      !result.errorState &&
+      result.perceivedValues
+    ) {
+      const { userValue, aiValue } = result.perceivedValues;
+      const deficit = aiValue * 1.05 * multiplier - userValue;
+      if (deficit > 0) {
+        const offeringPickIdSet = new Set(payload.offeringPickIds);
+        const offeringPlayerIdSet = new Set(payload.offeringPlayerIds);
+        const availablePicks = this.draftPicks.filter(p =>
+          p.currentTeamId === payload.offeringTeamId &&
+          !offeringPickIdSet.has(`${p.year}-${p.round}-${p.originalTeamId}`)
+        );
+        const availablePlayers = this.allPlayers.filter(p =>
+          p.teamId === payload.offeringTeamId &&
+          p.overall <= 80 &&
+          !offeringPlayerIdSet.has(p.id)
+        );
+        result.counterOffer = this.tradeSystem.generateCounterOffer(
+          payload, availablePicks, availablePlayers, deficit
+        );
+      }
+    }
+
     return result;
+  }
+
+  /**
+   * Atomically execute a trade. Mutates allPlayers and draftPicks.
+   * Rolls back to snapshot on any error to prevent half-state corruption.
+   */
+  public executeTrade(payload: TradeOfferPayloadUI): void {
+    const playerSnapshot = this.allPlayers.map(p => ({ ...p }));
+    const pickSnapshot   = this.draftPicks.map(p => ({ ...p }));
+
+    try {
+      const playerMap = new Map(this.allPlayers.map(p => [p.id, p]));
+      const pickMap   = new Map(this.draftPicks.map(p => [`${p.year}-${p.round}-${p.originalTeamId}`, p]));
+
+      for (const id of payload.offeringPlayerIds) {
+        const p = playerMap.get(id);
+        if (p) p.teamId = payload.receivingTeamId;
+      }
+      for (const id of payload.receivingPlayerIds) {
+        const p = playerMap.get(id);
+        if (p) p.teamId = payload.offeringTeamId;
+      }
+      for (const pickId of payload.offeringPickIds) {
+        const pick = pickMap.get(pickId);
+        if (pick) pick.currentTeamId = payload.receivingTeamId;
+      }
+      for (const pickId of payload.receivingPickIds) {
+        const pick = pickMap.get(pickId);
+        if (pick) pick.currentTeamId = payload.offeringTeamId;
+      }
+
+      this._applyPostTradeMorale(payload, playerMap);
+
+      // Narrative: headline for the highest-OVR moved player
+      const allMovedPlayers = [
+        ...payload.offeringPlayerIds,
+        ...payload.receivingPlayerIds,
+      ].map(id => playerMap.get(id)).filter(Boolean) as Player[];
+
+      if (allMovedPlayers.length > 0) {
+        const star = allMovedPlayers.sort((a, b) => b.overall - a.overall)[0];
+        const dest = this.teams.find(t => t.id === payload.receivingTeamId);
+        this.addHeadline(
+          'Trade Alert',
+          `Blockbuster! ${star.firstName} ${star.lastName} heading to ${dest?.abbreviation ?? '???'} in a major mid-season deal.`,
+          NewsCategory.TRADE,
+          NewsImportance.HIGH,
+        );
+      }
+
+      this.updateAllTeamRatings();
+      this.onEngineStateChange?.();
+      this.onAutoSave?.();
+    } catch (error) {
+      console.error('[TradeSystem] executeTrade failed — rolling back state.', error);
+      playerSnapshot.forEach(snap => {
+        const live = this.allPlayers.find(p => p.id === snap.id);
+        if (live) Object.assign(live, snap);
+      });
+      pickSnapshot.forEach(snap => {
+        const live = this.draftPicks.find(
+          p => p.year === snap.year && p.round === snap.round && p.originalTeamId === snap.originalTeamId
+        );
+        if (live) Object.assign(live, snap);
+      });
+      throw error;
+    }
+  }
+
+  /** Apply Homesick / Ring Chaser morale effects to all moved players. */
+  private _applyPostTradeMorale(payload: TradeOfferPayloadUI, playerMap: Map<string, Player>): void {
+    const allMovedIds = [...payload.offeringPlayerIds, ...payload.receivingPlayerIds];
+    for (const id of allMovedIds) {
+      const player = playerMap.get(id);
+      if (!player) continue;
+
+      const destTeamId = payload.receivingPlayerIds.includes(id)
+        ? payload.offeringTeamId
+        : payload.receivingTeamId;
+      const destTeam = this.teams.find(t => t.id === destTeamId);
+      if (!destTeam) continue;
+
+      // Homesick: veteran with 4+ accrued seasons suffers morale hit
+      if (player.accruedSeasons >= 4) {
+        player.morale = Math.max(0, player.morale - 15);
+      }
+
+      // Ring Chaser: destination team's tier affects morale
+      const tier = this.tradeSystem.determineFranchiseTier(destTeam, this.currentGameDate.week);
+      if (tier === FranchiseTier.CONTENDER) {
+        player.morale = Math.min(100, player.morale + 20);
+      } else if (tier === FranchiseTier.REBUILDER) {
+        player.morale = Math.max(0, player.morale - 25);
+      }
+    }
+  }
+
+  // MARK: - AI Trade Initiative
+
+  /**
+   * Scan for trades that benefit CONTENDER teams. Runs during MID_MORNING on
+   * non-game days during the regular season (weeks 29–39).
+   * If the target player is on the user's team, fires a HARD STOP interrupt.
+   * For AI-to-AI trades, auto-executes if evaluation accepts.
+   */
+  public evaluateTradeOpportunities(): void {
+    const week = this.currentGameDate.week;
+    if (week < 29 || week > 39) return;
+
+    for (const team of this.teams) {
+      if (team.id === this.userTeamId) continue;
+
+      const tier = this.tradeSystem.determineFranchiseTier(team, week);
+      if (tier !== FranchiseTier.CONTENDER) continue;
+
+      // Guard: don't spam offers from the same team
+      if (this.receivedTradeOffers.some(o => o.offeringTeamId === team.id && o.status === 'pending')) continue;
+
+      const need = this._findTeamNeed(team);
+      if (!need) continue;
+
+      const targetPlayer = this._findSurplusPlayer(need, team.id);
+      if (!targetPlayer || !targetPlayer.teamId) continue;
+
+      const offerPicks = this._buildPickOffer(targetPlayer, team);
+      if (offerPicks.length === 0) continue;
+
+      const pickIds = offerPicks.map(p => `${p.year}-${p.round}-${p.originalTeamId}`);
+      const uiPayload: TradeOfferPayloadUI = {
+        offeringTeamId:    team.id,
+        receivingTeamId:   targetPlayer.teamId,
+        offeringPlayerIds: [],
+        receivingPlayerIds:[targetPlayer.id],
+        offeringPickIds:   pickIds,
+        receivingPickIds:  [],
+      };
+
+      if (targetPlayer.teamId === this.userTeamId) {
+        const record: TradeOffer = {
+          id:               uuidv4(),
+          offeringTeamId:   team.id,
+          receivingTeamId:  this.userTeamId,
+          offeringPlayers:  [],
+          receivingPlayers: [targetPlayer.id],
+          offeringPicks:    offerPicks.map(p => ({ year: p.year, round: p.round, originalTeamId: p.originalTeamId })),
+          receivingPicks:   [],
+          status:           'pending',
+          createdDate:      new Date(),
+          expirationDate:   new Date(),
+          isPlayerInitiated: false,
+          season:           this.currentGameDate.season,
+          week,
+        };
+        this.receivedTradeOffers.push(record);
+        this.pendingAITradeOffer = uiPayload;
+        this._handleEngineInterrupt(this._buildEngineInterrupt(
+          HardStopReason.TRADE_OFFER_RECEIVED,
+          { reason: HardStopReason.TRADE_OFFER_RECEIVED, offerId: record.id },
+          `Trade Offer from ${team.abbreviation}`,
+          `${team.city} ${team.name} wants to acquire ${targetPlayer.firstName} ${targetPlayer.lastName}.`,
+        ));
+        return; // Surface one AI offer at a time
+      } else {
+        // AI-to-AI: evaluate and auto-execute if accepted
+        const result = this.proposeTrade(uiPayload);
+        if (result.accepted) this.executeTrade(uiPayload);
+      }
+    }
+  }
+
+  /** Find the position where the given team's best player is below OVR 74. */
+  private _findTeamNeed(team: Team): Position | null {
+    const byPosition = new Map<Position, number>();
+    for (const player of this.allPlayers) {
+      if (player.teamId !== team.id) continue;
+      const best = byPosition.get(player.position) ?? 0;
+      if (player.overall > best) byPosition.set(player.position, player.overall);
+    }
+    for (const [pos, best] of byPosition) {
+      if (best < 74) return pos;
+    }
+    return null;
+  }
+
+  /**
+   * Find a surplus player at the given position on another team.
+   * Surplus = team has 80+ OVR starter AND 76+ OVR backup at that pos,
+   *           OR REBUILDER team has 85+ OVR veteran aged 30+.
+   */
+  private _findSurplusPlayer(pos: Position, excludeTeamId: string): Player | null {
+    const week = this.currentGameDate.week;
+    const teamGroups = new Map<string, Player[]>();
+    for (const p of this.allPlayers) {
+      if (!p.teamId || p.teamId === excludeTeamId || p.position !== pos) continue;
+      if (!teamGroups.has(p.teamId)) teamGroups.set(p.teamId, []);
+      teamGroups.get(p.teamId)!.push(p);
+    }
+
+    for (const [teamId, players] of teamGroups) {
+      const team = this.teams.find(t => t.id === teamId);
+      if (!team) continue;
+      const sorted = players.slice().sort((a, b) => b.overall - a.overall);
+      const tier = this.tradeSystem.determineFranchiseTier(team, week);
+
+      // Surplus: starter + capable backup
+      if (sorted.length >= 2 && sorted[0].overall >= 80 && sorted[1].overall >= 76) {
+        return sorted[1]; // Offer the backup
+      }
+      // Rebuilder offloading expensive aging veteran
+      if (tier === FranchiseTier.REBUILDER && sorted[0]?.overall >= 85 && sorted[0].age >= 30) {
+        return sorted[0];
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Build a list of picks from the AI team that cover the target player's value × 1.05.
+   * Picks are sorted cheapest-last (most expensive first) to offer the most attractive package.
+   */
+  private _buildPickOffer(target: Player, aiTeam: Team): TeamDraftPick[] {
+    const targetValue = this.tradeSystem.getBasePlayerValue(target) * 1.05;
+    const teamPicks = this.draftPicks
+      .filter(p => p.currentTeamId === aiTeam.id)
+      .sort((a, b) => this.tradeSystem.getBasePickValue(b) - this.tradeSystem.getBasePickValue(a));
+
+    const offer: TeamDraftPick[] = [];
+    let accumulated = 0;
+    for (const pick of teamPicks) {
+      if (accumulated >= targetValue) break;
+      offer.push(pick);
+      accumulated += this.tradeSystem.getBasePickValue(pick);
+    }
+    return accumulated >= targetValue ? offer : [];
   }
 
   private processUDFACleanup(): void {
