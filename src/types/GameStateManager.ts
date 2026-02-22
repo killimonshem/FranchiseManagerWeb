@@ -308,6 +308,12 @@ export interface InboxItem {
   category: 'trade' | 'contract' | 'media' | 'league' | 'staff' | 'owner' | 'fan';
   isRead: boolean;
   requiresAction: boolean;
+  linkedEntities?: {
+    [displayName: string]: {
+      type: 'player' | 'team';
+      id: string;
+    };
+  };
 }
 
 
@@ -975,7 +981,8 @@ export class GameStateManager {
     body: string,
     sender: string,
     category: InboxItem['category'],
-    requiresAction: boolean = false
+    requiresAction: boolean = false,
+    linkedEntities?: InboxItem['linkedEntities']
   ): void {
     const message: InboxItem = {
       id: uuidv4(),
@@ -985,7 +992,8 @@ export class GameStateManager {
       date: new Date(),
       category,
       isRead: false,
-      requiresAction
+      requiresAction,
+      linkedEntities
     };
     this.inbox.unshift(message);
   }

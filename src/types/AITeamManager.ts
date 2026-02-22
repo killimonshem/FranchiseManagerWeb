@@ -177,6 +177,7 @@ export class AITeamManager {
         for (const player of sellCandidates) {
           if (!this.gameState.leagueTradeBlock.has(player.id)) {
             this.gameState.leagueTradeBlock.add(player.id);
+            player.shoppingStatus = 'On The Block';
 
             // Headline for big names
             if (player.overall > 85) {
@@ -203,6 +204,7 @@ export class AITeamManager {
             const depthPlayer = playersAtPos[playersAtPos.length - 1];
             if (depthPlayer.overall > 65) {
               this.gameState.leagueTradeBlock.add(depthPlayer.id);
+              depthPlayer.shoppingStatus = 'On The Block';
             }
           }
         }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { COLORS, fmtCurrency } from "../ui/theme";
 import { Section, DataRow, RatingBadge, Pill, IconBtn } from "../ui/components";
 import { gameStateManager } from "../types/GameStateManager";
+import { hireTeamStaff } from "../types/team";
 import { UserPlus, ArrowUp, ArrowDown } from "lucide-react";
 import frontOfficeData from "../../frontoffice.json";
 
@@ -9,7 +10,26 @@ export function FrontOfficeScreen() {
   const [tab, setTab] = useState<"coaching" | "frontOffice">("coaching");
   const [showHire, setShowHire] = useState(false);
   const [columnSort, setColumnSort] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [hireNotification, setHireNotification] = useState<string | null>(null);
   const userTeam = gameStateManager.userTeam;
+
+  const handleOfferStaff = (staffMember: any) => {
+    if (!userTeam) return;
+
+    try {
+      // Hire the staff member to the user's team
+      const updatedTeam = hireTeamStaff(userTeam, staffMember);
+      const teamIdx = gameStateManager.teams.findIndex(t => t.id === userTeam.id);
+      if (teamIdx !== -1) {
+        gameStateManager.teams[teamIdx] = updatedTeam;
+      }
+
+      setHireNotification(`${staffMember.name} hired!`);
+      setTimeout(() => setHireNotification(null), 2000);
+    } catch (e) {
+      console.error("Failed to hire staff:", e);
+    }
+  };
 
   const requestColumnSort = (key: string) => {
     if (columnSort?.key === key) {
@@ -77,12 +97,17 @@ export function FrontOfficeScreen() {
       <div style={{ animation: "fadeIn .4s" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: COLORS.light }}>Hire Staff</h2>
-          <button 
-            onClick={() => setShowHire(false)}
-            style={{ background: "transparent", border: "none", color: COLORS.muted, cursor: "pointer", fontSize: 11 }}
-          >
-            Cancel
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {hireNotification && (
+              <span style={{ fontSize: 11, color: COLORS.lime, fontWeight: 600 }}>{hireNotification}</span>
+            )}
+            <button
+              onClick={() => setShowHire(false)}
+              style={{ background: "transparent", border: "none", color: COLORS.muted, cursor: "pointer", fontSize: 11 }}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
         <Section pad={false}>
           <DataRow header>
@@ -98,10 +123,12 @@ export function FrontOfficeScreen() {
               <span style={{ flex: 1, fontSize: 10, color: COLORS.muted }}>{s.last_team}</span>
               <span style={{ flex: 2, fontSize: 10, color: COLORS.muted, fontStyle: "italic" }}>{s.note}</span>
               <span style={{ width: 60, display: "flex", justifyContent: "flex-end" }}>
-                 <button style={{
-                   background: COLORS.lime, color: COLORS.bg, border: "none", borderRadius: 4,
-                   padding: "4px 8px", fontSize: 9, fontWeight: 700, cursor: "pointer"
-                 }}>Offer</button>
+                 <button
+                   onClick={() => handleOfferStaff(s)}
+                   style={{
+                     background: COLORS.lime, color: COLORS.bg, border: "none", borderRadius: 4,
+                     padding: "4px 8px", fontSize: 9, fontWeight: 700, cursor: "pointer"
+                   }}>Offer</button>
               </span>
             </DataRow>
           ))}

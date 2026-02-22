@@ -419,3 +419,110 @@ const tagButtonStyle: React.CSSProperties = {
   cursor: "pointer",
   fontFamily: FONT.system,
 };
+
+/**
+ * HoldoutModal - Alerts when a player threatens a holdout
+ * Triggered when a player's morale drops dangerously low
+ */
+export function HoldoutModal({
+  player,
+  onResolve,
+}: {
+  player: Player | null;
+  onResolve: () => void;
+}) {
+  if (!player) return null;
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)",
+      zIndex: 600, display: "flex", alignItems: "center", justifyContent: "center",
+      padding: 20
+    }}>
+      <div style={{
+        background: COLORS.bg, border: `2px solid ${COLORS.coral}`,
+        borderRadius: 12, padding: 28, maxWidth: 450, width: "100%",
+        boxShadow: "0 20px 60px rgba(255, 128, 128, 0.3)",
+      }}>
+        <h3 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 800, color: COLORS.coral }}>Player Holdout Warning</h3>
+        <p style={{ fontSize: 12, color: COLORS.muted, marginBottom: 16, lineHeight: 1.5 }}>
+          {player.firstName} {player.lastName} is threatening a holdout. His morale has dropped to critical levels. Negotiate a raise or he may refuse to play.
+        </p>
+        <div style={{ padding: 12, background: "rgba(255, 128, 128, 0.1)", borderRadius: 8, marginBottom: 20 }}>
+          <div style={{ fontSize: 11, color: COLORS.coral, fontWeight: 700 }}>Morale: {player.morale}%</div>
+        </div>
+        <button
+          onClick={onResolve}
+          style={{
+            width: "100%", padding: "12px", borderRadius: 8, background: COLORS.lime,
+            color: COLORS.bg, border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer"
+          }}
+        >
+          Acknowledge
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * BlackMondayModal - Alerts when coaching staff changes occur
+ * Triggered at season end or when coaches are fired
+ */
+export function BlackMondayModal({
+  firedCoaches,
+  vacancies,
+  onDismiss,
+}: {
+  firedCoaches: string[];
+  vacancies: string[];
+  onDismiss: () => void;
+}) {
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)",
+      zIndex: 600, display: "flex", alignItems: "center", justifyContent: "center",
+      padding: 20
+    }}>
+      <div style={{
+        background: COLORS.bg, border: `2px solid ${COLORS.gold}`,
+        borderRadius: 12, padding: 28, maxWidth: 500, width: "100%",
+        boxShadow: "0 20px 60px rgba(255, 215, 0, 0.3)",
+      }}>
+        <h3 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 800, color: COLORS.gold }}>Coaching Changes</h3>
+
+        {firedCoaches.length > 0 && (
+          <>
+            <p style={{ fontSize: 12, color: COLORS.muted, marginBottom: 8, fontWeight: 700 }}>Staff Changes:</p>
+            <ul style={{ fontSize: 11, color: COLORS.muted, marginBottom: 16, paddingLeft: 20, lineHeight: 1.6 }}>
+              {firedCoaches.map((coach, i) => (
+                <li key={i}>{coach} has been released.</li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {vacancies.length > 0 && (
+          <>
+            <p style={{ fontSize: 12, color: COLORS.muted, marginBottom: 8, fontWeight: 700 }}>Open Positions:</p>
+            <ul style={{ fontSize: 11, color: COLORS.lime, marginBottom: 16, paddingLeft: 20, lineHeight: 1.6 }}>
+              {vacancies.map((role, i) => (
+                <li key={i}>{role}</li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        <button
+          onClick={onDismiss}
+          style={{
+            width: "100%", padding: "12px", borderRadius: 8, background: COLORS.gold,
+            color: COLORS.bg, border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer"
+          }}
+        >
+          Continue
+        </button>
+      </div>
+    </div>
+  );
+}

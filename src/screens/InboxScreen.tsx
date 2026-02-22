@@ -1,6 +1,7 @@
 import { COLORS } from "../ui/theme";
 import { Section } from "../ui/components";
 import { CategoryIcon } from "../ui/components";
+import { InboxMessageBody } from "../ui/components/InboxMessageBody";
 import { useState } from "react";
 import type { GameStateManager } from "../types/GameStateManager";
 
@@ -15,6 +16,7 @@ export function InboxScreen({ gsm, onNavigate, refresh, isMobile = false }: { gs
       // Mark as read before navigating
       if (!item.isRead) {
         item.isRead = true;
+        refresh(); // Trigger re-render to update unread badge
       }
       // Open the dedicated review screen for trade offers
       onNavigate('tradeReview', { inboxId: item.id });
@@ -44,7 +46,11 @@ export function InboxScreen({ gsm, onNavigate, refresh, isMobile = false }: { gs
           {sel ? (
             <>
               <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.light, marginBottom: 8 }}>{sel.subject}</div>
-              <div style={{ fontSize: 12, color: COLORS.muted, lineHeight: 1.6 }}>{sel.body}</div>
+              <InboxMessageBody
+                body={sel.body}
+                linkedEntities={sel.linkedEntities}
+                onNavigate={onNavigate}
+              />
             </>
           ) : (
             <div style={{ textAlign: "center", padding: 40, color: COLORS.muted, fontSize: 11 }}>Select a message</div>

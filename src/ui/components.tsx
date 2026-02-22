@@ -94,17 +94,17 @@ export function PosTag({ pos }: { pos: string }) {
 // ═══════════════════════════════════════════════════════════════════
 // STAT BAR — colored fill + descriptor at end, no number
 // ═══════════════════════════════════════════════════════════════════
-export function StatBar({ label, value, max = 99 }: { label: string; value: number; max?: number }) {
+export function StatBar({ label, value, max = 99, color }: { label: string; value: number; max?: number; color?: string }) {
   const pct = (value / max) * 100;
   const desc = valueToGrade(value);
-  const color = ratingToColor(value);
+  const finalColor = color || ratingToColor(value);
   return (
     <div title={`${label}: ${value}`} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
       <span style={{ width: 100, color: COLORS.muted, fontWeight: 500, fontSize: 10 }}>{label}</span>
       <div style={{ flex: 1, height: 3, background: "rgba(141,36,110,0.2)", borderRadius: 2, overflow: "hidden" }}>
-        <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 2, transition: "width .5s" }} />
+        <div style={{ width: `${pct}%`, height: "100%", background: finalColor, borderRadius: 2, transition: "width .5s" }} />
       </div>
-      <span style={{ width: 72, textAlign: "right", fontWeight: 600, color, fontFamily: FONT.mono, fontSize: 9 }}>{desc}</span>
+      <span style={{ width: 72, textAlign: "right", fontWeight: 600, color: finalColor, fontFamily: FONT.mono, fontSize: 9 }}>{desc}</span>
     </div>
   );
 }
@@ -141,11 +141,11 @@ export function CapBar({ used, total }: { used: number; total: number }) {
 // ═══════════════════════════════════════════════════════════════════
 // SECTION CARD — container with title bar
 // ═══════════════════════════════════════════════════════════════════
-export function Section({ title, right, children, pad = true }: {
-  title?: string; right?: ReactNode; children: ReactNode; pad?: boolean;
+export function Section({ title, right, children, pad = true, style }: {
+  title?: string; right?: ReactNode; children: ReactNode; pad?: boolean; style?: CSSProperties;
 }) {
   return (
-    <div style={{ background: "rgba(141,36,110,0.1)", borderRadius: 10, border: `1px solid ${COLORS.darkMagenta}`, overflow: "hidden" }}>
+    <div style={{ background: "rgba(141,36,110,0.1)", borderRadius: 10, border: `1px solid ${COLORS.darkMagenta}`, overflow: "hidden", ...style }}>
       {title && (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderBottom: `1px solid ${COLORS.darkMagenta}` }}>
           <span style={{ fontSize: 9, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 700 }}>{title}</span>
@@ -361,7 +361,7 @@ const STATUS_COLORS: Record<StatusVariant, string> = {
   info:     COLORS.sky,
 };
 
-export function StatusBadge({ label, variant }: { label: string; variant: StatusVariant }) {
+export function StatusBadge({ label, variant, style }: { label: string; variant: StatusVariant; style?: CSSProperties }) {
   const color = STATUS_COLORS[variant] || COLORS.neutral;
   return (
     <span style={{
@@ -376,6 +376,7 @@ export function StatusBadge({ label, variant }: { label: string; variant: Status
       color: color,
       border: `1px solid ${color}40`,
       whiteSpace: "nowrap",
+      ...style,
     }}>
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
       {label}

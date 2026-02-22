@@ -99,18 +99,32 @@ export default function App() {
   // Local state for modal-based negotiation (League Year Reset)
   const [negotiatingPlayerId, setNegotiatingPlayerId] = useState<string | null>(null);
 
+  // State for narrative overlays
+  const [holdoutPlayer, setHoldoutPlayer] = useState<any>(null);
+  const [showBlackMonday, setShowBlackMonday] = useState(false);
+
   // ── Asset Resilience: Fetch Logo ──────────────────────────────────
   const [teamLogo, setTeamLogo] = useState<string | null>(null);
   useEffect(() => {
     const fetchLogo = async () => {
       if (!gameStateManager.userTeamId) return;
       try {
-        const response = await fetch("https://github.com/nflverse/nflverse-data/releases/download/manually_updated/teams_colors_logos.json");
+        // Try local path first (relative to public root)
+        const response = await fetch("/data/teams_colors_logos.json");
+        if (!response.ok) throw new Error("Local not found");
         const data = await response.json();
         const teamData = data.find((t: any) => t.team_abbr === gameStateManager.userTeamId);
         if (teamData) setTeamLogo(teamData.team_logo_espn);
-      } catch (e) {
-        console.warn("Failed to fetch team logo", e);
+      } catch {
+        try {
+          // Fallback to GitHub if local fails
+          const response = await fetch("https://github.com/nflverse/nflverse-data/releases/download/manually_updated/teams_colors_logos.json");
+          const data = await response.json();
+          const teamData = data.find((t: any) => t.team_abbr === gameStateManager.userTeamId);
+          if (teamData) setTeamLogo(teamData.team_logo_espn);
+        } catch (e) {
+          console.warn("Failed to fetch team logo from local or GitHub", e);
+        }
       }
     };
     fetchLogo();
@@ -162,6 +176,8 @@ export default function App() {
       marketSize: "Medium",
       ownerPatience: 50,
       fanLoyalty: 50,
+      coachingStaff: [],
+      frontOffice: [],
     } as any));
 
     gameStateManager.selectUserTeam(data.teamAbbr);
@@ -277,11 +293,11 @@ export default function App() {
           return <DraftLeadUpScreen gsm={gameStateManager} onAdvance={() => { gameStateManager.currentGameDate.dayOfWeek = 4; refresh(); }} />;
         }
         return <DraftScreen userTeamAbbr={userTeamMeta?.abbr ?? ""} gsm={gameStateManager} refresh={refresh} />;
-      case "finances":   return <FinancesScreen />;
-      case "inbox":      return <InboxScreen gsm={gameStateManager} onNavigate={(s,d) => { setScreen(s); setDetail(d); }} refresh={refresh} />;
+      case "finances":   return <FinancesScreen gsm={gameStateManager} />;
+      case "inbox":      return <InboxScreen gsm={gameStateManager} isMobile={isMobile} onNavigate={(s,d) => { setScreen(s); setDetail(d); }} refresh={refresh} />;
       case "tradeReview": return <ReviewTradeOfferScreen gsm={gameStateManager} onNavigate={(s,d) => { setScreen(s); setDetail(d); }} refresh={refresh} />;
       case "offseasonGrade": return <OffseasonGradeScreen gsm={gameStateManager} refresh={refresh} />;
-      case "schedule":   return <ScheduleScreen />;
+      case "schedule":   return <ScheduleScreen gsm={gameStateManager} />;
       case "staff":      return <FrontOfficeScreen />;
       case "freeAgency": return <FreeAgencyScreen gsm={gameStateManager} onRosterChange={refresh} onNavigate={(s, d) => { setScreen(s); setDetail(d); }} />;
       case "rfa":        return <RFATenderingScreen gsm={gameStateManager} />;
@@ -749,9 +765,21 @@ export default function App() {
         );
       })()}
 
-      {/* ── Narrative Overlays (Placeholders for future engine events) ── */}
-      {/* <HoldoutModal player={...} onResolve={...} /> */}
-      {/* <BlackMondayModal firedCoaches={...} vacancies={...} onDismiss={...} /> */}
+      {/* ── Narrative Overlays (Triggered by engine events) ── */}
+      {holdoutPlayer && (
+        <HoldoutModal
+          player={holdoutPlayer}
+          onResolve={() => setHoldoutPlayer(null)}
+        />
+      )}
+
+      {showBlackMonday && (
+        <BlackMondayModal
+          firedCoaches={[]}
+          vacancies={gameStateManager.userTeam?.coachingStaff.length === 0 ? ["Head Coach", "Offensive Coordinator", "Defensive Coordinator"] : []}
+          onDismiss={() => setShowBlackMonday(false)}
+        />
+      )}
 
       {/* Mobile Bottom Nav */}
       {isMobile && (

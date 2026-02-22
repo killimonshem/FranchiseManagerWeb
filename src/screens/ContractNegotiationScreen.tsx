@@ -20,6 +20,8 @@ import {
   CapBar,
   StatBar,
   FinancialHealthBadge,
+  MessageCircle,
+  ShieldAlert,
 } from '../ui/components';
 import { gameStateManager } from '../types/GameStateManager';
 import { Player, PlayerStatus } from '../types/player';
@@ -32,10 +34,10 @@ import {
   getContractOfferCapHitYear1,
   getAgentMoodColor,
   AgentArchetype,
-  AGENT_ICONS,
 } from '../types/ContractSystem';
 import { PlayerNegotiationState } from '../systems/AgentPersonalitySystem';
 import { CashReserveTier } from '../systems/FinanceSystem';
+import { ArrowLeft, Check } from 'lucide-react';
 
 const AGENT_ICON_MAP: Record<string, string> = {
   'The Shark': 'SharkIcon',
@@ -200,7 +202,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <RatingBadge overall={player.overall} />
+          <RatingBadge value={player.overall} />
         </div>
       </div>
 
@@ -237,9 +239,8 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
                       ? 'info'
                       : 'neutral'
               }
-            >
-              {negotiationState.agentMood}
-            </StatusBadge>
+              label={negotiationState.agentMood}
+            />
           </div>
         </div>
 
@@ -307,9 +308,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
             }}
           >
             <div style={{ marginBottom: 12 }}>
-              <StatusBadge variant="negative">
-                LOCKOUT: {negotiationState.lockoutReason || 'Negotiations terminated'}
-              </StatusBadge>
+              <StatusBadge variant="negative" label={`LOCKOUT: ${negotiationState.lockoutReason || 'Negotiations terminated'}`} />
             </div>
 
             {negotiationState.pressLeaks.length > 0 && (
@@ -330,12 +329,12 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
             )}
 
             <IconBtn
+              icon={ArrowLeft}
+              label="Return to Free Agency"
               variant="ghost"
               onClick={onDone}
               style={{ width: '100%' }}
-            >
-              Return to Free Agency
-            </IconBtn>
+            />
           </Section>
         </>
       ) : (
@@ -345,12 +344,10 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
           {negotiationState.phoneDeadUntilRound !== undefined &&
             negotiationState.phoneDeadUntilRound > negotiationState.negotiationRound && (
               <StatusBadge
+                label={`Phone Dead — Agent not taking calls for ${(negotiationState.phoneDeadUntilRound - negotiationState.negotiationRound) * 7} days`}
                 variant="warning"
                 style={{ marginBottom: 20, display: 'block', textAlign: 'center' }}
-              >
-                Phone Dead — Agent not taking calls for{' '}
-                {(negotiationState.phoneDeadUntilRound - negotiationState.negotiationRound) * 7} days
-              </StatusBadge>
+              />
             )}
 
           {/* ── SHADOW ADVISOR OVERLAY ───────────────────────────────────────── */}
@@ -400,6 +397,8 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
 
                 <div style={{ display: 'flex', gap: 8 }}>
                   <IconBtn
+                    icon={MessageCircle}
+                    label="Engage"
                     variant="accent"
                     onClick={() =>
                       gameStateManager.agentPersonalitySystem.respondToShadowAdvisor(
@@ -408,10 +407,10 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
                       )
                     }
                     style={{ flex: 1 }}
-                  >
-                    Engage
-                  </IconBtn>
+                  />
                   <IconBtn
+                    icon={ShieldAlert}
+                    label="Report"
                     variant="danger"
                     onClick={() =>
                       gameStateManager.agentPersonalitySystem.respondToShadowAdvisor(
@@ -420,9 +419,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
                       )
                     }
                     style={{ flex: 1 }}
-                  >
-                    Report
-                  </IconBtn>
+                  />
                 </div>
               </Section>
             </div>
@@ -568,7 +565,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
               <div style={{ fontSize: 10, color: COLORS.muted, marginBottom: 4 }}>
                 Year 1 Cap Hit (Projected)
               </div>
-              <CapBar value={projectedCapHit} max={capSpace * 1.2} label="" />
+              <CapBar used={projectedCapHit} total={capSpace * 1.2} />
               <div
                 style={{
                   fontSize: 9,
@@ -585,13 +582,13 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
             </div>
 
             <IconBtn
+              icon={Check}
+              label={submitting ? 'Submitting...' : 'Make Offer'}
               variant={canAfford && !submitting ? 'primary' : 'ghost'}
               onClick={handleMakeOffer}
               disabled={!canAfford || !canAffordCash || submitting}
               style={{ width: '100%' }}
-            >
-              {submitting ? 'Submitting...' : 'Make Offer'}
-            </IconBtn>
+            />
             {!canAfford && (
               <div style={{ fontSize: 10, color: COLORS.coral, marginTop: 8, textAlign: 'center' }}>
                 Insufficient cap space (need {fmtCurrency(projectedCapHit - capSpace)} more)
@@ -638,9 +635,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
                     {response.message}
                   </div>
                   {response.counterOffer && (
-                    <StatusBadge variant="info" style={{ fontSize: 10 }}>
-                      Counter: {fmtCurrency(getContractOfferAveragePerYear(response.counterOffer))}/year
-                    </StatusBadge>
+                    <StatusBadge variant="info" style={{ fontSize: 10 }} label={`Counter: ${fmtCurrency(getContractOfferAveragePerYear(response.counterOffer))}/year`} />
                   )}
                 </div>
               ))

@@ -39,12 +39,12 @@ function FairnessBar({ score }: { score: number }) {
 
 function PlayerRow({
   player, selected, onToggle, onToggleBlock, isUserPlayer
-}: {
   player: any;
   selected: boolean;
   onToggle: (id: string) => void;
   onToggleBlock?: (id: string) => void;
   isUserPlayer?: boolean;
+  showTeam?: boolean;
 }) {
   const isOnBlock = player.shoppingStatus === "On The Block";
   return (
@@ -54,6 +54,7 @@ function PlayerRow({
       </span>
       <span style={{ flex: 3, fontSize: 11, fontWeight: 600, color: COLORS.light }}>
         {player.firstName} {player.lastName}
+        {showTeam && <span style={{ marginLeft: 6, fontSize: 9, color: COLORS.muted, fontWeight: 400 }}>{player.teamId}</span>}
       </span>
       <span style={{ flex: 1, fontSize: 10, color: COLORS.muted }}>{player.overall}</span>
       <span style={{ flex: 1, fontSize: 9, color: COLORS.muted }}>Age {player.age}</span>
@@ -161,6 +162,20 @@ export function TradeScreen({
     setOfferingPlayerIds(new Set());
     setActiveTab("propose");
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const leagueBlockPlayers = !partnerTeamId 
+    ? gsm.allPlayers.filter(p => gsm.leagueTradeBlock.has(p.id) && p.teamId !== gsm.userTeamId)
+    : [];
+
+  function handleLeagueBlockToggle(player: any) {
+    if (!player.teamId) return;
+    setPartnerTeamId(player.teamId);
+    setReceivingPlayerIds(new Set([player.id]));
+    setReceivingPickIds(new Set());
+    setOfferingPlayerIds(new Set());
+    setOfferingPickIds(new Set());
+    setEvaluation(null);
+  }
 
   const userTeamId = gsm.userTeamId ?? "";
   const sortedTeams = [...gsm.teams]
@@ -409,8 +424,26 @@ export function TradeScreen({
           pad={false}
         >
           {!partnerTeamId ? (
-            <div style={{ padding: 20, textAlign: "center", fontSize: 11, color: COLORS.muted }}>
-              Select a team to see their assets.
+            <div style={{ dis
+              </div>
+              <div style={{ flex: 1, overflowY: "auto" }}>
+                {leagueBlockPlayers.length === 0 ? (
+                  <div style={{ padding: 20, textAlign: "center", fontSize: 11, color: COLORS.muted }}>
+                    No players currently on the block. Select a team above to browse rosters.
+                  </div>
+                ) : (
+                  leagueBlockPlayers.map((p) => (
+                    <PlayerRow
+                      key={p.id}
+                      player={p}
+                      selected={false}
+                      onToggle={() => handleLeagueBlockToggle(p)}
+                      isUserPlayer={false}
+                      showTeam={true}
+                    />
+                  ))
+                )}
+              </div>
             </div>
           ) : (
             <>

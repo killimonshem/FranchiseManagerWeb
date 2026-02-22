@@ -618,18 +618,64 @@ export function initializeMockDraftSimulator(): MockDraftSimulatorState {
 }
 
 /**
+ * Helper to calculate positional needs for a team
+ */
+function getTeamNeeds(teamId: string, allPlayers: Player[]): Record<string, number> {
+  const roster = allPlayers.filter(p => p.teamId === teamId);
+  const needs: Record<string, number> = {};
+  
+  for (const pos of ALL_POSITIONS) {
+    const atPos = roster.filter(p => p.position === pos).sort((a, b) => b.overall - a.overall);
+    const count = atPos.length;
+    const top1 = atPos[0]?.overall || 0;
+    
+    let score = 0;
+    
+    // 1. Lack of starters
+    if (top1 < 75) score += (75 - top1) * 2;
+    
+    // 2. Lack of depth
+    const minReq = (pos === "WR" || pos === "CB") ? 5 : (pos === "QB" || pos === "TE" || pos === "S") ? 3 : 2;
+    if (count < minReq) score += 20;
+    
+    // 3. Positional value weights
+    if (pos === "QB") score *= 1.5;
+    
+    needs[pos] = score;
+  }
+  return needs;
+}
+
+/**
  * Simulate a mock draft
  */
 export function simulateMockDraft(
   teams: Team[],
   prospects: DraftProspect[],
+  allPlayers: Player[],
+  draftOrder: string[],
   draftRounds: number = 7
 ): MockDraftResult[] {
   const results: MockDraftResult[] = [];
-  const availableProspects = [...prospects];
-  let overallPick = 1;
+  const availableProspects = [...prospects].sort((a, b) => a.bigBoard - b.bigBoard);
+  
+  // Pre-calculate needs for all teams
+  const needsMap = new Map<string, Record<string, number>>();
+  for (const team of teams) {
+    needsMap.set(team.id, getTeamNeeds(team.id, allPlayers));
+  }
 
-  // Simple mock: shuffle teams for each round and pick best available
+  // Use provided draft order if available, otherwise generate a simple round-robin
+  let fullOrder = draftOrder;
+  if (!fullOrder || fullOrder.length === 0) {
+    // Fallback: simple 1-32 order repeated
+    fullOrder = [];
+    for (let r = 0; r < draftRounds; r++) {
+      fullOrder.push(...teams.map(t => t.id));
+    }
+  }
+
+  /*
   for (let round = 1; round <= draftRounds; round++) {
     const shuffledTeams = teams.sort(() => Math.random() - 0.5);
 
@@ -651,6 +697,49 @@ export function simulateMockDraft(
     }
 
     if (availableProspects.length === 0) break;
+  }
+  */
+
+  // Simulate pick by pick
+  for (let i = 0; i < fullOrder.length; i++) {
+    if (availableProspects.length === 0) break;
+    
+    const teamId = fullOrder[i];
+    const team = teams.find(t => t.id === teamId);
+    if (!team) continue;
+
+    const needs = needsMap.get(teamId) || {};
+    
+    // Look at top 12 available prospects to find best fit
+    const candidates = availableProspects.slice(0, 12);
+    let bestCandidate = candidates[0];
+    let bestScore = -Infinity;
+
+    for (const p of candidates) {
+      const needScore = needs[p.position] || 0;
+      // Score = Value (inverted rank) + Need Bonus
+      const valueScore = (400 - p.bigBoard); 
+      const totalScore = valueScore + (needScore * 3);
+      
+      if (totalScore > bestScore) {
+        bestScore = totalScore;
+        bestCandidate = p;
+      }
+    }
+
+    // Execute pick
+    const pickIndex = availableProspects.indexOf(bestCandidate);
+    availableProspects.splice(pickIndex, 1);
+
+    results.push({
+      overallPick: i + 1,
+      round: Math.floor(i / 32) + 1,
+      pick: (i % 32) + 1,
+      team,
+      prospect: bestCandidate,
+    });
+    
+    if (results.length >= draftRounds * 32) break;
   }
 
   return results;
@@ -848,14 +937,16 @@ export function initializeDraftBoardUISystem(gameState: any): DraftBoardUIManage
 export function runMockDraftSimulation(
   manager: DraftBoardUIManager,
   teams: Team[],
-  prospects: DraftProspect[]
+  prospects: DraftProspect[],
+  allPlayers: Player[],
+  draftOrder: string[]
 ): void {
   manager.simulatorState.isSimulating = true;
   manager.simulatorState.progress = 0;
 
   // Simulate with progress updates
   setTimeout(() => {
-    manager.simulatorState.results = simulateMockDraft(teams, prospects);
+    manager.simulatorState.results = simulateMockDraft(teams, prospects, allPlayers, draftOrder);
     manager.simulatorState.isSimulating = false;
     manager.simulatorState.progress = 100;
   }, 2000);

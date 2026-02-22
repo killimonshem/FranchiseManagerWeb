@@ -1,0 +1,284 @@
+{
+  "inboxMessages": [
+    {
+      "triggerId": "Contract_Rejected_Low_Guarantee",
+      "displayName": "Agent Rejects Offer - Insufficient Guarantee",
+      "senderArchetype": "agent",
+      "senderPersonality": ["Shark", "Uncle", "BrandBuilder", "SelfRepresented"],
+      "category": "contract",
+      "requiresAction": true,
+      "subjectTemplate": "RE: [PlayerFirstName] [PlayerLastName] - Offer Rejected",
+      "narrativeBody": "I've reviewed your contract proposal for [PlayerFirstName], and frankly, the guarantee structure doesn't reflect his market value. We've had interest from three other clubs willing to commit real money upfront. Until you can match the level of security he deserves, we can't move forward.",
+      "mechanicalTruth": "Guarantee Analysis: You offered $[OfferedGuarantee]M, but [PlayerFirstName]'s market baseline is $[MarketGuarantee]M ([PercentageBelowMarket]% below market). Your guarantee covers [GuaranteeWeeks] weeks of the contract, while comparable [Position] players are securing [ComparableWeeks] weeks guaranteed.",
+      "requiredVariables": [
+        "PlayerFirstName",
+        "PlayerLastName",
+        "OfferedGuarantee",
+        "MarketGuarantee",
+        "PercentageBelowMarket",
+        "GuaranteeWeeks",
+        "ComparableWeeks",
+        "Position"
+      ],
+      "actionRouting": "Route_To_Negotiation",
+      "actionButtons": [
+        { "label": "Revise Offer", "action": "onNavigate('contractNegotiation', {playerId})" },
+        { "label": "Draft List", "action": "onNavigate('draftBoard', {})" }
+      ]
+    },
+    {
+      "triggerId": "Trade_Offer_Received",
+      "displayName": "Incoming Trade Proposal",
+      "senderArchetype": "competitor_gm",
+      "senderPersonality": null,
+      "category": "trade",
+      "requiresAction": true,
+      "subjectTemplate": "[OfferingTeamName] Wants to Discuss [PlayerFirstName] [PlayerLastName]",
+      "narrativeBody": "[SenderGM] from [OfferingTeamName] called to gauge interest in [PlayerFirstName]. They're offering [OfferingAssets]. Given their cap situation and [PlayerFirstName]'s fit with their scheme, this might be a serious inquiry worth exploring. They want an answer within two weeks.",
+      "mechanicalTruth": "Trade Valuation: [OfferingTeamName] is offering assets worth approximately $[OfferingValue]M in trade value. [PlayerFirstName]'s current trade value is estimated at $[PlayerTradeValue]M based on age ([PlayerAge]), contract ($[PlayerCap]M cap hit), and [PlayerPosition] scarcity index. This offer is [PercentageOfValue]% of his market rate. Your team receives [ReceiverCompensation].",
+      "requiredVariables": [
+        "OfferingTeamName",
+        "SenderGM",
+        "PlayerFirstName",
+        "PlayerLastName",
+        "OfferingAssets",
+        "OfferingValue",
+        "PlayerTradeValue",
+        "PlayerAge",
+        "PlayerCap",
+        "PlayerPosition",
+        "PercentageOfValue",
+        "ReceiverCompensation"
+      ],
+      "actionRouting": "Route_To_Trade_Review",
+      "actionButtons": [
+        { "label": "Review Full Offer", "action": "onNavigate('tradeReview', {inboxId})" },
+        { "label": "Counter Offer", "action": "onNavigate('tradeReview', {inboxId, showCounterForm: true})" },
+        { "label": "Reject", "action": "handleRejectTrade(inboxId)" }
+      ]
+    },
+    {
+      "triggerId": "Trade_Offer_Rejected_Overvalued_Asset",
+      "displayName": "Your Trade Offer Was Rejected",
+      "senderArchetype": "competitor_gm",
+      "senderPersonality": null,
+      "category": "trade",
+      "requiresAction": false,
+      "subjectTemplate": "RE: Trade Proposal for [TargetPlayerName]",
+      "narrativeBody": "Thanks for reaching out about [TargetPlayerName]. After reviewing your proposal, we don't feel it adequately addresses our needs. We value [TargetPlayerName] significantly higher than your offer reflects, especially given his age and durability track record. If you'd like to revisit this, you'll need to sweeten the package considerably.",
+      "mechanicalTruth": "Valuation Mismatch: You offered [OfferedAssetValue]M in value for a player our scouts grade at [TargetValue]M. That's a [ShortfallPercent]% shortfall from their asking price. Key differential: Their cap relief needs are [TheirCapRelief]M, but your offer only addresses [YourCapRelief]M of that burden. Counter proposals should close that gap.",
+      "requiredVariables": [
+        "TargetPlayerName",
+        "OfferedAssetValue",
+        "TargetValue",
+        "ShortfallPercent",
+        "TheirCapRelief",
+        "YourCapRelief"
+      ],
+      "actionRouting": "Route_To_Trade_Board",
+      "actionButtons": [
+        { "label": "Back to Trade Board", "action": "onNavigate('tradeBoard', {})" },
+        { "label": "Available Players", "action": "onNavigate('rosterScreen', {})" }
+      ]
+    },
+    {
+      "triggerId": "Owner_Cap_Mandate_Immediate_Action",
+      "displayName": "URGENT: Ownership Directive on Salary Cap",
+      "senderArchetype": "owner",
+      "senderPersonality": null,
+      "category": "owner",
+      "requiresAction": true,
+      "subjectTemplate": "IMMEDIATE ACTION REQUIRED: Cap Space Breach",
+      "narrativeBody": "Our accounting has flagged a serious problem. You are currently [CapOverage]M over the salary cap. This is untenable and jeopardizes our draft. You have until the end of this week to bring us into compliance. Restructure deals, release veterans, trade for picks—I don't care how you do it, but get it done. This is non-negotiable.",
+      "mechanicalTruth": "Cap Status: Current commitments total $[TotalCommitments]M against a $[CapCeiling]M cap limit. You need to shed $[RequiredRelief]M in cap space. Immediate options: (1) Release [ReleaseOptionName] ($[ReleaseCap]M relief), (2) Restructure [RestructureOptionName] ($[RestructureCap]M relief, adds [DeadCapPenalty]M dead cap in Year [DeadCapYear]), (3) Execute trade for $[TradeValue]M in incoming cap relief.",
+      "requiredVariables": [
+        "CapOverage",
+        "TotalCommitments",
+        "CapCeiling",
+        "RequiredRelief",
+        "ReleaseOptionName",
+        "ReleaseCap",
+        "RestructureOptionName",
+        "RestructureCap",
+        "DeadCapPenalty",
+        "DeadCapYear",
+        "TradeValue"
+      ],
+      "actionRouting": "Route_To_Roster_Management",
+      "actionButtons": [
+        { "label": "Review Roster Moves", "action": "onNavigate('rosterScreen', {filterReleaseOptions: true})" },
+        { "label": "Restructure Contracts", "action": "onNavigate('contractScreen', {filterRestructurable: true})" },
+        { "label": "Find Trade Partners", "action": "onNavigate('tradeBoard', {})" }
+      ]
+    },
+    {
+      "triggerId": "Contract_Restructure_Request_From_Coach",
+      "displayName": "Coach Requests Contract Restructure",
+      "senderArchetype": "headcoach",
+      "senderPersonality": null,
+      "category": "staff",
+      "requiresAction": true,
+      "subjectTemplate": "Roster Strategy Discussion: [PlayerName]'s Role Going Forward",
+      "narrativeBody": "[PlayerName] is still valuable to our defensive scheme, but frankly, we're paying veteran money for a reserve role. If we could restructure his deal to free up some cap space, it wouldn't change his playing time, but it would give us flexibility to address other gaps. Can we make this work?",
+      "mechanicalTruth": "Restructure Math: [PlayerName]'s current cap hit is $[CurrentCap]M. If we convert [ConversionPercent]% of base salary to signing bonus, we reduce his Year [RestructureYear] cap by $[YearCapSavings]M. However, we add $[AddedDeadCap]M in dead cap spread across Years [DeadCapSpread]. Net three-year impact: $[ThreeYearSavings]M saved, but flexibility frozen until Year [LastDeadCapYear].",
+      "requiredVariables": [
+        "PlayerName",
+        "CurrentCap",
+        "ConversionPercent",
+        "RestructureYear",
+        "YearCapSavings",
+        "AddedDeadCap",
+        "DeadCapSpread",
+        "ThreeYearSavings",
+        "LastDeadCapYear"
+      ],
+      "actionRouting": "Route_To_Contract_Management",
+      "actionButtons": [
+        { "label": "Restructure [PlayerName]", "action": "onNavigate('playerProfile', {playerId, tab: 'contract', showRestructureUI: true})" },
+        { "label": "Keep Current Deal", "action": "handleDismissMessage(inboxId)" }
+      ]
+    },
+    {
+      "triggerId": "Free_Agency_Rival_Signing",
+      "displayName": "Free Agent You Targeted Just Signed Elsewhere",
+      "senderArchetype": "media",
+      "senderPersonality": null,
+      "category": "media",
+      "requiresAction": false,
+      "subjectTemplate": "[PlayerName] Signs with [RivalTeamName]",
+      "narrativeBody": "[PlayerName] has agreed to a [ContractLength]-year deal with [RivalTeamName] worth up to $[TotalValue]M. Sources say the guaranteed money ($[GuaranteedValue]M) was the deciding factor. You were reportedly in discussions, but [RivalTeamName] moved faster and offered more certainty.",
+      "mechanicalTruth": "Market Data: [PlayerName]'s signing sets a new baseline for [Position] free agents. His deal: $[AAV]M AAV with [GuaranteePercent]% guaranteed. You had offered $[YourOffer]M AAV with [YourGuaranteePercent]% guaranteed—a shortfall of $[Gap]M AAV and [GuaranteeGap]% in guarantee structure. For future [Position] targets, expect to match or exceed: $[NewBaseline]M AAV, [NewGuaranteeBaseline]% guaranteed.",
+      "requiredVariables": [
+        "PlayerName",
+        "RivalTeamName",
+        "ContractLength",
+        "TotalValue",
+        "GuaranteedValue",
+        "Position",
+        "AAV",
+        "GuaranteePercent",
+        "YourOffer",
+        "YourGuaranteePercent",
+        "Gap",
+        "GuaranteeGap",
+        "NewBaseline",
+        "NewGuaranteeBaseline"
+      ],
+      "actionRouting": "Route_To_Free_Agency_Board",
+      "actionButtons": [
+        { "label": "Free Agent Board", "action": "onNavigate('freeAgencyScreen', {})" },
+        { "label": "Scouting Report", "action": "onNavigate('scouting', {})" }
+      ]
+    },
+    {
+      "triggerId": "Head_Coach_Demands_Upgrade",
+      "displayName": "Head Coach Demands Roster Upgrade",
+      "senderArchetype": "headcoach",
+      "senderPersonality": null,
+      "category": "staff",
+      "requiresAction": true,
+      "subjectTemplate": "CRITICAL: We Need Help at [Position]",
+      "narrativeBody": "I need to be direct: our [Position] room is [CapabilityAssessment]. We've struggled all season because we lack depth and elite talent at the position. If we're going to compete in the playoffs, we MUST upgrade before the trade deadline. I know it's costly, but we're leaving wins on the field.",
+      "mechanicalTruth": "Position Performance: Our [Position] unit is averaging [UnitRating] in positional rating, placing us [LeagueRank]th in the league. The playoff-contending teams in our conference all have [Position] units averaging [CompetitorRating]+. To close that gap, we need a player grading [TargetGrade] or higher. Current cap flexibility: $[AvailableCapSpace]M. Market cost for that tier: $[MarketCost]M in trade assets.",
+      "requiredVariables": [
+        "Position",
+        "CapabilityAssessment",
+        "UnitRating",
+        "LeagueRank",
+        "CompetitorRating",
+        "TargetGrade",
+        "AvailableCapSpace",
+        "MarketCost"
+      ],
+      "actionRouting": "Route_To_Trade_Board",
+      "actionButtons": [
+        { "label": "Search Trade Market", "action": "onNavigate('tradeBoard', {filterByPosition: 'Position'})" },
+        { "label": "Dismiss Request", "action": "handleDismissMessage(inboxId)" }
+      ]
+    },
+    {
+      "triggerId": "Media_Pressure_Losing_Streak",
+      "displayName": "Media Pressure Mounting: Losing Streak Accountability",
+      "senderArchetype": "media",
+      "senderPersonality": null,
+      "category": "media",
+      "requiresAction": false,
+      "subjectTemplate": "Calls for Change Mount After [GameCount]-Game Skid",
+      "narrativeBody": "Local sports media is sharpening their knives after a tough stretch. Talk radio is full of speculation about your job security, questions about veteran talent, and whether a midseason shakeup might spark the team. The pressure is real, and fans want to see action. Every loss compounds the narrative.",
+      "mechanicalTruth": "Morale Impact: Four consecutive losses have triggered a -12 morale penalty across the active roster. Coach morale is -8. Media sentiment is now 'Critical' (was 'Stable' last week). Threshold for owner concern: three straight losses. You're currently [GamesAboveThreshold] games above that threshold. One more loss pushes you into a potential hard stop for 'ownership intervention interrupt.'",
+      "requiredVariables": [
+        "GameCount",
+        "GamesAboveThreshold"
+      ],
+      "actionRouting": "Route_To_Schedule",
+      "actionButtons": [
+        { "label": "View Schedule", "action": "onNavigate('scheduleScreen', {})" },
+        { "label": "Team Morale Report", "action": "onNavigate('dashboard', {focusTab: 'morale'})" }
+      ]
+    },
+    {
+      "triggerId": "Roster_Violation_Too_Many_Players",
+      "displayName": "ACTION REQUIRED: Roster Size Violation",
+      "senderArchetype": "league_office",
+      "senderPersonality": null,
+      "category": "league",
+      "requiresAction": true,
+      "subjectTemplate": "Roster Compliance Alert",
+      "narrativeBody": "NFL Operations has flagged your roster for exceeding the active list limit. You currently have [ActiveRosterCount] players on the active roster, which exceeds the [RosterLimit] player limit. You must cut [PlayersToRelease] players by end of business tomorrow to bring the roster into compliance.",
+      "mechanicalTruth": "Roster Status: Active roster = [ActiveRosterCount] players (limit: [RosterLimit]). Excess: [Excess]. To reach compliance, you have three options: (1) Release [CheapestRelease] players valued at combined $[ReleaseSalaryTotal]M cap relief, (2) Move [PlayerCountToPracticeSquad] to practice squad (saves $[PSTransitionSavings]M in cap), (3) Trade [TradeCount] players for draft picks. Failure to comply by [ComplianceDeadline] results in automatic release of lowest-paid players and -5 owner approval penalty.",
+      "requiredVariables": [
+        "ActiveRosterCount",
+        "RosterLimit",
+        "PlayersToRelease",
+        "Excess",
+        "CheapestRelease",
+        "ReleaseSalaryTotal",
+        "PlayerCountToPracticeSquad",
+        "PSTransitionSavings",
+        "TradeCount",
+        "ComplianceDeadline"
+      ],
+      "actionRouting": "Route_To_Roster_Cuts",
+      "actionButtons": [
+        { "label": "Cut Players", "action": "onNavigate('rosterScreen', {filterReleasableOnly: true})" },
+        { "label": "Move to Practice Squad", "action": "onNavigate('rosterScreen', {filterPSEligible: true})" },
+        { "label": "Find Trade Partners", "action": "onNavigate('tradeBoard', {})" }
+      ]
+    },
+    {
+      "triggerId": "Injury_Report_Star_Player",
+      "displayName": "Injury Update: [PlayerName] Status",
+      "senderArchetype": "medical_staff",
+      "senderPersonality": null,
+      "category": "owner",
+      "requiresAction": true,
+      "subjectTemplate": "[PlayerName] Suffers [InjuryType] - Timeline Uncertain",
+      "narrativeBody": "[PlayerName] suffered a [InjuryType] in the second half and underwent preliminary imaging. Our medical team is still evaluating the severity. He's been listed as [InitialStatus] for the coming week. Depending on further testing, we may need to adjust the roster or activate a backup plan.",
+      "mechanicalTruth": "Injury Prognosis: [PlayerName]'s [InjuryType] has been graded as '[SeverityGrade]' by our medical team. Conservative outlook: [WeeksOut] weeks out. Worst case: [WorstCaseWeeks] weeks. His cap hit of $[PlayerCap]M remains on the books during recovery. Options: (1) IR designation (frees roster spot, maintains salary), (2) Call up backup [BackupName] (capSpace cost: $[BackupCap]M), (3) Activate free agent (max salary: $[FAMaxSalary]M).",
+      "requiredVariables": [
+        "PlayerName",
+        "InjuryType",
+        "InitialStatus",
+        "SeverityGrade",
+        "WeeksOut",
+        "WorstCaseWeeks",
+        "PlayerCap",
+        "BackupName",
+        "BackupCap",
+        "FAMaxSalary"
+      ],
+      "actionRouting": "Route_To_Roster_Management",
+      "actionButtons": [
+        { "label": "Place on IR", "action": "handleIRActivation(playerId)" },
+        { "label": "Call Up Backup", "action": "onNavigate('rosterScreen', {filterBackups: true})" },
+        { "label": "Free Agent Signings", "action": "onNavigate('freeAgencyScreen', {})" }
+      ]
+    }
+  ],
+  "metadata": {
+    "version": "1.0",
+    "description": "Narrative Matrix JSON - Maps mechanical game states to immersive, educational inbox messages",
+    "instructions": "Each trigger maps to a precise game condition. The engine calls addInboxMessage() with the triggerId, then looks up this JSON to fetch templates and inject required variables. Mechanical Truth field exposes the math so players learn, not just react.",
+    "architectureNotes": "This JSON is read by InboxMessageRenderer.ts (new file) which handles variable injection and archetype flavor text swapping. The engine passes (triggerId, requiredVariables) → renderer returns formatted InboxItem with narrative + mechanical truth."
+  }
+}
