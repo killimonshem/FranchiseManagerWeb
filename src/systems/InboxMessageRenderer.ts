@@ -12,7 +12,7 @@
 
 import { InboxItem } from '../types/GameStateManager';
 import narrativeMatrixData from '../data/inbox-narrative-matrix.json';
-import type { AgentArchetype } from './AgentPersonalitySystem';
+import { AgentArchetype } from '../types/ContractSystem';
 
 // ============================================================================
 // TYPES
@@ -83,7 +83,7 @@ const ARCHETYPE_MODIFIERS: Record<string, { tone: string; phrase_prefix: string;
   SelfRepresented: {
     tone: 'direct',
     phrase_prefix: 'I gotta be honest—',
-    phrase_suffix: ' That's the reality of the market.'
+    phrase_suffix: ' That\'s the reality of the market.'
   }
 };
 

@@ -192,7 +192,7 @@ export class DraftEngine {
 
     this._host.addHeadline(
       `Pick #${pickNumber}: ${team.abbreviation} selects`,
-      `${team.fullName} takes ${selectedProspect.name} (${selectedProspect.position}) in round ${round}.`,
+      `${team.city} ${team.name} takes ${selectedProspect.name} (${selectedProspect.position}) in round ${round}.`,
       'draft',
       'medium',
     );
@@ -234,10 +234,10 @@ export class DraftEngine {
             pickNumber,
             round,
             tradingTeamId: tradingTeam.id,
-            description: `Trade-up offer: ${tradingTeam.fullName} wants to move up to pick #${pickNumber}.`,
+            description: `Trade-up offer: ${tradingTeam.city} ${tradingTeam.name} wants to move up to pick #${pickNumber}.`,
           },
           `Trade-Up Offer — Pick #${pickNumber}`,
-          `${tradingTeam.fullName} is offering a 2nd and 4th round pick to move up to your spot.`,
+          `${tradingTeam.city} ${tradingTeam.name} is offering a 2nd and 4th round pick to move up to your spot.`,
         );
 
         // Wait for the user to resolve the interrupt before continuing
@@ -344,7 +344,7 @@ export class DraftEngine {
 
     // AI sees true overall — fog-of-war is a UI mechanic for the human GM only.
     // Sort by true overall descending and return the best available.
-    const sorted = [...prospects].sort((a, b) => b.trueOverall - a.trueOverall);
+    const sorted = [...prospects].sort((a, b) => (b.trueOverall ?? 0) - (a.trueOverall ?? 0));
     return sorted[0] ?? null;
   }
 

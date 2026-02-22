@@ -146,6 +146,13 @@ export enum NotificationPriority {
   URGENT = 'urgent'
 }
 
+export interface ToastData {
+  id: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'error';
+}
+
 // Current game date with season, week, day, and time slot progression
 export interface GameDate {
   season: number;
@@ -534,6 +541,7 @@ export class GameStateManager {
   receivedTradeOffers: TradeOffer[] = [];
   completedTrades: CompletedTrade[] = [];
   leagueTradeBlock: Set<string> = new Set();
+  latestToast: ToastData | null = null;
 
   debugMode: boolean = false;
 
@@ -996,6 +1004,14 @@ export class GameStateManager {
       linkedEntities
     };
     this.inbox.unshift(message);
+
+    this.latestToast = {
+      id: uuidv4(),
+      title: `New Message from ${sender}`,
+      message: subject,
+      type: 'info'
+    };
+    this.onEngineStateChange?.();
   }
 
   // MARK: - Team Rating Updates
@@ -1038,6 +1054,10 @@ export class GameStateManager {
       Position.OL,
     ];
     return offensivePositions.includes(position);
+  }
+
+  clearToast(): void {
+    this.latestToast = null;
   }
 
   // MARK: - Simulation Control
@@ -2762,10 +2782,10 @@ export class GameStateManager {
       };
     } else if (p.scoutingPointsSpent >= 2) {
       // Fully revealed — collapse range to the true OVR
-      p.scoutingRange = { min: p.trueOverall, max: p.trueOverall };
+      p.scoutingRange = { min: p.trueOverall ?? p.overall, max: p.trueOverall ?? p.overall };
       // Optional: Reveal true overall in UI object if you want to allow it now
-      p.overall = p.trueOverall;
-      p.potential = p.truePotential;
+      p.overall = p.trueOverall ?? p.overall;
+      p.potential = p.truePotential ?? p.potential;
     }
     return true;
   }

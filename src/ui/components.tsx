@@ -8,7 +8,7 @@
  *   - All icons are lucide-react SVGs; zero emojis.
  */
 
-import type { ReactNode, CSSProperties, ElementType } from "react";
+import { useEffect, type ReactNode, type CSSProperties, type ElementType } from "react";
 import {
   Trophy, LayoutDashboard, Users, Briefcase, Mail, UserCog,
   ArrowLeftRight, ClipboardList, Target, DollarSign, Calendar, Award,
@@ -345,6 +345,29 @@ export function PhaseTag({ phase, color }: { phase: string; color: string }) {
     }}>
       {phase}
     </span>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TOAST NOTIFICATION
+// ═══════════════════════════════════════════════════════════════════
+export function Toast({ data, onClose }: { data: { title: string; message: string; type: 'info' | 'success' | 'error' }; onClose: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div style={{
+      position: "fixed", top: 24, right: 24, zIndex: 9999,
+      background: "rgba(10, 5, 10, 0.95)", border: `1px solid ${COLORS.lime}`, borderLeft: `4px solid ${COLORS.lime}`,
+      borderRadius: 6, padding: "12px 16px", boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+      animation: "slideIn 0.3s ease-out", maxWidth: 320, backdropFilter: "blur(10px)"
+    }}>
+      <style>{`@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
+      <div style={{ fontSize: 12, fontWeight: 800, color: COLORS.lime, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>{data.title}</div>
+      <div style={{ fontSize: 12, color: COLORS.light, lineHeight: 1.4 }}>{data.message}</div>
+    </div>
   );
 }
 

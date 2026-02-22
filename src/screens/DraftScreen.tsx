@@ -1,3 +1,4 @@
+import React from "react";
 import { COLORS } from "../ui/theme";
 import { Section, RatingBadge, DataRow, PosTag, Pill, StatBar } from "../ui/components";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -525,9 +526,10 @@ export function DraftScreen({
   // Check for Snipes & Advisor Trigger
   useEffect(() => {
     // 1. Snipe Detection
-    if (gsm.draftEngine && gsm.draftEngine.pickResults.length > lastPickRef.current) {
-      const lastResult = gsm.draftEngine.pickResults[gsm.draftEngine.pickResults.length - 1];
-      lastPickRef.current = gsm.draftEngine.pickResults.length;
+    const engine = gsm.draftEngine;
+    if (engine && engine.pickResults.length > lastPickRef.current) {
+      const lastResult = engine.pickResults[engine.pickResults.length - 1];
+      lastPickRef.current = engine.pickResults.length;
 
       // If a targeted player was picked by someone else
       if (targetedPlayers.has(lastResult.playerId) && lastResult.teamId !== userTeamAbbr) {
@@ -565,8 +567,9 @@ export function DraftScreen({
   }
 
   function handleTradeUp() {
-    if (!gsm.draftEngine || !gsm.isDraftActive) return;
-    gsm.draftEngine.pause();
+    const engine = gsm.draftEngine;
+    if (!engine || !gsm.isDraftActive) return;
+    engine.pause();
 
     const currentPickNum = gsm.currentDraftPick;
     const currentRound = gsm.currentDraftRound;
@@ -574,7 +577,7 @@ export function DraftScreen({
 
     if (teamOnClockId === userTeamAbbr) {
       alert("You are already on the clock!");
-      gsm.draftEngine.resume();
+      engine.resume();
       return;
     }
 
@@ -587,7 +590,7 @@ export function DraftScreen({
 
     if (offerPicks.length === 0) {
       alert("You don't have enough draft capital to trade up.");
-      gsm.draftEngine.resume();
+      engine.resume();
       return;
     }
 
@@ -622,13 +625,13 @@ export function DraftScreen({
     gsm.draftOrder[gsm.currentDraftPick - 1] = userTeamAbbr;
     
     setTradeUpOffer(null);
-    gsm.draftEngine.resume();
+    gsm.draftEngine?.resume();
     refresh();
   }
 
   // Intercept Trade Offers
-  const activeTradeInterrupt = gsm.activeInterrupt?.reason === HardStopReason.TRADE_OFFER_RECEIVED 
-    ? gsm.activeInterrupt 
+  const activeTradeInterrupt = gsm.engineActiveInterrupt?.reason === HardStopReason.TRADE_OFFER_RECEIVED 
+    ? gsm.engineActiveInterrupt 
     : null;
   
   // Dynamic team needs
@@ -900,7 +903,7 @@ export function DraftScreen({
           offer={activeTradeInterrupt.payload}
           onAccept={() => { gsm.resolveEngineInterrupt({ reason: HardStopReason.TRADE_OFFER_RECEIVED, accepted: true }); refresh(); }}
           onDecline={() => { gsm.resolveEngineInterrupt({ reason: HardStopReason.TRADE_OFFER_RECEIVED, accepted: false }); refresh(); }}
-          onNegotiate={() => { gsm.resolveEngineInterrupt({ reason: HardStopReason.TRADE_OFFER_RECEIVED, navigate: true }); refresh(); }}
+          onNegotiate={() => { gsm.resolveEngineInterrupt({ reason: HardStopReason.TRADE_OFFER_RECEIVED, accepted: false, navigate: true }); refresh(); }}
         />
       )}
     </div>

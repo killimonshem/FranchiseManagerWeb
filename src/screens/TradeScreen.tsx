@@ -38,7 +38,8 @@ function FairnessBar({ score }: { score: number }) {
 // ─── Asset toggle row ─────────────────────────────────────────────────────────
 
 function PlayerRow({
-  player, selected, onToggle, onToggleBlock, isUserPlayer
+  player, selected, onToggle, onToggleBlock, isUserPlayer, showTeam
+}: {
   player: any;
   selected: boolean;
   onToggle: (id: string) => void;
@@ -424,7 +425,9 @@ export function TradeScreen({
           pad={false}
         >
           {!partnerTeamId ? (
-            <div style={{ dis
+            <div style={{ display: "flex", flexDirection: "column", height: 360 }}>
+              <div style={{ padding: "8px 12px", borderBottom: `1px solid ${COLORS.darkMagenta}`, fontSize: 11, fontWeight: 700, color: COLORS.muted, textTransform: "uppercase" }}>
+                League Trade Block
               </div>
               <div style={{ flex: 1, overflowY: "auto" }}>
                 {leagueBlockPlayers.length === 0 ? (

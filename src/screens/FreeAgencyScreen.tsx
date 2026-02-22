@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { COLORS, fmtCurrency } from "../ui/theme";
 import { Section, DataRow, RatingBadge, PosTag } from "../ui/components";
 import { Player, PlayerStatus } from "../types/player";
 import { calculatePlayerMarketValue } from "../types/player";
 import { ArrowUp, ArrowDown } from "lucide-react";
+import { analyzeTeamNeeds } from "../types/DraftWeekSystem";
 
 interface Props {
   gsm?: any;
@@ -18,6 +19,17 @@ export function FreeAgencyScreen({ gsm, onRosterChange, onNavigate }: Props) {
   const engine = gsm;
   const userTeamId = engine.userTeamId ?? "";
   const capSpace   = engine.getCapSpace(userTeamId);
+
+  // Identify team needs
+  const teamNeeds = useMemo(() => {
+    const team = engine.teams.find((t: any) => t.id === userTeamId);
+    if (!team) return [];
+    try {
+      return analyzeTeamNeeds(team, engine.allPlayers);
+    } catch (e) {
+      return [];
+    }
+  }, [userTeamId, engine.allPlayers, engine.teams]);
   
   // Sort free agents
   const freeAgents = engine.freeAgents;
@@ -108,7 +120,7 @@ export function FreeAgencyScreen({ gsm, onRosterChange, onNavigate }: Props) {
     }
 
     // Remove from free agent pool
-    engine.freeAgents = engine.freeAgents.filter(p => p.id !== player.id);
+    engine.freeAgents = engine.freeAgents.filter((p: Player) => p.id !== player.id);
 
     // Validate roster constraints after signing
     engine.validateRosterConstraints();
@@ -150,7 +162,7 @@ export function FreeAgencyScreen({ gsm, onRosterChange, onNavigate }: Props) {
       };
     }
 
-    engine.freeAgents = engine.freeAgents.filter(p => p.id !== player.id);
+    engine.freeAgents = engine.freeAgents.filter((p: Player) => p.id !== player.id);
     engine.validateRosterConstraints();
     setSigningId(null);
     onRosterChange?.();
@@ -177,6 +189,22 @@ export function FreeAgencyScreen({ gsm, onRosterChange, onNavigate }: Props) {
         >
           Manage RFA Tenders
         </button>
+      </div>
+
+      {/* Team Needs Indicator */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "8px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 8 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Team Needs:</span>
+        {teamNeeds.length > 0 ? (
+          <div style={{ display: "flex", gap: 6 }}>
+            {teamNeeds.map((pos: string) => (
+              <div key={pos} style={{ fontSize: 9, fontWeight: 700, color: COLORS.gold, border: `1px solid ${COLORS.gold}`, padding: "1px 5px", borderRadius: 4 }}>
+                {pos}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <span style={{ fontSize: 10, color: COLORS.muted, fontStyle: "italic" }}>No critical needs identified</span>
+        )}
       </div>
 
       <Section pad={false}>
@@ -227,11 +255,20 @@ export function FreeAgencyScreen({ gsm, onRosterChange, onNavigate }: Props) {
           const isMinSalaryPlayer = marketValue <= 1_200_000;
           const canAfford = capSpace >= marketValue;
           const isSigning = signingId === player.id;
+          const isNeed = teamNeeds.includes(player.position);
 
           return (
             <DataRow key={player.id} even={i % 2 === 0} hover>
-              <span style={{ flex: 1.5, fontSize: 11, fontWeight: 600, color: COLORS.light }}>
+              <span style={{ flex: 1.5, fontSize: 11, fontWeight: 600, color: COLORS.light, display: "flex", alignItems: "center", gap: 6 }}>
                 {player.firstName} {player.lastName}
+                {isNeed && (
+                  <span style={{ 
+                    fontSize: 8, fontWeight: 800, color: COLORS.bg, background: COLORS.gold, 
+                    padding: "1px 4px", borderRadius: 2 
+                  }}>
+                    NEED
+                  </span>
+                )}
               </span>
               <span style={{ flex: 1 }}><PosTag pos={player.position} /></span>
               <span style={{ flex: 1 }}><RatingBadge value={player.overall} size="sm" /></span>

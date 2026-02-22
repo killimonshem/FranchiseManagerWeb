@@ -12,7 +12,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { COLORS, FONT } from "./ui/theme";
-import { LayoutDashboard, Users, Briefcase, Trophy, Mail, FinancialHealthBadge, RatingBadge, PosTag } from "./ui/components";
+import { LayoutDashboard, Users, Briefcase, Trophy, Mail, FinancialHealthBadge, RatingBadge, PosTag, Toast } from "./ui/components";
 import { HoldoutModal, BlackMondayModal } from "./ui/Overlays";
 import { TransactionTicker } from "./ui/TransactionTicker";
 
@@ -570,6 +570,14 @@ export default function App() {
         {/* Transaction Ticker — Fixed at bottom (above mobile nav) */}
         <TransactionTicker gsm={gameStateManager} />
       </main>
+
+      {/* ── Toast Notifications ── */}
+      {gameStateManager.latestToast && (
+        <Toast 
+          data={gameStateManager.latestToast} 
+          onClose={() => { gameStateManager.clearToast(); refresh(); }} 
+        />
+      )}
 
       {/* ── GENERIC EVENT OVERLAY (Catches unhandled interrupts like Free Agency Open so game doesn't freeze) ── */}
       {activeInterrupt && 
