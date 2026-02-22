@@ -3,7 +3,9 @@ import { COLORS } from "../ui/theme";
 import { Section, RatingBadge, DataRow, PosTag, Pill, StatBar } from "../ui/components";
 import { useState, useEffect, useRef, useMemo } from "react";
 import type { GameStateManager, DraftProspect } from "../types/GameStateManager";
-import { Phone, User, Glasses, AlertOctagon, X, Check, Siren, Gavel, Star, ArrowUp, ArrowDown, FastForward } from "lucide-react";
+import { Phone, User, Glasses, AlertOctagon, X, Check, Siren, Gavel, Star, ArrowUp, ArrowDown, FastForward, Clock } from "lucide-react";
+import { DraftClock } from "../ui/DraftClock";
+import { DraftRoundRecapModal } from "../ui/DraftRoundRecapModal";
 import { HardStopReason } from "../types/engine-types";
 import { analyzeTeamNeeds } from "../types/DraftWeekSystem";
 
@@ -318,7 +320,7 @@ function TradeUpOverlay({ offer, onAccept, onCancel }: { offer: any, onAccept: (
   );
 }
 
-function ScoutingReportModal({ prospect, onClose, onScout, scoutPts }: { prospect: DraftProspect, onClose: () => void, onScout: () => void, scoutPts: number }) {
+function ScoutingReportModal({ prospect, onClose, onScout, scoutPts, isOnClock, onDraft }: { prospect: DraftProspect, onClose: () => void, onScout: () => void, scoutPts: number, isOnClock?: boolean, onDraft?: () => void }) {
   const isFullyRevealed = prospect.scoutingPointsSpent >= 2;
   
   // Mock attributes for display since they aren't fully modeled in the draft class yet
@@ -423,14 +425,26 @@ function ScoutingReportModal({ prospect, onClose, onScout, scoutPts }: { prospec
         {/* Footer Actions */}
         <div style={{ padding: 20, borderTop: `1px solid ${COLORS.darkMagenta}`, display: "flex", justifyContent: "flex-end", gap: 10 }}>
           <button onClick={onClose} style={{ padding: "8px 16px", background: "transparent", border: `1px solid ${COLORS.muted}`, color: COLORS.muted, borderRadius: 6, cursor: "pointer" }}>Close</button>
+          {isOnClock && onDraft && (
+            <button
+              onClick={() => { onDraft(); onClose(); }}
+              style={{
+                padding: "8px 16px", background: COLORS.lime,
+                color: COLORS.bg, border: "none", borderRadius: 6,
+                cursor: "pointer", fontWeight: 700
+              }}
+            >
+              🏈 Draft {prospect.firstName}
+            </button>
+          )}
           {prospect.scoutingPointsSpent < 2 && (
-            <button 
-              onClick={onScout} 
+            <button
+              onClick={onScout}
               disabled={scoutPts < 1}
-              style={{ 
-                padding: "8px 16px", background: scoutPts >= 1 ? COLORS.lime : "rgba(255,255,255,0.1)", 
-                color: scoutPts >= 1 ? COLORS.bg : COLORS.muted, border: "none", borderRadius: 6, 
-                cursor: scoutPts >= 1 ? "pointer" : "not-allowed", fontWeight: 700 
+              style={{
+                padding: "8px 16px", background: scoutPts >= 1 ? COLORS.lime : "rgba(255,255,255,0.1)",
+                color: scoutPts >= 1 ? COLORS.bg : COLORS.muted, border: "none", borderRadius: 6,
+                cursor: scoutPts >= 1 ? "pointer" : "not-allowed", fontWeight: 700
               }}
             >
               Scout Player (1 Pt)
@@ -456,12 +470,90 @@ export function DraftScreen({
   const [tab, setTab] = useState("board");
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [positionFilter, setPositionFilter] = useState<string | null>(null);
   const [targetedPlayers, setTargetedPlayers] = useState<Set<string>>(new Set());
   const [showSnipeAlert, setShowSnipeAlert] = useState<DraftProspect | null>(null);
   const [showAdvisor, setShowAdvisor] = useState(false);
   const [tradeUpOffer, setTradeUpOffer] = useState<any>(null);
   const [viewProspect, setViewProspect] = useState<DraftProspect | null>(null);
+  const [clockSeconds, setClockSeconds] = useState(300);
+  const [roundRecapData, setRoundRecapData] = useState<{ round: number; picks: any[] } | null>(null);
   const lastPickRef = useRef<number>(0);
+  const lastRoundRef = useRef<number>(0);
+
+  // Clock countdown timer — counts down from 300 seconds when user is on the clock
+  useEffect(() => {
+    const isOnClock = gsm.isDraftActive &&
+      gsm.draftOrder.length > 0 &&
+      gsm.draftOrder[gsm.currentDraftPick - 1] === gsm.userTeamId;
+
+    if (!isOnClock) return;
+
+    const interval = setInterval(() => {
+      setClockSeconds(prev => {
+        if (prev <= 1) {
+          // Auto-pick the best available prospect
+          const topProspect = gsm.draftProspects[0];
+          if (topProspect) {
+            gsm.draftEngine?.submitUserPick(topProspect.id);
+            refresh();
+          }
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [gsm.isDraftActive, gsm.currentDraftPick, gsm.draftOrder.length]);
+
+  // Reset clock when user makes a pick
+  useEffect(() => {
+    if (gsm.isDraftActive && lastPickRef.current < gsm.currentDraftPick) {
+      setClockSeconds(300);
+      lastPickRef.current = gsm.currentDraftPick;
+    }
+  }, [gsm.currentDraftPick, gsm.isDraftActive]);
+
+  // Show round recap when a round completes
+  useEffect(() => {
+    if (gsm.isDraftActive && lastRoundRef.current < gsm.currentDraftRound && gsm.draftEngine?.pickResults) {
+      // A round has just completed, show the recap
+      const completedRound = gsm.currentDraftRound - 1;
+      const roundPicks = gsm.draftEngine.pickResults
+        .filter(p => p.round === completedRound)
+        .map(p => {
+          const team = gsm.teams.find(t => t.id === p.teamId);
+          const player = gsm.allPlayers.find(pl => pl.id === p.playerId);
+          return {
+            pickNumber: p.pickNumber,
+            teamId: p.teamId,
+            teamAbbr: team?.abbreviation ?? "?",
+            playerName: player ? `${player.firstName} ${player.lastName}` : "Unknown",
+            playerPos: player?.position ?? "?",
+            playerOvr: player?.overall ?? 0,
+          };
+        });
+      setRoundRecapData({ round: completedRound, picks: roundPicks });
+      lastRoundRef.current = gsm.currentDraftRound;
+    }
+  }, [gsm.currentDraftRound, gsm.isDraftActive, gsm.draftEngine?.pickResults.length]);
+
+  // Load targeted players from localStorage on mount
+  useEffect(() => {
+    const season = gsm.currentGameDate.season;
+    const storageKey = `draftTargets-season${season}-team${userTeamAbbr}`;
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const targetIds = JSON.parse(saved) as string[];
+        setTargetedPlayers(new Set(targetIds));
+      }
+    } catch (error) {
+      console.warn('Failed to load draft targets from localStorage', error);
+    }
+  }, [userTeamAbbr, gsm.currentGameDate.season]);
 
   const currentSeason = gsm.currentGameDate.season;
   const draftYears = [currentSeason, currentSeason + 1, currentSeason + 2];
@@ -474,17 +566,25 @@ export function DraftScreen({
   const prospects = gsm.draftProspects;
   const scoutPtsLeft = gsm.scoutingPointsAvailable;
 
-  // Filter prospects by search query
+  // Filter prospects by search query and position
   const filteredProspects = useMemo(() => {
-    if (!searchQuery.trim()) return prospects;
+    let filtered = prospects;
+
+    // Apply position filter
+    if (positionFilter) {
+      filtered = filtered.filter(p => p.position === positionFilter);
+    }
+
+    // Apply search query
+    if (!searchQuery.trim()) return filtered;
 
     const query = searchQuery.toLowerCase();
-    return prospects.filter(p =>
+    return filtered.filter(p =>
       p.name.toLowerCase().includes(query) ||
       p.position.toLowerCase().includes(query) ||
       p.college.toLowerCase().includes(query)
     );
-  }, [prospects, searchQuery]);
+  }, [prospects, searchQuery, positionFilter]);
 
   const sortedProspects = useMemo(() => {
     if (!sortConfig) return filteredProspects;
@@ -575,7 +675,41 @@ export function DraftScreen({
 
   function toggleTarget(id: string) {
     const next = new Set(targetedPlayers);
-    if (next.has(id)) next.delete(id); else next.add(id);
+    const season = gsm.currentGameDate.season;
+    const storageKey = `draftTargets-season${season}-team${userTeamAbbr}`;
+
+    if (next.has(id)) {
+      // Remove from targets and localStorage
+      next.delete(id);
+      try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+          const targetIds = JSON.parse(saved) as string[];
+          const filtered = targetIds.filter(tid => tid !== id);
+          if (filtered.length > 0) {
+            localStorage.setItem(storageKey, JSON.stringify(filtered));
+          } else {
+            localStorage.removeItem(storageKey);
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to remove draft target from localStorage', error);
+      }
+    } else {
+      // Add to targets and localStorage
+      next.add(id);
+      try {
+        const saved = localStorage.getItem(storageKey);
+        const targetIds = saved ? JSON.parse(saved) as string[] : [];
+        if (!targetIds.includes(id)) {
+          targetIds.push(id);
+          localStorage.setItem(storageKey, JSON.stringify(targetIds));
+        }
+      } catch (error) {
+        console.warn('Failed to save draft target to localStorage', error);
+      }
+    }
+
     setTargetedPlayers(next);
   }
 
@@ -658,11 +792,39 @@ export function DraftScreen({
       <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: COLORS.light, marginBottom: 8 }}>
         {gsm.currentGameDate.season} NFL Draft
       </h2>
+      {/* Team Needs Section (Always Visible at Top) */}
+      <div style={{
+        marginBottom: 16,
+        paddingBottom: 12,
+        borderBottom: `1px solid ${COLORS.darkMagenta}`,
+      }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.muted, textTransform: "uppercase", marginBottom: 8, letterSpacing: 1 }}>
+          Team Needs
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {teamNeeds.length === 0 ? (
+            <div style={{ fontSize: 11, color: COLORS.lime }}>No critical weaknesses identified.</div>
+          ) : (
+            teamNeeds.map((pos: string) => (
+              <div key={pos} style={{
+                display: "flex", alignItems: "center", gap: 6,
+                background: "rgba(255, 85, 85, 0.1)", border: "1px solid rgba(255, 85, 85, 0.25)",
+                borderRadius: 6, padding: "4px 8px"
+              }}>
+                <PosTag pos={pos} />
+                <span style={{ fontSize: 10, fontWeight: 600, color: COLORS.light }}>Need</span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div style={{ display: "flex", gap: 6 }}>
           <Pill active={tab === "board"}  onClick={() => setTab("board")}>Big Board</Pill>
+          <Pill active={tab === "targets"}  onClick={() => setTab("targets")}>Draft Targets ({targetedPlayers.size})</Pill>
+          <Pill active={tab === "ticker"}  onClick={() => setTab("ticker")}>Pick Tracker</Pill>
           <Pill active={tab === "picks"}  onClick={() => setTab("picks")}>My Picks</Pill>
-          <Pill active={tab === "needs"}  onClick={() => setTab("needs")}>Team Needs</Pill>
         </div>
         {gsm.isDraftActive && (
           <div style={{ display: "flex", gap: 8 }}>
@@ -684,6 +846,86 @@ export function DraftScreen({
         )}
       </div>
 
+      {/* On The Clock Banner */}
+      {gsm.isDraftActive && gsm.draftOrder.length > 0 && gsm.draftOrder[gsm.currentDraftPick - 1] === gsm.userTeamId && (
+        <div style={{
+          background: `linear-gradient(90deg, ${COLORS.lime}15, transparent)`,
+          border: `2px solid ${COLORS.lime}`,
+          borderRadius: 10,
+          padding: "14px 20px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 16,
+          animation: "pulse 1.5s infinite",
+        }}>
+          <div>
+            <div style={{
+              fontSize: 13,
+              fontWeight: 900,
+              color: COLORS.lime,
+              textTransform: "uppercase",
+              letterSpacing: 1,
+            }}>
+              ⚡ YOU ARE ON THE CLOCK
+            </div>
+            <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 2 }}>
+              Round {gsm.currentDraftRound} · Pick #{gsm.currentDraftPick} of {gsm.draftOrder.length * 7}
+            </div>
+          </div>
+          <DraftClock secondsLeft={clockSeconds} />
+        </div>
+      )}
+
+      {/* Upcoming Picks Queue */}
+      {gsm.isDraftActive && gsm.draftOrder.length > 0 && (
+        <div style={{
+          marginBottom: 16,
+          paddingBottom: 12,
+          borderBottom: `1px solid ${COLORS.darkMagenta}`,
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.muted, textTransform: "uppercase", marginBottom: 10, letterSpacing: 1 }}>
+            Next Selections
+          </div>
+          <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
+            {Array.from({ length: 5 }).map((_, i) => {
+              const pickIdx = gsm.currentDraftPick - 1 + i;
+              if (pickIdx >= gsm.draftOrder.length * 7) return null;
+              const teamId = gsm.draftOrder[pickIdx % gsm.draftOrder.length];
+              const team = gsm.teams.find(t => t.id === teamId);
+              const isCurrentPick = i === 0;
+              return (
+                <div
+                  key={i}
+                  style={{
+                    flex: "0 0 auto",
+                    width: 100,
+                    padding: 12,
+                    borderRadius: 8,
+                    background: isCurrentPick
+                      ? `linear-gradient(135deg, ${COLORS.lime}30, ${COLORS.lime}10)`
+                      : "rgba(255,255,255,0.05)",
+                    border: `1px solid ${isCurrentPick ? COLORS.lime : COLORS.darkMagenta}`,
+                    textAlign: "center",
+                  }}
+                >
+                  <div style={{ fontSize: 9, color: COLORS.muted, marginBottom: 4 }}>
+                    Pick {gsm.currentDraftPick + i}
+                  </div>
+                  <div style={{
+                    fontSize: 14,
+                    fontWeight: 900,
+                    color: isCurrentPick ? COLORS.lime : COLORS.light,
+                  }}>
+                    {team?.abbreviation ?? "?"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {tab === "board" && (
         <Section title={`Prospect Board — Scout Pts: ${scoutPtsLeft}`} pad={false}>
           {prospects.length === 0 ? (
@@ -701,10 +943,47 @@ export function DraftScreen({
                   style={{
                     width: "100%", padding: "8px 12px", borderRadius: 6,
                     background: "rgba(255,255,255,0.05)", border: `1px solid ${COLORS.darkMagenta}`,
-                    color: COLORS.light, fontSize: 12, fontFamily: "inherit",
+                    color: COLORS.light, fontSize: 12, fontFamily: "inherit", marginBottom: 10,
                   }}
                 />
-                <div style={{ fontSize: 10, color: COLORS.muted, marginTop: 6 }}>
+
+                {/* Position Filter */}
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.muted, textTransform: "uppercase", marginBottom: 6, letterSpacing: 0.5 }}>
+                    Filter by Position
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <button
+                      onClick={() => setPositionFilter(null)}
+                      style={{
+                        padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600,
+                        border: `1px solid ${positionFilter === null ? COLORS.lime : "rgba(255,255,255,0.2)"}`,
+                        background: positionFilter === null ? `${COLORS.lime}20` : "transparent",
+                        color: positionFilter === null ? COLORS.lime : COLORS.light,
+                        cursor: "pointer",
+                      }}
+                    >
+                      All
+                    </button>
+                    {["QB", "RB", "WR", "TE", "OT", "OG", "C", "DT", "EDGE", "LB", "CB", "S", "P", "K"].map(pos => (
+                      <button
+                        key={pos}
+                        onClick={() => setPositionFilter(pos)}
+                        style={{
+                          padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 600,
+                          border: `1px solid ${positionFilter === pos ? COLORS.lime : "rgba(255,255,255,0.2)"}`,
+                          background: positionFilter === pos ? `${COLORS.lime}20` : "transparent",
+                          color: positionFilter === pos ? COLORS.lime : COLORS.light,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {pos}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ fontSize: 10, color: COLORS.muted }}>
                   {filteredProspects.length} of {prospects.length} prospects
                 </div>
               </div>
@@ -745,15 +1024,33 @@ export function DraftScreen({
                     <span style={{ flex: 1 }}>{renderOvr(p)}</span>
                     <span style={{ flex: 1, fontSize: 10, color: COLORS.muted }}>Rd {p.projectedRound === 8 ? "UDFA" : p.projectedRound}</span>
                     <span style={{ flex: 1 }}>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); toggleTarget(p.id); }}
-                        style={{ 
-                          background: "transparent", border: "none", cursor: "pointer",
-                          color: isTarget ? COLORS.gold : "rgba(255,255,255,0.1)"
-                        }}
-                      >
-                        <Star size={14} fill={isTarget ? COLORS.gold : "none"} />
-                      </button>
+                      {gsm.isDraftActive && gsm.draftOrder.length > 0 && gsm.draftOrder[gsm.currentDraftPick - 1] === gsm.userTeamId ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); gsm.draftEngine?.submitUserPick(p.id); refresh(); }}
+                          style={{
+                            fontSize: 9,
+                            padding: "2px 6px",
+                            borderRadius: 3,
+                            border: "none",
+                            cursor: "pointer",
+                            background: COLORS.lime,
+                            color: COLORS.bg,
+                            fontWeight: 700,
+                          }}
+                        >
+                          Draft
+                        </button>
+                      ) : (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleTarget(p.id); }}
+                          style={{
+                            background: "transparent", border: "none", cursor: "pointer",
+                            color: isTarget ? COLORS.gold : "rgba(255,255,255,0.1)"
+                          }}
+                        >
+                          <Star size={14} fill={isTarget ? COLORS.gold : "none"} />
+                        </button>
+                      )}
                     </span>
                     <span style={{ flex: 1 }}>
                       <button
@@ -777,6 +1074,105 @@ export function DraftScreen({
                 );
               })}
             </>
+          )}
+        </Section>
+      )}
+
+      {tab === "targets" && (
+        <Section title={`Draft Targets — ${targetedPlayers.size} Players`} pad={false}>
+          {targetedPlayers.size === 0 ? (
+            <div style={{ padding: "14px", fontSize: 11, color: COLORS.muted }}>
+              Star a prospect on the Big Board to add them to your draft targets.
+            </div>
+          ) : (
+            <div>
+              <DataRow header>
+                {["#", "Name", "Pos", "College", "OVR", "Proj", "Remove"].map(h => (
+                  <span key={h} style={{
+                    fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700,
+                    flex: h === "Name" ? 2 : 1,
+                  }}>
+                    {h}
+                  </span>
+                ))}
+              </DataRow>
+              {gsm.draftProspects
+                .filter(p => targetedPlayers.has(p.id))
+                .map((p, i) => {
+                  const rank = gsm.draftProspects.indexOf(p) + 1;
+                  return (
+                    <DataRow key={p.id} even={i % 2 === 0} hover onClick={() => setViewProspect(p)}>
+                      <span style={{ flex: 1, fontSize: 10, fontFamily: "monospace", color: COLORS.muted }}>{rank}</span>
+                      <span style={{ flex: 2, fontSize: 11, fontWeight: 600, color: COLORS.light }}>{p.name}</span>
+                      <span style={{ flex: 1 }}><PosTag pos={p.position} /></span>
+                      <span style={{ flex: 1.5, fontSize: 10, color: COLORS.muted }}>{p.college}</span>
+                      <span style={{ flex: 1 }}>{renderOvr(p)}</span>
+                      <span style={{ flex: 1, fontSize: 10, color: COLORS.muted }}>Rd {p.projectedRound === 8 ? "UDFA" : p.projectedRound}</span>
+                      <span style={{ flex: 1 }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleTarget(p.id); }}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            cursor: "pointer",
+                            color: COLORS.coral,
+                            fontWeight: 700,
+                            fontSize: 11,
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    </DataRow>
+                  );
+                })}
+            </div>
+          )}
+        </Section>
+      )}
+
+      {tab === "ticker" && (
+        <Section title="Pick Tracker — Recent Selections" pad={false}>
+          {gsm.draftEngine?.pickResults && gsm.draftEngine.pickResults.length > 0 ? (
+            <div>
+              <DataRow header>
+                {["Pick #", "Team", "Player", "Pos", "Round"].map(h => (
+                  <span key={h} style={{
+                    fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700,
+                    flex: h === "Player" ? 2 : 1,
+                  }}>
+                    {h}
+                  </span>
+                ))}
+              </DataRow>
+              {[...gsm.draftEngine.pickResults].reverse().map((result, i) => {
+                const team = gsm.teams.find(t => t.id === result.teamId);
+                const player = gsm.allPlayers.find(p => p.id === result.playerId);
+                return (
+                  <DataRow key={`${result.pickNumber}-${result.teamId}`} even={i % 2 === 0}>
+                    <span style={{ flex: 1, fontSize: 10, fontFamily: "monospace", color: COLORS.muted }}>
+                      {result.pickNumber}
+                    </span>
+                    <span style={{ flex: 1, fontSize: 11, fontWeight: 600, color: COLORS.light }}>
+                      {team?.abbreviation ?? "?"}
+                    </span>
+                    <span style={{ flex: 2, fontSize: 11, fontWeight: 600, color: COLORS.light }}>
+                      {player ? `${player.firstName} ${player.lastName}` : "Unknown"}
+                    </span>
+                    <span style={{ flex: 1 }}>
+                      <PosTag pos={player?.position ?? "?"} />
+                    </span>
+                    <span style={{ flex: 1, fontSize: 10, color: COLORS.muted }}>
+                      Rd {result.round}
+                    </span>
+                  </DataRow>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ padding: "14px", fontSize: 11, color: COLORS.muted }}>
+              No picks yet. Start the draft to begin tracking selections.
+            </div>
           )}
         </Section>
       )}
@@ -829,71 +1225,6 @@ export function DraftScreen({
         </div>
       )}
 
-      {tab === "needs" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Section title="Identified Weaknesses" pad={false}>
-            <div style={{ padding: 16 }}>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-                {teamNeeds.length === 0 ? (
-                  <div style={{ fontSize: 11, color: COLORS.lime }}>No critical weaknesses identified.</div>
-                ) : (
-                  teamNeeds.map((pos: string) => (
-                    <div key={pos} style={{ 
-                      display: "flex", alignItems: "center", gap: 8, 
-                      background: "rgba(255, 85, 85, 0.1)", border: "1px solid rgba(255, 85, 85, 0.25)", 
-                      borderRadius: 6, padding: "6px 10px" 
-                    }}>
-                      <PosTag pos={pos} />
-                      <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.light }}>Need</span>
-                    </div>
-                  ))
-                )}
-              </div>
-              <p style={{ fontSize: 11, color: COLORS.muted, margin: 0, lineHeight: 1.4 }}>
-                Scouts recommend prioritizing these positions in early rounds due to lack of depth or starter quality.
-              </p>
-            </div>
-          </Section>
-
-          <Section title="Positional Depth Chart (Needs)" pad={false}>
-            <DataRow header>
-              <span style={{ flex: 0.8, fontSize: 8, color: COLORS.muted, fontWeight: 700 }}>Pos</span>
-              <span style={{ flex: 0.8, fontSize: 8, color: COLORS.muted, fontWeight: 700 }}>Count</span>
-              <span style={{ flex: 0.8, fontSize: 8, color: COLORS.muted, fontWeight: 700 }}>Avg</span>
-              <span style={{ flex: 3, fontSize: 8, color: COLORS.muted, fontWeight: 700 }}>Depth (Top 3)</span>
-            </DataRow>
-            {teamNeeds.map((pos: string) => {
-              const playersAtPos = gsm.allPlayers
-                .filter((p: any) => p.teamId === userTeamAbbr && p.position === pos)
-                .sort((a: any, b: any) => b.overall - a.overall);
-              
-              const count = playersAtPos.length;
-              const avg = count > 0 ? Math.round(playersAtPos.reduce((s: number, p: any) => s + p.overall, 0) / count) : 0;
-
-              return (
-                <DataRow key={pos} even={false}>
-                  <span style={{ flex: 0.8 }}><PosTag pos={pos} /></span>
-                  <span style={{ flex: 0.8, fontSize: 11, color: count < 2 ? COLORS.coral : COLORS.light }}>{count}</span>
-                  <span style={{ flex: 0.8 }}><RatingBadge value={avg} size="sm" /></span>
-                  <div style={{ flex: 3, display: "flex", gap: 6, overflowX: "auto" }}>
-                    {playersAtPos.slice(0, 3).map((p: any) => (
-                      <div key={p.id} style={{ 
-                        background: "rgba(255,255,255,0.05)", borderRadius: 4, padding: "2px 6px", 
-                        fontSize: 9, display: "flex", alignItems: "center", gap: 4 
-                      }}>
-                        <span style={{ color: COLORS.light }}>{p.lastName}</span>
-                        <span style={{ color: p.overall >= 80 ? COLORS.lime : p.overall >= 70 ? COLORS.gold : COLORS.muted, fontWeight: 700 }}>{p.overall}</span>
-                      </div>
-                    ))}
-                    {playersAtPos.length === 0 && <span style={{ fontSize: 9, color: COLORS.coral, fontStyle: "italic" }}>Empty</span>}
-                  </div>
-                </DataRow>
-              );
-            })}
-          </Section>
-        </div>
-      )}
-
       {/* ── Overlays ── */}
 
       {showAdvisor && (
@@ -920,20 +1251,34 @@ export function DraftScreen({
       )}
 
       {viewProspect && (
-        <ScoutingReportModal 
-          prospect={viewProspect} 
-          onClose={() => setViewProspect(null)} 
+        <ScoutingReportModal
+          prospect={viewProspect}
+          onClose={() => setViewProspect(null)}
           onScout={() => handleScout(viewProspect.id)}
           scoutPts={scoutPtsLeft}
+          isOnClock={gsm.isDraftActive && gsm.draftOrder.length > 0 && gsm.draftOrder[gsm.currentDraftPick - 1] === gsm.userTeamId}
+          onDraft={() => {
+            gsm.draftEngine?.submitUserPick(viewProspect.id);
+            refresh();
+          }}
         />
       )}
 
       {activeTradeInterrupt && (
-        <PhoneCallOverlay 
+        <PhoneCallOverlay
           offer={activeTradeInterrupt.payload}
           onAccept={() => { gsm.resolveEngineInterrupt({ reason: HardStopReason.TRADE_OFFER_RECEIVED, accepted: true }); refresh(); }}
           onDecline={() => { gsm.resolveEngineInterrupt({ reason: HardStopReason.TRADE_OFFER_RECEIVED, accepted: false }); refresh(); }}
           onNegotiate={() => { gsm.resolveEngineInterrupt({ reason: HardStopReason.TRADE_OFFER_RECEIVED, accepted: false, navigate: true }); refresh(); }}
+        />
+      )}
+
+      {roundRecapData && (
+        <DraftRoundRecapModal
+          round={roundRecapData.round}
+          picks={roundRecapData.picks}
+          userTeamId={gsm.userTeamId}
+          onClose={() => setRoundRecapData(null)}
         />
       )}
     </div>

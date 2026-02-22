@@ -39,6 +39,7 @@ import { FinanceSystem } from '../systems/FinanceSystem';
 import type { RestructureResult, WeeklyFinanceReport } from '../systems/FinanceSystem';
 import { DraftEngine, generateDraftClass } from '../systems/DraftEngine';
 import type { DraftPickResult } from '../systems/DraftEngine';
+import { establishDraftOrder } from './DraftSystem';
 import type { TradeOfferPayloadUI, TradeEvaluation } from '../systems/TradeSystem';
 import { FranchiseTier } from '../systems/TradeSystem';
 import { storage } from '../services/StorageService';
@@ -726,6 +727,62 @@ export class GameStateManager {
       },
     });
     return this.draftEngine;
+  }
+
+  /**
+   * Start the draft — initialize draft order (from traded picks) and begin the clock.
+   * Called by the UI when the user clicks "Open War Room" button.
+   */
+  startDraft(): void {
+    // Initialize draft order if not already set
+    // Use the current year's picks (respecting all trades from drafttrade.json)
+    if (this.draftOrder.length === 0) {
+      const currentYearPicks = this.draftPicks.filter(p => p.year === this.currentGameDate.season);
+
+      if (currentYearPicks.length === 0) {
+        // Fallback to basic order if no picks exist (shouldn't happen in normal flow)
+        this.draftOrder = establishDraftOrder(this.teams);
+      } else {
+        // Build draft order from round 1 of current year (respects trades)
+        const round1Picks = currentYearPicks.filter(p => p.round === 1).sort((a, b) => {
+          // Sort by original team order (standings-based)
+          const aTeam = this.teams.find(t => t.id === a.originalTeamId);
+          const bTeam = this.teams.find(t => t.id === b.originalTeamId);
+          const aOrder = aTeam ? this.teams.indexOf(aTeam) : 0;
+          const bOrder = bTeam ? this.teams.indexOf(bTeam) : 0;
+          return aOrder - bOrder;
+        });
+
+        // Repeat the current owners for all 7 rounds
+        this.draftOrder = [];
+        for (let round = 1; round <= 7; round++) {
+          const roundPicks = currentYearPicks.filter(p => p.round === round);
+          for (const pick of round1Picks) {
+            // Find who currently owns this pick in this round
+            const currentOwner = roundPicks.find(p => p.originalTeamId === pick.originalTeamId);
+            if (currentOwner) {
+              this.draftOrder.push(currentOwner.currentTeamId);
+            }
+          }
+        }
+      }
+    }
+
+    // Initialize engine if needed
+    if (!this.draftEngine) {
+      this.initDraftEngine();
+    }
+
+    // Set draft as active and start clock
+    this.isDraftActive = true;
+    this.currentDraftRound = 1;
+    this.currentDraftPick = 1;
+
+    // Start the async draft clock
+    this.draftEngine?.startDraftClock(7);
+
+    // Notify observers
+    this.onEngineStateChange?.();
   }
 
   // MARK: - Computed Properties

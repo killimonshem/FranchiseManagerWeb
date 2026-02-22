@@ -22,6 +22,7 @@ import { RosterScreen } from "./screens/RosterScreen";
 import { PlayerProfileScreen } from "./screens/PlayerProfileScreen";
 import { LoadGameScreen } from "./screens/LoadGameScreen";
 import { DraftScreen } from "./screens/DraftScreen";
+import { DraftEntryScreen } from "./screens/DraftEntryScreen";
 import { FinancesScreen } from "./screens/FinancesScreen";
 import { InboxScreen } from "./screens/InboxScreen";
 import { ReviewTradeOfferScreen } from "./screens/ReviewTradeOfferScreen";
@@ -328,11 +329,28 @@ export default function App() {
       case "playerProfile":
         return <PlayerProfileScreen player={detail} setScreen={setScreen} />;
       case "draft":
-        // Show Lead-Up screen if it's Draft Week (15) but not yet Thursday (Day 4)
-        // Note: This assumes standard engine calendar where Draft is Week 15
-        if (gameStateManager.currentGameDate.week === 15 && gameStateManager.currentGameDate.dayOfWeek < 4) {
-          return <DraftLeadUpScreen gsm={gameStateManager} onAdvance={() => { gameStateManager.currentGameDate.dayOfWeek = 4; refresh(); }} />;
+        // Week 15 is Draft Day
+        if (gameStateManager.currentGameDate.week === 15) {
+          // Before Thursday (Day 4): Show Lead-Up screen
+          if (gameStateManager.currentGameDate.dayOfWeek < 4) {
+            return <DraftLeadUpScreen gsm={gameStateManager} onAdvance={() => { gameStateManager.currentGameDate.dayOfWeek = 4; refresh(); }} />;
+          }
+          // Thursday onwards: Show Draft Entry or Active Draft
+          if (!gameStateManager.isDraftActive) {
+            return (
+              <DraftEntryScreen
+                season={gameStateManager.currentGameDate.season}
+                gsm={gameStateManager}
+                onStart={() => {
+                  gameStateManager.startDraft();
+                  refresh();
+                }}
+              />
+            );
+          }
+          return <DraftScreen userTeamAbbr={userTeamMeta?.abbr ?? ""} gsm={gameStateManager} refresh={refresh} />;
         }
+        // All other weeks: Show regular Draft Screen (draft board for prep/trading)
         return <DraftScreen userTeamAbbr={userTeamMeta?.abbr ?? ""} gsm={gameStateManager} refresh={refresh} />;
       case "finances":   return <FinancesScreen gsm={gameStateManager} />;
       case "inbox":      return <InboxScreen gsm={gameStateManager} isMobile={isMobile} onNavigate={(s,d) => { setScreen(s); setDetail(d); }} refresh={refresh} />;
