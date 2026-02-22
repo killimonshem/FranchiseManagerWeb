@@ -14,6 +14,7 @@ import type { Player } from '../types/player';
 import type { Team } from '../types/team';
 import type { TeamDraftPick } from '../types/GameStateManager';
 import { Position } from '../types/nfl-types';
+import { ShoppingStatus, TradeRequestState } from '../types/player';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -79,6 +80,11 @@ export class TradeSystem {
         break;
     }
 
+    // Apply PUBLIC_BLOCK penalty: -15% when team is desperate to dump player
+    if (player.shoppingStatus === ShoppingStatus.PUBLIC_BLOCK) {
+      value *= 0.85;
+    }
+
     return value;
   }
 
@@ -87,6 +93,47 @@ export class TradeSystem {
     const roundValues = [0, 3000, 1200, 500, 200, 100, 50, 20];
     const round = Math.max(1, Math.min(7, pick.round));
     return roundValues[round] || 0;
+  }
+
+  // ─── Module 1b: Trade Block Psychology ────────────────────────────────────
+
+  /**
+   * Set a player's shopping status with morale consequences.
+   * PUBLIC_BLOCK triggers a -10 morale hit and awareness flag.
+   * If morale drops below 30, player escalates to PUBLIC_DEMAND.
+   *
+   * @param player The player being placed on the block
+   * @param newStatus The new shopping status
+   * @returns Impact metrics for UI feedback
+   */
+  public setShoppingStatus(
+    player: Player,
+    newStatus: ShoppingStatus
+  ): { moraleImpact: number; tradeValuePenalty: number } {
+    const wasPublic = player.shoppingStatus === ShoppingStatus.PUBLIC_BLOCK;
+
+    if (newStatus === ShoppingStatus.PUBLIC_BLOCK && !wasPublic) {
+      // Going public: morale hit + awareness
+      player.morale = Math.max(0, player.morale - 10);
+      player.isAwareOfShopping = true;
+
+      // If morale falls below 30, escalate to public demand
+      if (player.morale < 30) {
+        player.tradeRequestState = TradeRequestState.PUBLIC_DEMAND;
+      }
+
+      player.shoppingStatus = newStatus;
+      return { moraleImpact: -10, tradeValuePenalty: -0.15 };
+    } else if (newStatus === ShoppingStatus.OFF_BLOCK) {
+      // Off block: no morale penalty, clear awareness
+      player.isAwareOfShopping = false;
+      player.shoppingStatus = newStatus;
+      return { moraleImpact: 0, tradeValuePenalty: 0 };
+    } else {
+      // Quiet shopping: no morale impact, no awareness
+      player.shoppingStatus = newStatus;
+      return { moraleImpact: 0, tradeValuePenalty: 0 };
+    }
   }
 
   // ─── Module 2: Franchise State Analysis ───────────────────────────────────
@@ -136,6 +183,7 @@ export class TradeSystem {
     offeringPicks: TeamDraftPick[],
     receivingPicks: TeamDraftPick[],
     receivingTeam: Team,
+    receivingTeamRoster: Player[],
     currentWeek: number,
     fairnessMultiplier: number = 1.0,
   ): TradeEvaluation {
@@ -150,15 +198,27 @@ export class TradeSystem {
 
     const tier = this.determineFranchiseTier(receivingTeam, currentWeek);
 
-    // Perceived value of what AI receives (user's offering)
-    let userValue = 0;
-    for (const p of offeringPlayers) userValue += this.getContextualPlayerValue(p, tier);
-    for (const pick of offeringPicks) userValue += this.getContextualPickValue(pick, tier);
+    // Calculate individual asset values for detailed feedback
+    const aiAssets = [
+      ...receivingPlayers.map(p => ({
+        name: `${p.firstName} ${p.lastName}`,
+        val: this.getContextualPlayerValue(p, tier)
+      })),
+      ...receivingPicks.map(p => ({ name: `${p.year} Rd ${p.round} (${p.originalTeamId})`, val: this.getContextualPickValue(p, tier) }))
+    ].sort((a, b) => b.val - a.val);
 
-    // Perceived value of what AI gives up (user's receiving)
-    let aiValue = 0;
-    for (const p of receivingPlayers) aiValue += this.getContextualPlayerValue(p, tier);
-    for (const pick of receivingPicks) aiValue += this.getContextualPickValue(pick, tier);
+    const userAssets = [
+      ...offeringPlayers.map(p => {
+        let val = this.getContextualPlayerValue(p, tier);
+        // Bonus if this player fills a positional need for the AI
+        if (this.doesFillNeed(receivingTeamRoster, p.position)) val *= 1.25;
+        return { name: `${p.firstName} ${p.lastName}`, val };
+      }),
+      ...offeringPicks.map(p => ({ name: `${p.year} Rd ${p.round} (${p.originalTeamId})`, val: this.getContextualPickValue(p, tier) }))
+    ].sort((a, b) => b.val - a.val);
+
+    const userValue = userAssets.reduce((sum, a) => sum + a.val, 0);
+    let aiValue   = aiAssets.reduce((sum, a) => sum + a.val, 0);
 
     const perceivedValues = { userValue, aiValue };
 
@@ -190,13 +250,35 @@ export class TradeSystem {
         perceivedValues,
       };
     } else {
+      // Dynamic rejection reason
+      let reason = 'We are too far apart. We value our assets much higher than this.';
+      const bestAi = aiAssets[0];
+      const bestUser = userAssets[0];
+
+      if (bestAi && (!bestUser || bestAi.val > bestUser.val * 1.3)) {
+        reason = `I'm not trading ${bestAi.name} for a package centered around ${bestUser ? bestUser.name : 'scraps'}.`;
+      } else if (bestAi && bestUser && bestAi.val > bestUser.val) {
+        reason = `I value ${bestAi.name} more than ${bestUser.name}, and the rest of the package doesn't make up the difference.`;
+      }
+
       return {
         accepted: false,
-        reason: 'We are too far apart. We value our assets much higher than this.',
+        reason,
         fairnessScore: fairnessRatio,
         perceivedValues,
       };
     }
+  }
+
+  // ─── Module 4b: Needs Analysis ────────────────────────────────────────────
+
+  private doesFillNeed(roster: Player[], position: Position): boolean {
+    const count = roster.filter(p => p.position === position).length;
+    // Simple quantity thresholds for "Need"
+    const thresholds: Record<string, number> = {
+      QB: 2, RB: 3, WR: 5, TE: 3, OL: 8, DL: 6, LB: 6, CB: 5, S: 4, K: 1, P: 1
+    };
+    return count < (thresholds[position] || 2);
   }
 
   // ─── Module 5: Counter-Offer Generation ───────────────────────────────────

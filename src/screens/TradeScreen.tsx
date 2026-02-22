@@ -1,7 +1,7 @@
 import { COLORS } from "../ui/theme";
 import { Section, DataRow, PosTag, Pill } from "../ui/components";
-import { ArrowLeftRight } from "lucide-react";
 import { useState, useEffect } from "react";
+import { ArrowLeftRight, Lock } from "lucide-react";
 import type { GameStateManager, TeamDraftPick } from "../types/GameStateManager";
 import type { TradeOfferPayloadUI, TradeEvaluation } from "../systems/TradeSystem";
 
@@ -37,12 +37,15 @@ function FairnessBar({ score }: { score: number }) {
 // ─── Asset toggle row ─────────────────────────────────────────────────────────
 
 function PlayerRow({
-  player, selected, onToggle
+  player, selected, onToggle, onToggleBlock, isUserPlayer
 }: {
-  player: { id: string; firstName: string; lastName: string; overall: number; position: any; age: number };
+  player: any;
   selected: boolean;
   onToggle: (id: string) => void;
+  onToggleBlock?: (id: string) => void;
+  isUserPlayer?: boolean;
 }) {
+  const isOnBlock = player.shoppingStatus === "On The Block";
   return (
     <DataRow hover even={false} key={player.id}>
       <span style={{ flex: 1 }}>
@@ -53,7 +56,22 @@ function PlayerRow({
       </span>
       <span style={{ flex: 1, fontSize: 10, color: COLORS.muted }}>{player.overall}</span>
       <span style={{ flex: 1, fontSize: 9, color: COLORS.muted }}>Age {player.age}</span>
-      <span style={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
+      <span style={{ flex: 1, display: "flex", justifyContent: "flex-end", gap: 6 }}>
+        {isUserPlayer && onToggleBlock && (
+          <button
+            onClick={() => onToggleBlock(player.id)}
+            title={isOnBlock ? "Remove from Trade Block" : "Add to Trade Block"}
+            style={{
+              fontSize: 9, padding: "6px", borderRadius: 3, border: "none", cursor: "pointer",
+              background: isOnBlock ? COLORS.magenta : "rgba(255,255,255,0.05)",
+              color: COLORS.light,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              minWidth: "28px"
+            }}
+          >
+            <Lock size={12} />
+          </button>
+        )}
         <button
           onClick={() => onToggle(player.id)}
           style={{
@@ -124,7 +142,7 @@ export function TradeScreen({
   const [offeringPickIds, setOfferingPickIds]     = useState<Set<string>>(new Set());
   const [receivingPickIds, setReceivingPickIds]   = useState<Set<string>>(new Set());
   const [evaluation, setEvaluation]               = useState<TradeEvaluation | null>(null);
-  const [activeTab, setActiveTab]                 = useState<"players" | "picks">("players");
+  const [activeTab, setActiveTab]                 = useState<"players" | "picks" | "tradeBlock">("players");
   const [showConfirm, setShowConfirm]             = useState(false);
 
   // Pre-populate from AI-initiated offer (Negotiate flow)
@@ -188,14 +206,20 @@ export function TradeScreen({
     }
   }
 
-  function handleAcceptCounter() {
+  function handleReviewCounter() {
     if (!evaluation?.counterOffer) return;
-    gsm.executeTrade(evaluation.counterOffer);
+    const co = evaluation.counterOffer;
+    // Load counter-offer assets into state for review/modification
+    setOfferingPlayerIds(new Set(co.offeringPlayerIds));
+    setReceivingPlayerIds(new Set(co.receivingPlayerIds));
+    setOfferingPickIds(new Set(co.offeringPickIds));
+    setReceivingPickIds(new Set(co.receivingPickIds));
+    // Clear evaluation to allow user to review and re-propose
     setEvaluation(null);
-    setOfferingPlayerIds(new Set());
-    setReceivingPlayerIds(new Set());
-    setOfferingPickIds(new Set());
-    setReceivingPickIds(new Set());
+  }
+
+  function handleToggleBlock(playerId: string) {
+    gsm.togglePlayerShoppingStatus(playerId);
     refresh();
   }
 
@@ -233,17 +257,50 @@ export function TradeScreen({
       <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
         <Pill active={activeTab === "players"} onClick={() => setActiveTab("players")}>Players</Pill>
         <Pill active={activeTab === "picks"}   onClick={() => setActiveTab("picks")}>Draft Picks</Pill>
+        {partnerTeamId && (
+          <Pill active={activeTab === "tradeBlock"} onClick={() => setActiveTab("tradeBlock")}>Trade Block</Pill>
+        )}
       </div>
 
-      {/* 3-column asset grid — responsive: side-by-side on desktop, stacked on mobile */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 44px 1fr",
-        gap: 10,
-      }}
-      className="trade-grid"
-      >
+      {activeTab === "tradeBlock" && partnerTeam ? (
+        <Section title={`${partnerTeam.abbreviation} Trade Block`} pad={false}>
+          <DataRow header>
+            {["Pos", "Name", "OVR", "Age", ""].map(h => (
+              <span key={h} style={{ flex: h === "Name" ? 3 : 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700 }}>{h}</span>
+            ))}
+          </DataRow>
+          {(() => {
+            const tradeBlockPlayers = gsm.allPlayers.filter(p =>
+              p.teamId === partnerTeamId && gsm.leagueTradeBlock.has(p.id)
+            );
+            if (tradeBlockPlayers.length === 0) {
+              return <div style={{ padding: 20, textAlign: "center", fontSize: 11, color: COLORS.muted }}>This team has no players on the trade block.</div>;
+            }
+            return tradeBlockPlayers.map(p => (
+              <PlayerRow
+                key={p.id}
+                player={p}
+                selected={receivingPlayerIds.has(p.id)}
+                onToggle={id => toggle(receivingPlayerIds, setReceivingPlayerIds, id)}
+              />
+            ));
+          })()}
+        </Section>
+      ) : (
+        /* 3-column asset grid — responsive: side-by-side on desktop, stacked on mobile */
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 44px 1fr",
+          gap: 10,
+        }}
+        className="trade-grid"
+        >
         <style>{`
+          @media (min-width: 768px) {
+            .trade-sticky-footer {
+              left: 240px !important;
+            }
+          }
           @media (max-width: 767px) {
             .trade-grid {
               grid-template-columns: 1fr !important;
@@ -305,6 +362,8 @@ export function TradeScreen({
                     player={p}
                     selected={offeringPlayerIds.has(p.id)}
                     onToggle={id => toggle(offeringPlayerIds, setOfferingPlayerIds, id)}
+                    onToggleBlock={handleToggleBlock}
+                    isUserPlayer={true}
                   />
                 ))
               )}
@@ -398,7 +457,7 @@ export function TradeScreen({
             </div>
           )}
         </Section>
-      </div>
+      </div>)}
 
       {/* Sticky Trade Summary Footer */}
       <div style={{
@@ -526,17 +585,17 @@ export function TradeScreen({
                 Counter-Offer Available
               </div>
               <p style={{ margin: "0 0 10px", fontSize: 11, color: COLORS.muted, lineHeight: 1.4 }}>
-                We're close. Accept our revised package to finalize the deal.
+                We are close. Accept this counter-offer to finalize.
               </p>
               <button
-                onClick={handleAcceptCounter}
+                onClick={handleReviewCounter}
                 style={{
                   padding: "6px 16px", borderRadius: 5, fontSize: 11, fontWeight: 700,
                   background: "rgba(245,166,35,0.2)", border: "1px solid rgba(245,166,35,0.5)",
                   color: "#f5a623", cursor: "pointer",
                 }}
               >
-                Accept Counter-Offer
+                Review Counter-Offer
               </button>
             </div>
           )}

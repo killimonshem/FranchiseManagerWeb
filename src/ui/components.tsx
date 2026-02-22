@@ -25,6 +25,25 @@ import {
 } from "./theme";
 
 // ═══════════════════════════════════════════════════════════════════
+// RATING TO GRADE CONVERTER
+// ═══════════════════════════════════════════════════════════════════
+const valueToGrade = (value: number): string => {
+  if (value >= 97) return 'A+';
+  if (value >= 93) return 'A';
+  if (value >= 90) return 'A-';
+  if (value >= 87) return 'B+';
+  if (value >= 83) return 'B';
+  if (value >= 80) return 'B-';
+  if (value >= 77) return 'C+';
+  if (value >= 73) return 'C';
+  if (value >= 70) return 'C-';
+  if (value >= 67) return 'D+';
+  if (value >= 63) return 'D';
+  if (value >= 60) return 'D-';
+  return 'F';
+};
+
+// ═══════════════════════════════════════════════════════════════════
 // RATING BADGE — The core "no numbers" component
 // ═══════════════════════════════════════════════════════════════════
 type BadgeSize = "sm" | "md" | "lg";
@@ -36,7 +55,8 @@ const BADGE_SIZES: Record<BadgeSize, { h: number; px: number; fs: number; r: num
 };
 
 export function RatingBadge({ value, size = "md" }: { value: number; size?: BadgeSize }) {
-  const { label, color } = ratingToDescriptor(value);
+  const label = valueToGrade(value);
+  const color = ratingToColor(value);
   const s = BADGE_SIZES[size];
   return (
     <span
@@ -76,7 +96,8 @@ export function PosTag({ pos }: { pos: string }) {
 // ═══════════════════════════════════════════════════════════════════
 export function StatBar({ label, value, max = 99 }: { label: string; value: number; max?: number }) {
   const pct = (value / max) * 100;
-  const { label: desc, color } = ratingToDescriptor(value);
+  const desc = valueToGrade(value);
+  const color = ratingToColor(value);
   return (
     <div title={`${label}: ${value}`} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
       <span style={{ width: 100, color: COLORS.muted, fontWeight: 500, fontSize: 10 }}>{label}</span>
@@ -292,6 +313,11 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   scout:   Search,
   league:  Building2,
   fan:     Users,
+  injury:      HeartPulse,
+  signing:     ClipboardList,
+  performance: TrendingUp,
+  rumors:      MessageCircle,
+  standings:   BarChart3,
 };
 
 export function CategoryIcon({ category, size = 16 }: { category: string; size?: number }) {

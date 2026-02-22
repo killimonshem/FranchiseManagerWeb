@@ -60,6 +60,20 @@ interface SaveSlotRecord {
   snapshot: string; // Full serialized game state
 }
 
+interface PlayoffBracketRecord {
+  id: string; // 'main'
+  season: number;
+  data: string; // JSON serialized PlayoffBracket
+  lastUpdated: number;
+}
+
+interface FranchiseTagsRecord {
+  id: string; // 'main'
+  season: number;
+  data: string; // JSON serialized FranchiseTag[]
+  lastUpdated: number;
+}
+
 // ─── Dexie Database ───────────────────────────────────────────────────────────
 
 class FranchiseManagerDB extends Dexie {
@@ -69,6 +83,8 @@ class FranchiseManagerDB extends Dexie {
   draftPicks!: Table<DraftPickRecord>;
   staff!: Table<StaffRecord>;
   saves!: Table<SaveSlotRecord>;
+  playoffBracket!: Table<PlayoffBracketRecord>;
+  franchiseTags!: Table<FranchiseTagsRecord>;
 
   constructor() {
     super('FranchiseManager');
@@ -79,6 +95,8 @@ class FranchiseManagerDB extends Dexie {
       draftPicks: '[year+round+originalTeamId], currentTeamId',
       staff:      'id, teamId, role, category',
       saves:      'slotName, timestamp, schemaVersion',
+      playoffBracket: 'id, season',
+      franchiseTags: 'id, season',
     });
   }
 }
@@ -218,6 +236,52 @@ export class StorageService {
 
   async listSaveSlots(): Promise<SaveSlotRecord[]> {
     return db.saves.toArray();
+  }
+
+  // Playoff Bracket
+  async savePlayoffBracket(season: number, bracketData: string): Promise<void> {
+    const record: PlayoffBracketRecord = {
+      id: 'main',
+      season,
+      data: bracketData,
+      lastUpdated: Date.now(),
+    };
+    await db.playoffBracket.put(record);
+  }
+
+  async loadPlayoffBracket(season: number): Promise<string | undefined> {
+    const record = await db.playoffBracket.where('season').equals(season).first();
+    return record?.data;
+  }
+
+  async deletePlayoffBracket(season: number): Promise<void> {
+    const records = await db.playoffBracket.where('season').equals(season).toArray();
+    for (const record of records) {
+      await db.playoffBracket.delete(record.id);
+    }
+  }
+
+  // Franchise Tags
+  async saveFranchiseTags(season: number, tagsData: string): Promise<void> {
+    const record: FranchiseTagsRecord = {
+      id: 'main',
+      season,
+      data: tagsData,
+      lastUpdated: Date.now(),
+    };
+    await db.franchiseTags.put(record);
+  }
+
+  async loadFranchiseTags(season: number): Promise<string | undefined> {
+    const record = await db.franchiseTags.where('season').equals(season).first();
+    return record?.data;
+  }
+
+  async deleteFranchiseTags(season: number): Promise<void> {
+    const records = await db.franchiseTags.where('season').equals(season).toArray();
+    for (const record of records) {
+      await db.franchiseTags.delete(record.id);
+    }
   }
 
   // Bulk operations

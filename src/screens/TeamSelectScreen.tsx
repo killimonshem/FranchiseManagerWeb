@@ -21,7 +21,7 @@ export interface TeamMeta {
   div: string;
 }
 
-const NFL_TEAMS: TeamMeta[] = [
+export const NFL_TEAMS: TeamMeta[] = [
   { abbr: "ARI", city: "Arizona",      name: "Cardinals",  conf: "NFC", div: "West"  },
   { abbr: "ATL", city: "Atlanta",       name: "Falcons",    conf: "NFC", div: "South" },
   { abbr: "BAL", city: "Baltimore",     name: "Ravens",     conf: "AFC", div: "North" },

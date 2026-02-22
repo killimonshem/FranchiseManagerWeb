@@ -17,6 +17,23 @@ import {
 } from "./nfl-types";
 
 // ============================================================================
+// TRADE PSYCHOLOGY ENUMS
+// ============================================================================
+
+export enum ShoppingStatus {
+  OFF_BLOCK      = 'Off Block',
+  QUIET_SHOPPING = 'Quiet Shopping',
+  PUBLIC_BLOCK   = 'On The Block',
+}
+
+export enum TradeRequestState {
+  NONE              = 'None',
+  PRIVATE_RUMBLINGS = 'Private Rumblings',
+  FORMAL_REQUEST    = 'Formal Request',
+  PUBLIC_DEMAND     = 'Public Demand',
+}
+
+// ============================================================================
 // PLAYER STATS
 // ============================================================================
 

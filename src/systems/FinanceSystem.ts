@@ -15,6 +15,16 @@
 import type { Team } from '../types/team';
 import type { Player } from '../types/player';
 
+// ─── Contract Restructuring ───────────────────────────────────────────────────
+
+export interface RestructureResult {
+  success: boolean;
+  reason?: string;
+  capSavings: number;          // How much freed this year
+  newDeadCap: number;          // New dead cap risk
+  newCurrentYearCap: number;
+}
+
 // ─── Cash Reserve Tiers ───────────────────────────────────────────────────────
 
 export enum CashReserveTier {
@@ -210,5 +220,88 @@ export class FinanceSystem {
       case CashReserveTier.TIGHT:       return '#F0A940'; // amber
       case CashReserveTier.CRISIS:      return '#E53E3E'; // red
     }
+  }
+
+  // ── Contract Restructuring ─────────────────────────────────────────────────
+
+  /**
+   * Execute a contract restructure: convert a percentage of base salary to signing bonus.
+   * Locked-in dead cap becomes a liability if the player is cut.
+   * Can only restructure once per contract; multi-year deals only.
+   *
+   * @param player The player being restructured
+   * @param team The team restructuring the contract
+   * @param conversionPercent 1–50, user-selected percentage of current year cap to convert
+   */
+  executeRestructure(
+    player: Player,
+    _team: Team,
+    conversionPercent: number
+  ): RestructureResult {
+    // Validation: contract exists
+    if (!player.contract) {
+      return {
+        success: false,
+        reason: 'Player has no contract',
+        capSavings: 0,
+        newDeadCap: 0,
+        newCurrentYearCap: 0,
+      };
+    }
+
+    // Validation: can restructure
+    if (!player.contract.canRestructure) {
+      return {
+        success: false,
+        reason: 'This contract has already been restructured or is not eligible',
+        capSavings: 0,
+        newDeadCap: 0,
+        newCurrentYearCap: 0,
+      };
+    }
+
+    // Validation: years remaining > 1
+    if (player.contract.yearsRemaining <= 1) {
+      return {
+        success: false,
+        reason: 'Cannot restructure a 1-year deal (no proration benefit)',
+        capSavings: 0,
+        newDeadCap: 0,
+        newCurrentYearCap: 0,
+      };
+    }
+
+    // Validation: conversionPercent in range
+    if (conversionPercent < 1 || conversionPercent > 50) {
+      return {
+        success: false,
+        reason: 'Conversion percentage must be between 1 and 50',
+        capSavings: 0,
+        newDeadCap: 0,
+        newCurrentYearCap: 0,
+      };
+    }
+
+    // Execute restructure
+    const amountToConvert = player.contract.currentYearCap * (conversionPercent / 100);
+    const newCurrentYearCap = player.contract.currentYearCap - amountToConvert;
+    const capSavings = amountToConvert;
+
+    // Mutate contract
+    player.contract.currentYearCap = newCurrentYearCap;
+    player.contract.signingBonus += amountToConvert;
+    player.contract.guaranteedMoney += amountToConvert;
+    player.contract.deadCap += amountToConvert;
+    player.contract.canRestructure = false;
+
+    // Update team cap space (validate constraints)
+    const newDeadCap = player.contract.deadCap;
+
+    return {
+      success: true,
+      capSavings,
+      newDeadCap,
+      newCurrentYearCap,
+    };
   }
 }

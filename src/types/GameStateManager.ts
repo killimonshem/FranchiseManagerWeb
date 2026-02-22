@@ -38,6 +38,7 @@ import { DraftEngine, generateDraftClass } from '../systems/DraftEngine';
 import type { DraftPickResult } from '../systems/DraftEngine';
 import type { TradeOfferPayloadUI, TradeEvaluation } from '../systems/TradeSystem';
 import { FranchiseTier } from '../systems/TradeSystem';
+import { storage } from '../services/StorageService';
 
 // Re-export engine types so existing imports from this file still work
 export type { Interrupt, InterruptResolution, EngineGameDate, EngineSnapshot, ActionItem };
@@ -957,19 +958,20 @@ export class GameStateManager {
 
   // MARK: - Playoff Bracket Persistence
 
-  savePlayoffBracket(bracket: PlayoffBracket): void {
+  async savePlayoffBracket(bracket: PlayoffBracket): Promise<void> {
     try {
       const data = JSON.stringify(bracket);
-      localStorage.setItem(PLAYOFF_BRACKET_KEY, data);
+      await storage.savePlayoffBracket(bracket.season, data);
       console.log(`💾 [Persistence] Playoff bracket saved for season ${bracket.season}`);
     } catch (error) {
       console.error('❌ [Persistence] Failed to save playoff bracket:', error);
     }
   }
 
-  loadPlayoffBracket(): PlayoffBracket | null {
+  async loadPlayoffBracket(): Promise<PlayoffBracket | null> {
     try {
-      const data = localStorage.getItem(PLAYOFF_BRACKET_KEY);
+      const season = this.currentGameDate.season;
+      const data = await storage.loadPlayoffBracket(season);
       if (!data) {
         console.log('📂 [Persistence] No saved playoff bracket found');
         return null;
@@ -983,8 +985,9 @@ export class GameStateManager {
     }
   }
 
-  clearSavedPlayoffBracket(): void {
-    localStorage.removeItem(PLAYOFF_BRACKET_KEY);
+  async clearSavedPlayoffBracket(): Promise<void> {
+    const season = this.currentGameDate.season;
+    await storage.deletePlayoffBracket(season);
     console.log('🗑️ [Persistence] Cleared saved playoff bracket');
   }
 
@@ -1482,13 +1485,14 @@ export class GameStateManager {
       }
     }
 
-    // End of regular season: persist the playoff bracket
+    // End of regular season: persist the playoff bracket (fire-and-forget)
     if (newWeek === 46) {
-      const existing = this.loadPlayoffBracket();
-      if (existing) {
-        this.savePlayoffBracket(existing);
-        console.log('🏆 Playoff bracket persisted at regular season end');
-      }
+      this.loadPlayoffBracket().then(existing => {
+        if (existing) {
+          this.savePlayoffBracket(existing);
+          console.log('🏆 Playoff bracket persisted at regular season end');
+        }
+      }).catch(err => console.error('Failed to persist playoff bracket:', err));
       this.markEventCompleted(SeasonEvent.REGULAR_SEASON_END);
     }
 
@@ -2092,6 +2096,62 @@ export class GameStateManager {
     // This would check for missing required positions once depth chart system is added
   }
 
+  /**
+   * Commit a free agent signing from contract negotiation.
+   * Finalizes player contract, updates rosters, records transaction, and triggers constraint validation.
+   */
+  commitPlayerSigning(
+    playerId: string,
+    offer: any, // ContractOffer type from ContractSystem.ts
+    userTeamId: string
+  ): void {
+    const playerIdx = this.allPlayers.findIndex(p => p.id === playerId);
+    if (playerIdx === -1) return;
+
+    const player = this.allPlayers[playerIdx];
+    const { week } = this.currentGameDate;
+
+    // Calculate prorated cap hit if mid-season
+    let currentYearCap = offer.baseSalaryPerYear[0] ?? offer.baseSalaryPerYear.reduce((a: number, b: number) => a + b, 0) / offer.years;
+    if (week >= 29 && week <= 46) {
+      const weeksRemaining = 46 - week + 1;
+      const weeksInRegularSeason = 18;
+      currentYearCap = Math.round((weeksRemaining / weeksInRegularSeason) * currentYearCap);
+    }
+
+    // Build player contract from offer
+    player.contract = {
+      totalValue: offer.baseSalaryPerYear.reduce((a: number, b: number) => a + b, 0) + offer.signingBonus,
+      yearsRemaining: offer.years,
+      guaranteedMoney: offer.guaranteedMoney,
+      currentYearCap,
+      signingBonus: offer.signingBonus,
+      incentives: (offer.ltbeIncentives || []).reduce((sum: number, i: any) => sum + i.value, 0),
+      canRestructure: false,
+      canCut: true,
+      deadCap: 0,
+      hasNoTradeClause: false,
+      approvedTradeDestinations: [],
+    };
+
+    // Update player status
+    player.teamId = userTeamId;
+    player.status = PlayerStatus.ACTIVE;
+
+    // Record for compensatory pick tracking
+    const apy = offer.baseSalaryPerYear[0] ?? 0;
+    this.recordFreeAgentSigning(playerId, player.teamId ?? null, userTeamId, apy);
+
+    // Remove from free agents
+    this.freeAgents = this.freeAgents.filter(p => p.id !== playerId);
+
+    // Validate constraints
+    this.validateRosterConstraints();
+
+    // Trigger UI refresh
+    this.onEngineStateChange?.();
+  }
+
   // ── Private helpers ───────────────────────────────────────────────────────
 
   private _runOffseasonDevelopmentIfGated(): void {
@@ -2284,6 +2344,16 @@ get enginePhaseLabel(): string {
     return true;
   }
 
+  /** Toggle a player's shopping status (On Block <-> Off Block). */
+  public togglePlayerShoppingStatus(playerId: string): void {
+    const player = this.allPlayers.find(p => p.id === playerId);
+    if (!player) return;
+
+    const isOnBlock = player.shoppingStatus === 'On The Block';
+    player.shoppingStatus = isOnBlock ? 'Off Block' : 'On The Block';
+    console.log(`🏷️ [Trade] ${player.firstName} ${player.lastName} is now ${player.shoppingStatus}`);
+  }
+
   // MARK: - Trade Negotiation
 
   /** Fibonacci penalty table indexed by rejection count. 2.5 triggers lockout. */
@@ -2296,8 +2366,8 @@ get enginePhaseLabel(): string {
   private _findPickById(pickId: string): TeamDraftPick | undefined {
     const parts = pickId.split('-');
     const orig = parts.slice(2).join('-'); // handle team IDs with hyphens
-    const y = parseInt(parts[0]);
-    const r = parseInt(parts[1]);
+    const y = parseInt(parts[0], 10);
+    const r = parseInt(parts[1], 10);
     return this.draftPicks.find(
       dp => dp.year === y && dp.round === r && dp.originalTeamId === orig
     );
@@ -2353,10 +2423,12 @@ get enginePhaseLabel(): string {
     const attempts   = this._negotiationAttempts.get(payload.receivingTeamId) ?? 0;
     const multiplier = this._getFibPenalty(attempts);
 
+    const partnerRoster = this.allPlayers.filter(p => p.teamId === partnerTeam.id);
+
     // 6. Evaluate
     const result = this.tradeSystem.evaluateTradeOffer(
       payload, offeringPlayers, receivingPlayers, offeringPicks, receivingPicks,
-      partnerTeam, week, multiplier,
+      partnerTeam, partnerRoster, week, multiplier,
     );
 
     // 7. Track negotiation attempts
@@ -2515,17 +2587,22 @@ get enginePhaseLabel(): string {
       const need = this._findTeamNeed(team);
       if (!need) continue;
 
-      const targetPlayer = this._findSurplusPlayer(need, team.id);
+      const targetPlayer = this._findTradeTarget(need, team.id);
       if (!targetPlayer || !targetPlayer.teamId) continue;
 
-      const offerPicks = this._buildPickOffer(targetPlayer, team);
-      if (offerPicks.length === 0) continue;
+      const receivingTeam = this.teams.find(t => t.id === targetPlayer.teamId);
+      if (!receivingTeam) continue;
 
-      const pickIds = offerPicks.map(p => `${p.year}-${p.round}-${p.originalTeamId}`);
+      const { players: offerPlayers, picks: offerPicks } = this._buildTradePackage(targetPlayer, team, receivingTeam);
+      if (offerPlayers.length === 0 && offerPicks.length === 0) continue;
+
+      const pickIds   = offerPicks.map(p => `${p.year}-${p.round}-${p.originalTeamId}`);
+      const playerIds = offerPlayers.map(p => p.id);
+
       const uiPayload: TradeOfferPayloadUI = {
         offeringTeamId:    team.id,
         receivingTeamId:   targetPlayer.teamId,
-        offeringPlayerIds: [],
+        offeringPlayerIds: playerIds,
         receivingPlayerIds:[targetPlayer.id],
         offeringPickIds:   pickIds,
         receivingPickIds:  [],
@@ -2536,7 +2613,7 @@ get enginePhaseLabel(): string {
           id:               uuidv4(),
           offeringTeamId:   team.id,
           receivingTeamId:  this.userTeamId,
-          offeringPlayers:  [],
+          offeringPlayers:  playerIds,
           receivingPlayers: [targetPlayer.id],
           offeringPicks:    offerPicks.map(p => ({ year: p.year, round: p.round, originalTeamId: p.originalTeamId })),
           receivingPicks:   [],
@@ -2549,11 +2626,17 @@ get enginePhaseLabel(): string {
         };
         this.receivedTradeOffers.push(record);
         this.pendingAITradeOffer = uiPayload;
+
+        const playerNames = offerPlayers.map(p => `${p.firstName} ${p.lastName}`).join(', ');
+        const assetsDesc = playerNames
+          ? `${playerNames} and draft capital`
+          : 'a package of draft picks';
+
         this._handleEngineInterrupt(this._buildEngineInterrupt(
           HardStopReason.TRADE_OFFER_RECEIVED,
           { reason: HardStopReason.TRADE_OFFER_RECEIVED, offerId: record.id },
           `Trade Offer from ${team.abbreviation}`,
-          `${team.city} ${team.name} wants to acquire ${targetPlayer.firstName} ${targetPlayer.lastName}.`,
+          `${team.city} ${team.name} wants ${targetPlayer.firstName} ${targetPlayer.lastName} for ${assetsDesc}.`,
         ));
         return; // Surface one AI offer at a time
       } else {
@@ -2579,17 +2662,23 @@ get enginePhaseLabel(): string {
   }
 
   /**
-   * Find a surplus player at the given position on another team.
-   * Surplus = team has 80+ OVR starter AND 76+ OVR backup at that pos,
-   *           OR REBUILDER team has 85+ OVR veteran aged 30+.
+   * Find a trade target at the given position.
+   * Priority: 1. Players explicitly on the block (User or AI).
+   *           2. Surplus players on other teams.
    */
-  private _findSurplusPlayer(pos: Position, excludeTeamId: string): Player | null {
+  private _findTradeTarget(pos: Position, excludeTeamId: string): Player | null {
     const week = this.currentGameDate.week;
     const teamGroups = new Map<string, Player[]>();
     for (const p of this.allPlayers) {
       if (!p.teamId || p.teamId === excludeTeamId || p.position !== pos) continue;
       if (!teamGroups.has(p.teamId)) teamGroups.set(p.teamId, []);
       teamGroups.get(p.teamId)!.push(p);
+    }
+
+    // 1. Check for players explicitly on the block (User or AI)
+    const onBlock = this.allPlayers.filter(p => p.position === pos && p.teamId !== excludeTeamId && p.shoppingStatus === 'On The Block');
+    if (onBlock.length > 0) {
+      return onBlock.sort((a, b) => b.overall - a.overall)[0];
     }
 
     for (const [teamId, players] of teamGroups) {
@@ -2611,23 +2700,81 @@ get enginePhaseLabel(): string {
   }
 
   /**
-   * Build a list of picks from the AI team that cover the target player's value × 1.05.
-   * Picks are sorted cheapest-last (most expensive first) to offer the most attractive package.
+   * Build a trade package (players + picks) that matches the receiving team's needs.
    */
-  private _buildPickOffer(target: Player, aiTeam: Team): TeamDraftPick[] {
-    const targetValue = this.tradeSystem.getBasePlayerValue(target) * 1.05;
-    const teamPicks = this.draftPicks
-      .filter(p => p.currentTeamId === aiTeam.id)
-      .sort((a, b) => this.tradeSystem.getBasePickValue(b) - this.tradeSystem.getBasePickValue(a));
-
-    const offer: TeamDraftPick[] = [];
+  private _buildTradePackage(target: Player, aiTeam: Team, receivingTeam: Team): { players: Player[], picks: TeamDraftPick[] } {
+    const targetValue = this.tradeSystem.getBasePlayerValue(target) * 1.1;
     let accumulated = 0;
-    for (const pick of teamPicks) {
+    const offeredPlayers: Player[] = [];
+    const offeredPicks: TeamDraftPick[] = [];
+
+    // 1. Identify receiving team needs
+    const needs = this._findAllTeamNeeds(receivingTeam);
+
+    // 2. Find tradeable players on AI team that match needs
+    const aiRoster = this.allPlayers.filter(p => p.teamId === aiTeam.id);
+    const tradeablePlayers = aiRoster.filter(p => {
+      // On block?
+      if (p.shoppingStatus === 'On The Block') return true;
+      // Depth player? (Not top 1 at position)
+      const rankAtPos = aiRoster.filter(tm => tm.position === p.position && tm.overall > p.overall).length;
+      return rankAtPos >= 1;
+    });
+
+    // Sort candidates by value (best first)
+    const candidates = tradeablePlayers
+      .filter(p => needs.includes(p.position))
+      .sort((a, b) => this.tradeSystem.getBasePlayerValue(b) - this.tradeSystem.getBasePlayerValue(a));
+
+    // 3. Add players to offer
+    for (const player of candidates) {
+      const val = this.tradeSystem.getBasePlayerValue(player);
+      // Don't offer if it alone exceeds target value significantly, unless it's a 1-for-1 swap roughly
+      if (accumulated + val <= targetValue * 1.1) {
+        offeredPlayers.push(player);
+        accumulated += val;
+      }
       if (accumulated >= targetValue) break;
-      offer.push(pick);
-      accumulated += this.tradeSystem.getBasePickValue(pick);
     }
-    return accumulated >= targetValue ? offer : [];
+
+    // 4. Fill gap with picks
+    if (accumulated < targetValue) {
+      const teamPicks = this.draftPicks
+        .filter(p => p.currentTeamId === aiTeam.id)
+        .sort((a, b) => this.tradeSystem.getBasePickValue(b) - this.tradeSystem.getBasePickValue(a));
+
+      for (const pick of teamPicks) {
+        const val = this.tradeSystem.getBasePickValue(pick);
+        if (accumulated + val <= targetValue * 1.15) {
+          offeredPicks.push(pick);
+          accumulated += val;
+        }
+        if (accumulated >= targetValue) break;
+      }
+    }
+
+    // If we failed to match value (e.g. AI has no assets), return empty
+    if (accumulated < targetValue * 0.85) return { players: [], picks: [] };
+
+    return { players: offeredPlayers, picks: offeredPicks };
+  }
+
+  /** Find all positional needs for a team (weak starter or thin depth). */
+  private _findAllTeamNeeds(team: Team): Position[] {
+    const needs: Position[] = [];
+    const roster = this.allPlayers.filter(p => p.teamId === team.id);
+    const positions = [Position.QB, Position.RB, Position.WR, Position.TE, Position.OL, Position.DL, Position.LB, Position.CB, Position.S];
+
+    for (const pos of positions) {
+      const players = roster.filter(p => p.position === pos).sort((a, b) => b.overall - a.overall);
+      // Need if starter is weak (<75) or depth is thin
+      if (!players[0] || players[0].overall < 75) {
+        needs.push(pos);
+      } else if (players.length < (pos === Position.WR || pos === Position.CB ? 4 : 2)) {
+        needs.push(pos);
+      }
+    }
+    return needs;
   }
 
   private processUDFACleanup(): void {

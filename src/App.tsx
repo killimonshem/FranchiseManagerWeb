@@ -13,8 +13,9 @@
 import { useState, useCallback } from "react";
 import { COLORS, FONT } from "./ui/theme";
 import { LayoutDashboard, Users, Briefcase, Trophy, Mail } from "./ui/components";
+import { TransactionTicker } from "./ui/TransactionTicker";
 
-import { TeamSelectScreen, GameStartData, TeamMeta, GMProfile } from "./screens/TeamSelectScreen";
+import { TeamSelectScreen, GameStartData, TeamMeta, GMProfile, NFL_TEAMS } from "./screens/TeamSelectScreen";
 import { DashboardScreen } from "./screens/DashboardScreen";
 import { RosterScreen } from "./screens/RosterScreen";
 import { PlayerProfileScreen } from "./screens/PlayerProfileScreen";
@@ -24,6 +25,7 @@ import { InboxScreen } from "./screens/InboxScreen";
 import { ScheduleScreen } from "./screens/ScheduleScreen";
 import { StaffScreen } from "./screens/StaffScreen";
 import { FreeAgencyScreen } from "./screens/FreeAgencyScreen";
+import { ContractNegotiationScreen } from "./screens/ContractNegotiationScreen";
 import { TradeScreen } from "./screens/TradeScreen";
 import { TrophyScreen } from "./screens/TrophyScreen";
 import { gameStateManager } from "./types/GameStateManager";
@@ -103,6 +105,29 @@ export default function App() {
   function handleGameStart(data: GameStartData) {
     // The manager is the single source of truth
     gameStateManager.initializeGM(data.gm.firstName, data.gm.lastName);
+
+    // Populate teams from static metadata
+    gameStateManager.teams = NFL_TEAMS.map(t => ({
+      id: t.abbr,
+      abbreviation: t.abbr,
+      city: t.city,
+      name: t.name,
+      conference: t.conf,
+      division: t.div,
+      wins: 0,
+      losses: 0,
+      ties: 0,
+      capSpace: 255_000_000,
+      cashReserves: 100_000_000,
+      offenseRating: 75,
+      defenseRating: 75,
+      specialTeamsRating: 75,
+      prestige: 75,
+      marketSize: "Medium",
+      ownerPatience: 50,
+      fanLoyalty: 50,
+    } as any));
+
     gameStateManager.selectUserTeam(data.teamAbbr);
     gameStateManager.allPlayers = data.players;
     gameStateManager.updateAllTeamRatings();
@@ -173,7 +198,8 @@ export default function App() {
       case "inbox":      return <InboxScreen />;
       case "schedule":   return <ScheduleScreen />;
       case "staff":      return <StaffScreen />;
-      case "freeAgency": return <FreeAgencyScreen onRosterChange={refresh} />;
+      case "freeAgency": return <FreeAgencyScreen onRosterChange={refresh} onNavigate={(s, d) => { setScreen(s); setDetail(d); }} />;
+      case "contractNegotiation": return <ContractNegotiationScreen playerId={detail?.playerId} onDone={() => { setScreen("freeAgency"); setDetail(null); }} onRosterChange={refresh} />;
       case "trade":      return <TradeScreen gsm={gameStateManager} refresh={refresh} />;
       case "trophies":   return <TrophyScreen teamAbbr={userTeamMeta?.abbr ?? ""} />;
       default:
@@ -410,11 +436,14 @@ export default function App() {
         <div style={{
           flex: 1, overflowY: "auto",
           padding: isMobile ? 16 : 30,
-          paddingBottom: isMobile ? "calc(80px + env(safe-area-inset-bottom))" : 30,
+          paddingBottom: isMobile ? "calc(100px + env(safe-area-inset-bottom))" : 60,
           WebkitOverflowScrolling: "touch",
         }}>
           {renderScreen()}
         </div>
+
+        {/* Transaction Ticker — Fixed at bottom (above mobile nav) */}
+        <TransactionTicker gsm={gameStateManager} />
       </main>
 
       {/* ── TRADE_OFFER_RECEIVED modal overlay ───────────────────────────── */}

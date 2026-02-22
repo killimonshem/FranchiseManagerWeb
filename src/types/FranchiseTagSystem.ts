@@ -8,6 +8,7 @@ import { Position, getPositionMarketMultiplier } from "./nfl-types";
 import { Player, PlayerStatus } from "./player";
 import { Team, calculateTeamCapSpace } from "./team";
 import { PlayerContract } from "./nfl-types";
+import { storage } from "../services/StorageService";
 
 // ============================================================================
 // FRANCHISE TAG MODELS
@@ -502,37 +503,33 @@ export function generateContractExtension(
 const FRANCHISE_TAGS_KEY = "FranchiseTagsData";
 
 /**
- * Save franchise tags to local storage
+ * Save franchise tags to IndexedDB
  */
-export function saveFranchiseTagsToStorage(tags: FranchiseTag[]): void {
-  if (typeof localStorage !== "undefined") {
-    try {
-      const data = JSON.stringify(tags);
-      localStorage.setItem(FRANCHISE_TAGS_KEY, data);
-    } catch (e) {
-      console.error("Failed to save franchise tags:", e);
-    }
+export async function saveFranchiseTagsToStorage(tags: FranchiseTag[], season: number = new Date().getFullYear()): Promise<void> {
+  try {
+    const data = JSON.stringify(tags);
+    await storage.saveFranchiseTags(season, data);
+  } catch (e) {
+    console.error("Failed to save franchise tags:", e);
   }
 }
 
 /**
- * Load franchise tags from local storage
+ * Load franchise tags from IndexedDB
  */
-export function loadFranchiseTagsFromStorage(): FranchiseTag[] {
-  if (typeof localStorage !== "undefined") {
-    try {
-      const data = localStorage.getItem(FRANCHISE_TAGS_KEY);
-      if (data) {
-        const tags = JSON.parse(data) as FranchiseTag[];
-        // Convert timestamp strings back to Date objects
-        return tags.map((tag) => ({
-          ...tag,
-          timestamp: new Date(tag.timestamp),
-        }));
-      }
-    } catch (e) {
-      console.error("Failed to load franchise tags:", e);
+export async function loadFranchiseTagsFromStorage(season: number = new Date().getFullYear()): Promise<FranchiseTag[]> {
+  try {
+    const data = await storage.loadFranchiseTags(season);
+    if (data) {
+      const tags = JSON.parse(data) as FranchiseTag[];
+      // Convert timestamp strings back to Date objects
+      return tags.map((tag) => ({
+        ...tag,
+        timestamp: new Date(tag.timestamp),
+      }));
     }
+  } catch (e) {
+    console.error("Failed to load franchise tags:", e);
   }
   return [];
 }
@@ -555,27 +552,31 @@ export interface FranchiseTagManagerState {
 }
 
 /**
- * Initialize franchise tag manager state
+ * Initialize franchise tag manager state (empty; loads asynchronously via loadFranchiseTagsFromStorage)
  */
 export function initializeFranchiseTagManager(): FranchiseTagManagerState {
   return {
-    franchiseTags: loadFranchiseTagsFromStorage(),
+    franchiseTags: [],
     deadlineDecisions: {},
   };
 }
 
 /**
- * Update franchise tags in state
+ * Update franchise tags in state (saves asynchronously)
  */
 export function addFranchiseTag(
   state: FranchiseTagManagerState,
-  tag: FranchiseTag
+  tag: FranchiseTag,
+  season?: number
 ): FranchiseTagManagerState {
   const updated = {
     ...state,
     franchiseTags: [...state.franchiseTags, tag],
   };
-  saveFranchiseTagsToStorage(updated.franchiseTags);
+  // Fire-and-forget save
+  saveFranchiseTagsToStorage(updated.franchiseTags, season).catch(err =>
+    console.error('Failed to save franchise tags:', err)
+  );
   return updated;
 }
 

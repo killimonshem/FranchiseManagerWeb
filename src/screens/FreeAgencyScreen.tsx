@@ -7,16 +7,17 @@ import { calculatePlayerMarketValue } from "../types/player";
 
 interface Props {
   onRosterChange?: () => void;
+  onNavigate?: (screen: string, detail?: any) => void;
 }
 
-export function FreeAgencyScreen({ onRosterChange }: Props) {
+export function FreeAgencyScreen({ onRosterChange, onNavigate }: Props) {
   const [signingId, setSigningId] = useState<string | null>(null);
 
   const freeAgents = gameStateManager.freeAgents;
   const userTeamId = gameStateManager.userTeamId ?? "";
   const capSpace   = gameStateManager.getCapSpace(userTeamId);
 
-  function handleSign(player: Player) {
+  function handleMinDealSign(player: Player) {
     if (!userTeamId) return;
     setSigningId(player.id);
 
@@ -107,8 +108,10 @@ export function FreeAgencyScreen({ onRosterChange }: Props) {
 
         {freeAgents.map((player, i) => {
           const marketValue = calculatePlayerMarketValue(player);
-          const canAfford   = capSpace >= marketValue;
-          const isSigning   = signingId === player.id;
+          const isMinSalaryPlayer = marketValue <= 1_200_000;
+          const canAfford = capSpace >= marketValue;
+          const isSigning = signingId === player.id;
+
           return (
             <DataRow key={player.id} even={i % 2 === 0} hover>
               <span style={{ flex: 1.5, fontSize: 11, fontWeight: 600, color: COLORS.light }}>
@@ -120,19 +123,38 @@ export function FreeAgencyScreen({ onRosterChange }: Props) {
               <span style={{ flex: 1, fontSize: 10, color: COLORS.lime, fontFamily: "monospace" }}>
                 {fmtCurrency(marketValue)}
               </span>
-              <span style={{ flex: 0.8 }}>
-                <button
-                  disabled={!canAfford || isSigning}
-                  onClick={() => handleSign(player)}
-                  style={{
-                    fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 4,
-                    border: "none", cursor: canAfford ? "pointer" : "not-allowed",
-                    background: canAfford ? COLORS.magenta : "rgba(255,255,255,0.08)",
-                    color: canAfford ? COLORS.light : COLORS.muted,
-                  }}
-                >
-                  {isSigning ? "…" : "Sign"}
-                </button>
+              <span style={{ flex: 0.8, display: "flex", gap: 4 }}>
+                {isMinSalaryPlayer ? (
+                  // Min salary player: one "Sign (Min)" button
+                  <button
+                    disabled={!canAfford || isSigning}
+                    onClick={() => handleMinDealSign(player)}
+                    style={{
+                      fontSize: 8, fontWeight: 700, padding: "3px 6px", borderRadius: 3,
+                      border: "none", cursor: canAfford ? "pointer" : "not-allowed",
+                      background: canAfford ? COLORS.lime : "rgba(255,255,255,0.08)",
+                      color: canAfford ? "#000" : COLORS.muted,
+                      flex: 1,
+                    }}
+                  >
+                    {isSigning ? "…" : "Sign (Min)"}
+                  </button>
+                ) : (
+                  // Regular player: "Negotiate" button
+                  <button
+                    disabled={isSigning}
+                    onClick={() => onNavigate?.("contractNegotiation", { playerId: player.id })}
+                    style={{
+                      fontSize: 8, fontWeight: 700, padding: "3px 6px", borderRadius: 3,
+                      border: "none", cursor: "pointer",
+                      background: COLORS.magenta,
+                      color: COLORS.light,
+                      flex: 1,
+                    }}
+                  >
+                    {isSigning ? "…" : "Negotiate"}
+                  </button>
+                )}
               </span>
             </DataRow>
           );

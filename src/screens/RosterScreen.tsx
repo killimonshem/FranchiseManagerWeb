@@ -37,7 +37,8 @@ export function RosterScreen({
 
   const active   = players.filter(p => p.status !== PlayerStatus.PRACTICE_SQUAD);
   const practice = players.filter(p => p.status === PlayerStatus.PRACTICE_SQUAD);
-  const list     = tab === "practice" ? practice : active;
+  const tradeBlock = players.filter(p => p.shoppingStatus === "On The Block");
+  const list     = tab === "practice" ? practice : tab === "tradeBlock" ? tradeBlock : active;
 
   const filtered = filter === "ALL" ? list : list.filter(p => p.position === filter);
   const sorted   = [...filtered].sort((a, b) =>
@@ -55,12 +56,13 @@ export function RosterScreen({
         <div>
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: COLORS.light }}>Roster Management</h2>
           <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 2 }}>
-            {active.length}/53 Active · {practice.length}/16 Practice Squad
+            {active.length}/53 Active · {practice.length}/16 Practice Squad · {tradeBlock.length} On Block
           </div>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           <Pill active={tab === "active"}   onClick={() => setTab("active")}>Active Roster</Pill>
           <Pill active={tab === "practice"} onClick={() => setTab("practice")}>Practice Squad</Pill>
+          <Pill active={tab === "tradeBlock"} onClick={() => setTab("tradeBlock")}>Trade Block</Pill>
         </div>
       </div>
 

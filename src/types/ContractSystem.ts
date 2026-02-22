@@ -253,7 +253,7 @@ export interface NegotiationAttempt {
   feedback: string;
 }
 
-export interface NegotiationState {
+export interface StaffNegotiationState {
   staff: StaffMember;
   offeredSalary: number;
   offeredYears: number;
@@ -274,9 +274,9 @@ export interface NegotiationResult {
  * Compares offer score to asking score; provides feedback and records attempt
  */
 export function submitNegotiationOffer(
-  negotiation: NegotiationState,
+  negotiation: StaffNegotiationState,
   teamPrestige: number
-): { result: NegotiationResult; updatedNegotiation: NegotiationState } {
+): { result: NegotiationResult; updatedNegotiation: StaffNegotiationState } {
   if (negotiation.attemptsRemaining <= 0) {
     return {
       result: {
