@@ -37,7 +37,7 @@ function computeTeamPicks(teamAbbr: string, gsm: GameStateManager): DraftPick[] 
 
 // ─── Fog-of-war OVR renderer (three tiers) ───────────────────────────────────
 
-function renderOvr(p: DraftProspect): JSX.Element {
+function renderOvr(p: DraftProspect) {
   if (p.scoutingPointsSpent >= 2) {
     // Fully revealed
     return <RatingBadge value={p.overall} size="sm" />;

@@ -89,7 +89,7 @@ export function PostDraftSummaryScreen({ gsm, onDismiss }: { gsm: GameStateManag
             {/* Standout Picks */}
             <Section title="Standout Selections">
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {summary.standoutPicks.map(pick => (
+                {summary.standoutPicks.map((pick: any) => (
                   <div key={pick.id} style={{
                     background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: 12,
                     borderLeft: `4px solid ${getStandoutColor(pick.type)}`
@@ -123,7 +123,7 @@ export function PostDraftSummaryScreen({ gsm, onDismiss }: { gsm: GameStateManag
                   <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, fontWeight: 700 }}>Pos</span>
                   <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, fontWeight: 700 }}>OVR</span>
                 </DataRow>
-                {summary.draftedPlayers.map(p => (
+                {summary.draftedPlayers.map((p: any) => (
                   <DataRow key={p.id} even={false}>
                     <span style={{ flex: 0.5, fontSize: 10, color: COLORS.muted, fontFamily: FONT.mono }}>
                       {getDraftInfo(p).round}.{getDraftInfo(p).pick}

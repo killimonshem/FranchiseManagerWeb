@@ -2527,6 +2527,24 @@ export class GameStateManager {
   }
 
   /**
+   * Get the cost of a specific RFA tender for a player.
+   */
+  getRFATenderValue(player: Player, type: RFATenderType): number {
+    switch (type) {
+      case RFATenderType.ROFR:
+        return 2_700_000;
+      case RFATenderType.ORIGINAL_ROUND:
+        return 3_100_000;
+      case RFATenderType.TRANSITION:
+        return Math.round(calculateFranchiseTagValue(player.position, this.allPlayers) * 0.85);
+      case RFATenderType.FRANCHISE:
+        return Math.round(player.overall * 300_000 * (player.position === Position.QB ? 1.5 : 1));
+      default:
+        return 0;
+    }
+  }
+
+  /**
    * Apply a tender to a Restricted Free Agent.
    */
   applyRFATender(playerId: string, type: RFATenderType): void {

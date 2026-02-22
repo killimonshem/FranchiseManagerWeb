@@ -474,19 +474,25 @@ function generateDraftProspectsForSeason(gameState: EnhancedGameState): void {
       attributes: generateAttributes(position as Position),
       personality: {
         leadership: Math.floor(Math.random() * 100),
-        coachability: Math.floor(Math.random() * 100),
         motivation: Math.floor(Math.random() * 100),
-        teamOrientation: Math.floor(Math.random() * 100),
+        teamPlayer: Math.floor(Math.random() * 100),
         workEthic: Math.floor(Math.random() * 100),
-        intelligence: Math.floor(Math.random() * 100),
+        consistency: Math.floor(Math.random() * 100),
+        clutch: Math.floor(Math.random() * 100),
+        loyalty: Math.floor(Math.random() * 100),
+        marketability: Math.floor(Math.random() * 100),
+        discipline: Math.floor(Math.random() * 100),
+        ego: Math.floor(Math.random() * 100),
+        mediaSensitivity: Math.floor(Math.random() * 100),
       },
       combineResults: undefined,
       medicalGrade: generateMedicalGrade(),
       characterGrade: generateCharacterGrade(),
-      workEthic: Math.floor(Math.random() * 100),
-      coachability: Math.floor(Math.random() * 100),
-      overall: 0,
-      potential: 0,
+      pffGrade: String.fromCharCode(65 + Math.floor(Math.random() * 5)), // A-E
+      pffPercentile: Math.floor(Math.random() * 100),
+      clubGrade: String.fromCharCode(65 + Math.floor(Math.random() * 5)), // A-E
+      scoutingConfidence: Math.floor(Math.random() * 100),
+      evaluationChips: [],
       trueOverall: Math.floor(Math.random() * 40) + 50, // Placeholder for generation logic
       truePotential: Math.floor(Math.random() * 40) + 60,
     };

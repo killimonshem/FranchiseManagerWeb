@@ -624,6 +624,8 @@ export interface DraftProspect {
   clubGrade: string;
   scoutingConfidence: number;
   evaluationChips: ProspectChip[];
+  trueOverall?: number;
+  truePotential?: number;
 }
 
 /**

@@ -10,12 +10,13 @@ import { useState } from "react";
 import { COLORS } from "../ui/theme";
 import { gameStateManager } from "../types/GameStateManager";
 import {
-  RatingBadge, PosTag, Section, DataRow, Pill, TabBtn, MoraleMeter,
+  RatingBadge, PosTag, Section, DataRow, Pill, MoraleMeter,
   ShieldAlert, Lock, AlertTriangle, Clock,
 } from "../ui/components";
 import { Player, PlayerStatus } from "../types/player";
 import { InjuryStatus } from "../types/nfl-types";
 import { ArrowUp, ArrowDown } from "lucide-react";
+import { RestructureModal, FranchiseTagModal } from "../ui/Overlays";
 
 const POSITIONS = ["QB", "RB", "WR", "TE", "OL", "DL", "LB", "CB", "S", "K", "P"];
 
@@ -35,10 +36,11 @@ export function RosterScreen({
 }) {
   const [confirmRelease, setConfirmRelease] = useState<{ open: boolean; player?: Player }>({ open: false });
   const [filter, setFilter] = useState("ALL");
-  const [sort, setSort]     = useState("ovr");
   const [tab, setTab]       = useState("active");
   const [view, setView]     = useState<"overview" | "contract" | "status">("overview");
-  const [columnSort, setColumnSort] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [columnSort, setColumnSort] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'rating', direction: 'desc' });
+  const [showRestructure, setShowRestructure] = useState<Player | null>(null);
+  const [showFranchiseTag, setShowFranchiseTag] = useState<Player | null>(null);
 
   const active   = players.filter(p => p.status !== PlayerStatus.PRACTICE_SQUAD);
   const practice = players.filter(p => p.status === PlayerStatus.PRACTICE_SQUAD);
@@ -107,13 +109,8 @@ export function RosterScreen({
         return 0;
       }
       
-      // Fallback to TabBtn sorting
-      return (
-        sort === "ovr"  ? b.overall - a.overall :
-        sort === "sal"  ? (b.contract?.currentYearCap ?? 0) - (a.contract?.currentYearCap ?? 0) :
-        sort === "age"  ? a.age - b.age :
-        `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
-      );
+      // Fallback default
+      return b.overall - a.overall;
     });
   };
 
@@ -199,13 +196,6 @@ export function RosterScreen({
         </div>
       </div>
 
-      {/* Sort */}
-      <div style={{ display: "flex", gap: 14, marginBottom: 10 }}>
-        {[{ k: "ovr", l: "Rating" }, { k: "sal", l: "Salary" }, { k: "age", l: "Age" }, { k: "name", l: "Name" }].map(s => (
-          <TabBtn key={s.k} active={sort === s.k} onClick={() => { setSort(s.k); setColumnSort(null); }}>{s.l}</TabBtn>
-        ))}
-      </div>
-
       {sorted.length === 0 ? (
         <div style={{ color: COLORS.muted, fontSize: 13, padding: "32px 0", textAlign: "center" }}>
           No players on this roster yet.
@@ -238,6 +228,7 @@ export function RosterScreen({
                   {renderHeader("Bonus", "bonus", 1)}
                   {renderHeader("Dead Cap", "deadcap", 1)}
                   <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Expires</span>
+                  <span style={{ flex: 2, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Actions</span>
                 </>
               )}
 
@@ -311,6 +302,35 @@ export function RosterScreen({
                       <span style={{ flex: 1, fontSize: 10, color: expiring ? COLORS.gold : COLORS.muted }}>
                         {years > 0 ? `${new Date().getFullYear() + years}` : "—"}
                       </span>
+                      <span style={{ flex: 2, display: "flex", gap: 6, alignItems: "center" }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowRestructure(p);
+                          }}
+                          style={{
+                            padding: "4px 8px", borderRadius: 4, border: "none",
+                            background: COLORS.midMagenta, color: COLORS.light, fontSize: 9, fontWeight: 700, cursor: "pointer"
+                          }}
+                          title={p.contract?.canRestructure ? "Restructure this contract" : "Cannot restructure"}
+                          disabled={!p.contract?.canRestructure}
+                        >
+                          Restructure
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowFranchiseTag(p);
+                          }}
+                          style={{
+                            padding: "4px 8px", borderRadius: 4, border: "none",
+                            background: COLORS.warmLime, color: COLORS.bg, fontSize: 9, fontWeight: 700, cursor: "pointer"
+                          }}
+                          title="Apply franchise tag for 1 year"
+                        >
+                          Tag
+                        </button>
+                      </span>
                     </>
                   )}
 
@@ -327,21 +347,20 @@ export function RosterScreen({
                       <span style={{ flex: 2, fontSize: 9, color: COLORS.muted, fontStyle: "italic" }}>
                         {tradeReq ? "Requested Trade" : hasNTC ? "No Trade Clause" : ""}
                       </span>
-                      {expiring && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDetail({ playerId: p.id, context: 'extension' });
-                            setScreen("contractNegotiation");
-                          }}
-                          style={{
-                            marginLeft: 8, padding: "4px 8px", borderRadius: 4, border: "none",
-                            background: COLORS.lime, color: COLORS.bg, fontSize: 9, fontWeight: 700, cursor: "pointer"
-                          }}
-                        >
-                          Extend
-                        </button>
-                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDetail({ playerId: p.id, context: 'extension' });
+                          setScreen("contractNegotiation");
+                        }}
+                        style={{
+                          marginLeft: 8, padding: "4px 8px", borderRadius: 4, border: "none",
+                          background: COLORS.warmLime, color: COLORS.bg, fontSize: 9, fontWeight: 700, cursor: "pointer"
+                        }}
+                        title="Extend player contract"
+                      >
+                        Extend
+                      </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -370,6 +389,18 @@ export function RosterScreen({
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>Confirm Release</div>
             <div style={{ fontSize: 13, color: COLORS.muted, marginBottom: 16 }}>
               Are you sure you want to release {confirmRelease.player.firstName} {confirmRelease.player.lastName}? This action is immediate and cannot be undone.
+
+              <div style={{ marginTop: 12, padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 6, border: `1px solid ${COLORS.darkMagenta}` }}>
+                <div style={{ fontSize: 10, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700, marginBottom: 4 }}>Dead Cap Penalty</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: (confirmRelease.player.contract?.deadCap || 0) > 0 ? COLORS.coral : COLORS.lime }}>
+                  ${((confirmRelease.player.contract?.deadCap || 0) / 1e6).toFixed(2)}M
+                </div>
+                <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 4, lineHeight: 1.3 }}>
+                  {(confirmRelease.player.contract?.deadCap || 0) > 0
+                    ? "This amount will accelerate onto your current year's salary cap."
+                    : "No penalty. This release is free of dead money."}
+                </div>
+              </div>
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => setConfirmRelease({ open: false })} style={{ padding: '6px 12px', borderRadius: 6, background: 'transparent', border: `1px solid ${COLORS.muted}`, color: COLORS.muted, cursor: 'pointer' }}>Cancel</button>
@@ -380,6 +411,35 @@ export function RosterScreen({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modals */}
+      {showRestructure && (
+        <RestructureModal
+          player={showRestructure}
+          team={gameStateManager.userTeam}
+          onConfirm={(pct) => {
+            const userTeam = gameStateManager.userTeam;
+            if (userTeam) {
+              const result = gameStateManager.financeSystem.executeRestructure(showRestructure, userTeam, pct);
+              if (result.success) {
+                setShowRestructure(null);
+              }
+            }
+          }}
+          onCancel={() => setShowRestructure(null)}
+        />
+      )}
+
+      {showFranchiseTag && (
+        <FranchiseTagModal
+          player={showFranchiseTag}
+          onConfirm={() => {
+            gameStateManager.applyFranchiseTag(showFranchiseTag);
+            setShowFranchiseTag(null);
+          }}
+          onCancel={() => setShowFranchiseTag(null)}
+        />
       )}
     </div>
   );

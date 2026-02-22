@@ -41,15 +41,15 @@ export function RFATenderingScreen({ gsm }: { gsm: any }) {
             <div style={{ flex: 1, display: "flex", gap: 6 }}>
               <button onClick={() => { gsm.applyRFATender(p.id, RFATenderType.ROFR); gsm.onEngineStateChange?.(); gsm.onAutoSave?.(); }}
                 style={{ padding: "4px 8px", borderRadius: 4, border: "none", background: COLORS.magenta, color: COLORS.light, fontSize: 10, fontWeight: 700 }}>
-                ROFR
+                ROFR ({fmtCurrency(gsm.getRFATenderValue(p, RFATenderType.ROFR))})
               </button>
               <button onClick={() => { gsm.applyRFATender(p.id, RFATenderType.ORIGINAL_ROUND); gsm.onEngineStateChange?.(); gsm.onAutoSave?.(); }}
                 style={{ padding: "4px 8px", borderRadius: 4, border: "none", background: COLORS.lime, color: COLORS.bg, fontSize: 10, fontWeight: 700 }}>
-                Orig. Round
+                Orig. Round ({fmtCurrency(gsm.getRFATenderValue(p, RFATenderType.ORIGINAL_ROUND))})
               </button>
               <button onClick={() => { gsm.applyRFATender(p.id, RFATenderType.TRANSITION); gsm.onEngineStateChange?.(); gsm.onAutoSave?.(); }}
                 style={{ padding: "4px 8px", borderRadius: 4, border: "none", background: COLORS.coral, color: COLORS.light, fontSize: 10, fontWeight: 700 }}>
-                Transition
+                Transition ({fmtCurrency(gsm.getRFATenderValue(p, RFATenderType.TRANSITION))})
               </button>
             </div>
           </DataRow>

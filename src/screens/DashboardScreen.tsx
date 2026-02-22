@@ -89,11 +89,12 @@ export function DashboardScreen({
         position: "relative", overflow: "hidden",
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20 }}>
-          <div>
+          <div style={{ flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
               <PhaseTag phase={phase.label} color={phase.color} />
               <span style={{ fontSize: 10, color: COLORS.muted }}>Week {week} of 52 · {season} Season</span>
             </div>
+
             <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: COLORS.light, letterSpacing: -0.5 }}>
               {userTeam.city} {userTeam.name}
             </h1>
@@ -121,10 +122,11 @@ export function DashboardScreen({
                 Roster:{" "}
                 <span style={{ color: COLORS.lime, fontWeight: 700 }}>{players.length}</span> players
               </div>
-              <div style={{ fontSize: 10, color: COLORS.muted, marginLeft: "auto" }}>
-                Auto-Saved: <span style={{ color: COLORS.light }}>{gameStore.saveTimestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-              </div>
             </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "flex-start", gap: 4 }}>
+            <div style={{ fontSize: 9, color: COLORS.muted }}>Auto-Saved</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.light }}>{gameStore.saveTimestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
           </div>
         </div>
 
@@ -135,23 +137,26 @@ export function DashboardScreen({
       </div>
 
       {/* Owner & Fanbase Pulse */}
-      {fullUserTeam && (
+      {fullUserTeam && fullUserTeam.owner && fullUserTeam.fanBase && (
         <div style={{ gridColumn: "1/-1", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           <Section title="Owner Sentiment">
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
                 <span style={{ color: COLORS.muted }}>Patience</span>
-                <span style={{ color: fullUserTeam.ownerPatience < 30 ? COLORS.coral : COLORS.lime, fontWeight: 700 }}>{fullUserTeam.ownerPatience}/100</span>
+                <span style={{ color: (fullUserTeam.owner?.patience ?? 50) < 30 ? COLORS.coral : COLORS.lime, fontWeight: 700 }}>{fullUserTeam.owner?.patience ?? 50}/100</span>
               </div>
-              <CapBar used={fullUserTeam.ownerPatience} total={100} />
+              <CapBar used={fullUserTeam.owner?.patience ?? 50} total={100} />
+              <div style={{ fontSize: 10, color: COLORS.muted }}>
+                Status: {(fullUserTeam.owner?.patience ?? 50) > 70 ? "Satisfied" : (fullUserTeam.owner?.patience ?? 50) > 45 ? "Neutral" : (fullUserTeam.owner?.patience ?? 50) > 30 ? "On The Edge" : "Nervous"}
+              </div>
             </div>
           </Section>
           <Section title="Fanbase Pulse">
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 6 }}>
               <span style={{ color: COLORS.muted }}>Loyalty</span>
-              <span style={{ color: COLORS.light, fontWeight: 700 }}>{fullUserTeam.fanLoyalty}/100</span>
+              <span style={{ color: COLORS.light, fontWeight: 700 }}>{fullUserTeam.fanBase?.loyalty ?? 50}/100</span>
             </div>
-            <div style={{ fontSize: 10, color: COLORS.muted }}>Mood: {fullUserTeam.fanMorale > 60 ? "Optimistic" : "Restless"}</div>
+            <div style={{ fontSize: 10, color: COLORS.muted }}>Mood: {(fullUserTeam.fanBase?.mood ?? 50) > 60 ? "Optimistic" : "Restless"}</div>
           </Section>
         </div>
       )}
@@ -208,12 +213,25 @@ export function DashboardScreen({
       )}
 
       {/* Key Players */}
-      <Section title="Key Players">
+      <Section
+        title="Key Players"
+        right={attentionPlayers.length > 3 && (
+          <button
+            onClick={() => setScreen("roster")}
+            style={{
+              fontSize: 9, color: COLORS.lime, background: "none", border: "none",
+              cursor: "pointer", textDecoration: "underline", padding: 0, fontWeight: 600,
+            }}
+          >
+            See all {attentionPlayers.length} at-risk
+          </button>
+        )}
+      >
         {keyPlayers.length === 0 ? (
           <div style={{ fontSize: 12, color: COLORS.muted, padding: "12px 0" }}>No players on roster</div>
         ) : keyPlayers.map(p => {
           let statusText = `Age ${p.age} · ${fmtCurrency(p.contract?.currentYearCap ?? 0)}/yr`;
-          let statusColor = COLORS.muted;
+          let statusColor: string = COLORS.muted;
 
           if (p.injuryStatus !== 'Healthy') {
             statusText = `${p.injuryStatus} Injury`;
@@ -224,6 +242,8 @@ export function DashboardScreen({
           } else if (p.morale < 45) {
             statusText = "Low Morale";
             statusColor = COLORS.coral;
+          } else {
+            statusColor = COLORS.lavender;
           }
 
           return (

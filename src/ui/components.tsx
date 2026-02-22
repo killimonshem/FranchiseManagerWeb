@@ -289,12 +289,11 @@ export function RadarChart({ data, size = 200, color = COLORS.lime }: { data: { 
 // ═══════════════════════════════════════════════════════════════════
 export function FinancialHealthBadge({ capSpace }: { capSpace: number }) {
   let label = "Stable";
-  let color = COLORS.lime;
-  if (capSpace > 40_000_000) { label = "Wealthy"; color = COLORS.lime; }
-  else if (capSpace > 20_000_000) { label = "Healthy"; color = COLORS.warmLime; }
-  else if (capSpace > 10_000_000) { label = "Stable"; color = COLORS.light; }
-  else if (capSpace > 0) { label = "Strained"; color = COLORS.gold; }
-  else { label = "Crisis"; color = COLORS.coral; }
+  if (capSpace > 40_000_000) { label = "Wealthy"; }
+  else if (capSpace > 20_000_000) { label = "Healthy"; }
+  else if (capSpace > 10_000_000) { label = "Stable"; }
+  else if (capSpace > 0) { label = "Strained"; }
+  else { label = "Crisis"; }
 
   return <StatusBadge label={label} variant={capSpace > 10_000_000 ? "positive" : capSpace > 0 ? "warning" : "negative"} />;
 }
@@ -311,14 +310,14 @@ const VARIANT_STYLES: Record<IconBtnVariant, CSSProperties> = {
   accent:  { background: COLORS.lime, color: COLORS.bg, border: "none" },
 };
 
-export function IconBtn({ icon: Icon, label, variant = "ghost", onClick, style }: {
-  icon: LucideIcon; label: string; variant?: IconBtnVariant; onClick?: () => void; style?: CSSProperties;
+export function IconBtn({ icon: Icon, label, variant = "ghost", onClick, style, disabled }: {
+  icon: LucideIcon; label: string; variant?: IconBtnVariant; onClick?: () => void; style?: CSSProperties; disabled?: boolean;
 }) {
   return (
-    <button onClick={onClick} style={{
+    <button onClick={onClick} disabled={disabled} style={{
       display: "inline-flex", alignItems: "center", gap: 5,
       padding: "7px 12px", borderRadius: 6, fontSize: 10, fontWeight: 600,
-      cursor: "pointer", transition: "all .12s", ...VARIANT_STYLES[variant], ...style,
+      cursor: disabled ? "not-allowed" : "pointer", transition: "all .12s", opacity: disabled ? 0.5 : 1, ...VARIANT_STYLES[variant], ...style,
     }}>
       <Icon size={13} />
       {label}

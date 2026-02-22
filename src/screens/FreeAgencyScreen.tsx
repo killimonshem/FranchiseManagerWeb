@@ -98,7 +98,7 @@ export function FreeAgencyScreen({ gsm, onRosterChange, onNavigate }: Props) {
     );
 
     // Move player onto the user's roster and update contract
-    const idx = engine.allPlayers.findIndex(p => p.id === player.id);
+    const idx = engine.allPlayers.findIndex((p: any) => p.id === player.id);
     if (idx !== -1) {
       const signedPlayer = engine.allPlayers[idx];
       signedPlayer.teamId = userTeamId;
@@ -142,7 +142,7 @@ export function FreeAgencyScreen({ gsm, onRosterChange, onNavigate }: Props) {
     // Record FA signing for comp pick tracking
     engine.recordFreeAgentSigning(player.id, player.teamId ?? null, userTeamId, apy);
 
-    const idx = engine.allPlayers.findIndex(p => p.id === player.id);
+    const idx = engine.allPlayers.findIndex((p: any) => p.id === player.id);
     if (idx !== -1) {
       const signedPlayer = engine.allPlayers[idx];
       signedPlayer.teamId = userTeamId;

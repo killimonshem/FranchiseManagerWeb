@@ -156,12 +156,19 @@ export function TradeScreen({
     const pending = gsm.pendingAITradeOffer;
     if (!pending) return;
     setPartnerTeamId(pending.offeringTeamId);
-    // AI's offer: they want your players, they offer their picks
-    setReceivingPlayerIds(new Set(pending.receivingPlayerIds));
+    
+    // Map AI offer (AI perspective) to Trade Screen state (User perspective)
+    // AI Offering -> User Receiving
+    // AI Receiving -> User Offering
+    setReceivingPlayerIds(new Set(pending.offeringPlayerIds));
     setReceivingPickIds(new Set(pending.offeringPickIds));
-    setOfferingPickIds(new Set());
-    setOfferingPlayerIds(new Set());
+    setOfferingPlayerIds(new Set(pending.receivingPlayerIds));
+    setOfferingPickIds(new Set(pending.receivingPickIds));
+    
     setActiveTab("propose");
+    
+    // Consume the pending offer so it doesn't persist on future visits
+    gsm.pendingAITradeOffer = null;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const leagueBlockPlayers = !partnerTeamId 

@@ -7,6 +7,9 @@ import type { GameStateManager } from "../types/GameStateManager";
 export function DraftLeadUpScreen({ gsm, onAdvance }: { gsm: GameStateManager; onAdvance: () => void }) {
   const [day, setDay] = useState(1); // 1=Mon, 2=Tue, 3=Wed
   const [tab, setTab] = useState<"rumors" | "mock">("rumors");
+  const [leakModal, setLeakModal] = useState(false);
+  const [workoutModal, setWorkoutModal] = useState(false);
+  const [selectedProspect, setSelectedProspect] = useState<string | null>(null);
 
   const days = ["Monday", "Tuesday", "Wednesday"];
   const currentDayName = days[day - 1];
@@ -30,6 +33,49 @@ export function DraftLeadUpScreen({ gsm, onAdvance }: { gsm: GameStateManager; o
     } else {
       onAdvance(); // Go to Draft
     }
+  }
+
+  function handleLeakInterest(prospectId: string) {
+    // Create a leak rumor that other teams will be interested in this prospect
+    const prospect = gsm.draftProspects.find(p => p.id === prospectId);
+    if (!prospect) return;
+
+    // Add to trade rumors (simulating leaked interest)
+    const leakRumor = `Your interest in ${prospect.name} has been leaked to rival teams. This could affect his draft stock.`;
+    if (!gsm.tradeRumors.some(r => r.includes(prospect.name))) {
+      gsm.tradeRumors.push(leakRumor);
+    }
+
+    // Show toast notification
+    gsm.latestToast = {
+      id: `leak-${prospectId}`,
+      type: "info",
+      title: "Interest Leaked",
+      message: `Scouts are buzzing about your interest in ${prospect.name}. Other teams may trade up ahead of you.`
+    };
+
+    setLeakModal(false);
+    setSelectedProspect(null);
+  }
+
+  function handleScheduleWorkout(prospectId: string) {
+    // Spend scouting points to improve evaluation of this prospect
+    const prospect = gsm.draftProspects.find(p => p.id === prospectId);
+    if (!prospect || gsm.scoutingPointsAvailable < 1) return;
+
+    // Spend a scouting point on the prospect for improved evaluation
+    gsm.spendScoutingPoints(prospectId, 1);
+
+    // Show toast notification
+    gsm.latestToast = {
+      id: `workout-${prospectId}`,
+      type: "success",
+      title: "Workout Scheduled",
+      message: `Private workout scheduled with ${prospect.name}. Scouting intel updated.`
+    };
+
+    setWorkoutModal(false);
+    setSelectedProspect(null);
   }
 
   // Mock Draft Simulation
@@ -123,10 +169,10 @@ export function DraftLeadUpScreen({ gsm, onAdvance }: { gsm: GameStateManager; o
             </Section>
 
             <Section title="Actions">
-              <button style={{ width: "100%", padding: "10px", marginBottom: 8, background: "rgba(255,255,255,0.05)", border: `1px solid ${COLORS.darkMagenta}`, color: COLORS.light, borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+              <button onClick={() => setLeakModal(true)} style={{ width: "100%", padding: "10px", marginBottom: 8, background: "rgba(255,255,255,0.05)", border: `1px solid ${COLORS.darkMagenta}`, color: COLORS.light, borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
                 Leak Interest in Prospect
               </button>
-              <button style={{ width: "100%", padding: "10px", background: "rgba(255,255,255,0.05)", border: `1px solid ${COLORS.darkMagenta}`, color: COLORS.light, borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+              <button onClick={() => setWorkoutModal(true)} style={{ width: "100%", padding: "10px", background: "rgba(255,255,255,0.05)", border: `1px solid ${COLORS.darkMagenta}`, color: COLORS.light, borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
                 Schedule Private Workout
               </button>
             </Section>
@@ -159,6 +205,95 @@ export function DraftLeadUpScreen({ gsm, onAdvance }: { gsm: GameStateManager; o
             ))}
           </div>
         </Section>
+      )}
+
+      {/* Leak Interest Modal */}
+      {leakModal && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 200,
+          background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center"
+        }}>
+          <div style={{
+            background: COLORS.bg, border: `1px solid ${COLORS.darkMagenta}`, borderRadius: 12, padding: 24, width: 400,
+            boxShadow: "0 20px 50px rgba(0,0,0,0.5)"
+          }}>
+            <h3 style={{ margin: "0 0 16px", color: COLORS.light }}>Leak Interest in Prospect</h3>
+            <div style={{ maxHeight: 300, overflowY: "auto", marginBottom: 20, display: "flex", flexDirection: "column", gap: 8 }}>
+              {gsm.draftProspects.slice(0, 10).map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    handleLeakInterest(p.id);
+                  }}
+                  style={{
+                    textAlign: "left", padding: "12px", background: "rgba(255,255,255,0.05)", border: `1px solid ${COLORS.darkMagenta}`,
+                    color: COLORS.light, borderRadius: 6, fontSize: 12, cursor: "pointer", transition: "all 0.15s"
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+                >
+                  <div style={{ fontWeight: 700 }}>{p.name}</div>
+                  <div style={{ fontSize: 11, color: COLORS.muted }}>{p.position} · {p.college}</div>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setLeakModal(false)} style={{
+              width: "100%", padding: "10px", background: "transparent", color: COLORS.muted, border: `1px solid ${COLORS.muted}`, borderRadius: 6, fontWeight: 600, cursor: "pointer"
+            }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Workout Modal */}
+      {workoutModal && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 200,
+          background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center"
+        }}>
+          <div style={{
+            background: COLORS.bg, border: `1px solid ${COLORS.darkMagenta}`, borderRadius: 12, padding: 24, width: 400,
+            boxShadow: "0 20px 50px rgba(0,0,0,0.5)"
+          }}>
+            <h3 style={{ margin: "0 0 16px", color: COLORS.light }}>Schedule Private Workout</h3>
+            <div style={{ marginBottom: 16, padding: 12, background: "rgba(215,241,113,0.1)", borderRadius: 6, border: `1px solid ${COLORS.lime}` }}>
+              <div style={{ fontSize: 11, color: COLORS.muted, marginBottom: 4 }}>Scouting Points Available</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.lime }}>{gsm.scoutingPointsAvailable} points</div>
+            </div>
+            <div style={{ maxHeight: 300, overflowY: "auto", marginBottom: 20, display: "flex", flexDirection: "column", gap: 8 }}>
+              {gsm.draftProspects.slice(0, 10).map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    if (gsm.scoutingPointsAvailable >= 1) {
+                      handleScheduleWorkout(p.id);
+                    }
+                  }}
+                  disabled={gsm.scoutingPointsAvailable < 1}
+                  style={{
+                    textAlign: "left", padding: "12px", background: gsm.scoutingPointsAvailable < 1 ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.05)",
+                    border: `1px solid ${COLORS.darkMagenta}`,
+                    color: gsm.scoutingPointsAvailable < 1 ? COLORS.muted : COLORS.light, borderRadius: 6, fontSize: 12, cursor: gsm.scoutingPointsAvailable < 1 ? "default" : "pointer", transition: "all 0.15s"
+                  }}
+                  onMouseEnter={(e) => { if (gsm.scoutingPointsAvailable >= 1) e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = gsm.scoutingPointsAvailable < 1 ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.05)"; }}
+                >
+                  <div style={{ fontWeight: 700 }}>{p.name}</div>
+                  <div style={{ fontSize: 11, color: COLORS.muted }}>{p.position} · {p.college}</div>
+                </button>
+              ))}
+            </div>
+            {gsm.scoutingPointsAvailable < 1 && (
+              <div style={{ fontSize: 11, color: COLORS.coral, marginBottom: 12, textAlign: "center" }}>Out of scouting points</div>
+            )}
+            <button onClick={() => setWorkoutModal(false)} style={{
+              width: "100%", padding: "10px", background: "transparent", color: COLORS.muted, border: `1px solid ${COLORS.muted}`, borderRadius: 6, fontWeight: 600, cursor: "pointer"
+            }}>
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -4,10 +4,9 @@
  * Handles pre-draft audits, draft flow, and outcome probabilities
  */
 
-import { Position, DraftProspect } from "./nfl-types";
-import { Player, PlayerStatus, createPlayer } from "./player";
+import { Position, DraftProspect, createRookieContract } from "./nfl-types";
+import { Player, PlayerStatus, createPlayer, createEmptyPlayerStats } from "./player";
 import { Team } from "./team";
-import type { PlayerContract } from "./nfl-types";
 import { CompPick } from "./CompensatoryPickSystem";
 
 // ============================================================================
@@ -627,10 +626,7 @@ export function createDraftedPlayer(
   currentSeason: number,
   outcome: DraftOutcomeCalculation
 ): Player {
-  const contract = PlayerContract.rookie(
-    prospect.position,
-    draftRound
-  );
+  const contract = createRookieContract(draftRound);
 
   return {
     id: Math.random().toString(36).substr(2, 9),
@@ -648,11 +644,11 @@ export function createDraftedPlayer(
     draftPick: draftPick,
     teamId,
     status: PlayerStatus.ACTIVE,
-    overall: prospect.trueOverall,
+    overall: prospect.trueOverall ?? 70,
     potential: outcome.finalPotential,
     attributes: prospect.attributes,
-    currentSeasonStats: { ...require("./player").createEmptyPlayerStats() },
-    careerTotalStats: { ...require("./player").createEmptyPlayerStats() },
+    currentSeasonStats: { ...createEmptyPlayerStats() },
+    careerTotalStats: { ...createEmptyPlayerStats() },
     gameLog: {},
     seasonHistory: {},
     careerStats: {},
@@ -712,11 +708,11 @@ export function convertProspectToUDFA(prospect: DraftProspect): Player {
     draftPick: undefined,
     teamId: undefined,
     status: PlayerStatus.FREE_AGENT,
-    overall: Math.max(50, prospect.trueOverall - 10),
-    potential: prospect.trueOverall,
+    overall: Math.max(50, (prospect.trueOverall ?? 60) - 10),
+    potential: prospect.trueOverall ?? 60,
     attributes: prospect.attributes,
-    currentSeasonStats: { ...require("./player").createEmptyPlayerStats() },
-    careerTotalStats: { ...require("./player").createEmptyPlayerStats() },
+    currentSeasonStats: { ...createEmptyPlayerStats() },
+    careerTotalStats: { ...createEmptyPlayerStats() },
     gameLog: {},
     seasonHistory: {},
     careerStats: {},

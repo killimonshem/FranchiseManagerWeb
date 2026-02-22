@@ -40,6 +40,7 @@ import { RFATenderingScreen } from "./screens/RFATenderingScreen";
 import { gameStateManager } from "./types/GameStateManager";
 import { SimulationState } from "./types/GameStateManager";
 import { HardStopReason } from "./types/engine-types";
+import { establishDraftOrder } from "./types/DraftSystem";
 import { gameStore } from "./stores/GameStore";
 
 // ─── Navigation Architecture ───────────────────────────────────────
@@ -185,6 +186,8 @@ export default function App() {
     gameStateManager.generateInitialDraftPicks();
     // Generate initial draft prospects for the current season
     gameStateManager.initializeDraftProspects();
+    // Establish draft order based on team records
+    gameStateManager.draftOrder = establishDraftOrder(gameStateManager.teams);
     gameStateManager.updateAllTeamRatings();
 
     // Wire both callbacks to refresh so engine mutations trigger re-renders
@@ -212,6 +215,11 @@ export default function App() {
     // 2. Ensure draft prospects are loaded (for saves that might not have them)
     if (!gameStateManager.draftProspects || gameStateManager.draftProspects.length === 0) {
       gameStateManager.initializeDraftProspects();
+    }
+
+    // 2b. Ensure draft order is established (for saves that might not have it)
+    if (!gameStateManager.draftOrder || gameStateManager.draftOrder.length === 0) {
+      gameStateManager.draftOrder = establishDraftOrder(gameStateManager.teams);
     }
 
     // 3. Wire callbacks
@@ -662,6 +670,12 @@ export default function App() {
           .filter(Boolean) as { firstName: string; lastName: string; overall: number }[];
         const offeredPickIds = pending?.offeringPickIds ?? [];
 
+        const formatPickId = (id: string) => {
+          const parts = id.split('-');
+          if (parts.length === 3) return `${parts[0]} Round ${parts[1]} (${parts[2]})`;
+          return id;
+        };
+
         return (
           <div style={{
             position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)",
@@ -691,7 +705,7 @@ export default function App() {
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 9, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700, marginBottom: 4 }}>They offer</div>
                 {offeredPickIds.length > 0 ? offeredPickIds.map((pid, i) => (
-                  <div key={i} style={{ fontSize: 12, color: COLORS.lime, fontFamily: "monospace", padding: "2px 0" }}>{pid}</div>
+                  <div key={i} style={{ fontSize: 12, color: COLORS.lime, fontFamily: "monospace", padding: "2px 0" }}>{formatPickId(pid)}</div>
                 )) : <div style={{ fontSize: 11, color: COLORS.muted }}>No picks offered</div>}
               </div>
 
@@ -714,7 +728,7 @@ export default function App() {
                     color: "#f5a623", cursor: "pointer",
                   }}
                 >
-                  Negotiate
+                  Counter Offer
                 </button>
                 <button
                   onClick={() => handleTradeResponse("reject")}
@@ -798,7 +812,7 @@ export default function App() {
                 )}
               </div>
 
-              <button onClick={() => { gameStateManager.resolveEngineInterrupt({ reason: HardStopReason.LEAGUE_YEAR_RESET }); refresh(); }} style={{ width: "100%", padding: "12px", borderRadius: 8, background: COLORS.lime, color: COLORS.bg, border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+              <button onClick={() => { gameStateManager.resolveEngineInterrupt({ reason: HardStopReason.LEAGUE_YEAR_RESET, acknowledged: true }); refresh(); }} style={{ width: "100%", padding: "12px", borderRadius: 8, background: COLORS.lime, color: COLORS.bg, border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
                 {expiringPlayers.length > 0 ? `Release ${expiringPlayers.length} Players & Advance` : "Finalize Season"}
               </button>
             </div>
