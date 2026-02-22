@@ -6,6 +6,7 @@ import { Team } from './team';
 import { Player, PlayerStatus } from './player';
 import { calculatePlayerMarketValue } from './player';
 import { Position, NFLDivision, NFLConference } from './nfl-types';
+import { calculateFranchiseTagValue } from './FranchiseTagSystem';
 import { FreeAgencyTransaction, CompensatoryPickSystem, CompPick } from './CompensatoryPickSystem';
 import { UserProfile, createUserProfile } from './UserProfile';
 import { AITeamManager, GameStateForAI } from './AITeamManager';
@@ -32,8 +33,10 @@ import {
 } from './engine-types';
 import { hasMajorEventThisWeek, getScheduledEvent } from './scheduled-events';
 import { AgentPersonalitySystem } from '../systems/AgentPersonalitySystem';
+import type { PlayerNegotiationState } from '../systems/AgentPersonalitySystem';
 import { TradeSystem } from '../systems/TradeSystem';
 import { FinanceSystem } from '../systems/FinanceSystem';
+import type { RestructureResult } from '../systems/FinanceSystem';
 import { DraftEngine, generateDraftClass } from '../systems/DraftEngine';
 import type { DraftPickResult } from '../systems/DraftEngine';
 import type { TradeOfferPayloadUI, TradeEvaluation } from '../systems/TradeSystem';
@@ -129,6 +132,13 @@ export enum NotificationType {
   PERFORMANCE = 'performance'
 }
 
+export enum RFATenderType {
+  ROFR = 'Right of First Refusal',
+  ORIGINAL_ROUND = 'Original Round',
+  TRANSITION = 'Transition Tag',
+  FRANCHISE = 'Franchise Tag',
+}
+
 export enum NotificationPriority {
   LOW = 'low',
   MEDIUM = 'medium',
@@ -210,6 +220,76 @@ export const TimeSlots: Record<string, TimeSlot> = {
     rawValue: 'Trade Deadline Rush',
     baseDuration: 1.0,
     shouldProcessAIActions: true
+  }
+
+  /**
+   * Compute an offseason grade for the user across cap health, roster improvement,
+   * draft haul quality, and free agent acquisitions. Returns normalized 0-100
+   * scores for each pillar and an aggregated grade.
+   */
+  computeOffseasonGrade(): {
+    capHealth: number;
+    rosterImprovement: number;
+    draftHaul: number;
+    faAcquisitions: number;
+    overall: number;
+    summaryText: string;
+  } {
+    const result = {
+      capHealth: 0,
+      rosterImprovement: 0,
+      draftHaul: 0,
+      faAcquisitions: 0,
+      overall: 0,
+      summaryText: ''
+    };
+
+    if (!this.userTeamId) return result;
+
+    const teamId = this.userTeamId;
+
+    // Cap health: proportion of cap space to salary cap, scaled to 0-100
+    const capSpace = this.getCapSpace(teamId);
+    result.capHealth = Math.round(Math.max(0, Math.min(1, capSpace / this.salaryCap)) * 100);
+
+    // Roster improvement: compare current active roster average OVR to a simple baseline (75)
+    const roster = this.allPlayers.filter(p => p.teamId === teamId && p.status === PlayerStatus.ACTIVE);
+    const avgOvr = roster.length ? Math.round(roster.reduce((s, p) => s + p.overall, 0) / roster.length) : 75;
+    // Baseline of 75 -> map difference of -10..+10 to 0..100
+    const delta = Math.max(-10, Math.min(10, avgOvr - 75));
+    result.rosterImprovement = Math.round(((delta + 10) / 20) * 100);
+
+    // Draft haul: inspect draft picks assigned to user this season and weight earlier rounds higher
+    const draftedThisSeason = this.allPlayers.filter(p => p.draftYear === this.currentSeason && p.teamId === teamId);
+    if (draftedThisSeason.length === 0) {
+      result.draftHaul = 40; // conservative baseline
+    } else {
+      // Score by average potential (higher is better) and give weight to round (if available)
+      const avgPotential = draftedThisSeason.reduce((s, p) => s + (p.potential || p.overall), 0) / draftedThisSeason.length;
+      const normalized = Math.max(40, Math.min(99, avgPotential));
+      result.draftHaul = Math.round(((normalized - 40) / (99 - 40)) * 100);
+    }
+
+    // Free agent acquisitions: count meaningful acquisitions for user team last offseason
+    const faForUser = this.offseasonTransactions.filter(t => t.newTeamId === teamId);
+    if (faForUser.length === 0) {
+      result.faAcquisitions = 35;
+    } else {
+      // Score by average APY (clamp and map to 0-100)
+      const avgApy = faForUser.reduce((s, t) => s + (t.averageYearlyValue || 0), 0) / faForUser.length;
+      // Map avgApy (0..30M) to 30..90
+      const apyScore = Math.max(30, Math.min(90, Math.round((avgApy / 30_000_000) * 60 + 30)));
+      result.faAcquisitions = Math.round(((apyScore - 30) / 60) * 100);
+    }
+
+    // Overall: simple average
+    result.overall = Math.round((result.capHealth + result.rosterImprovement + result.draftHaul + result.faAcquisitions) / 4);
+
+    // Summary text for sharing
+    result.summaryText = `${this.userProfile?.firstName ?? 'GM'}'s Offseason Grade — ${result.overall}/100\n` +
+      `Cap Health: ${result.capHealth}/100, Roster: ${result.rosterImprovement}/100, Draft: ${result.draftHaul}/100, FA: ${result.faAcquisitions}/100`;
+
+    return result;
   }
 };
 
@@ -516,6 +596,8 @@ export class GameStateManager {
   completedTrades: CompletedTrade[] = [];
   leagueTradeBlock: Set<string> = new Set();
 
+  debugMode: boolean = false;
+
   // Draft Properties
   draftOrder: string[] = [];
   isDraftOrderLocked: boolean = false;
@@ -577,6 +659,17 @@ export class GameStateManager {
       dayOfWeek: 1,
       timeSlot: TimeSlots.earlyMorning
     };
+  }
+
+  // MARK: - Debugging
+
+  setDebugMode(enabled: boolean): void {
+    this.debugMode = enabled;
+    console.log(`🛠️ Debug Mode ${enabled ? 'ENABLED' : 'DISABLED'}`);
+  }
+
+  logDebug(message: string): void {
+    if (this.debugMode) console.log(`🛠️ ${message}`);
   }
 
   // ── Draft Pick Initialization ──────────────────────────────────────────────
@@ -1226,13 +1319,11 @@ export class GameStateManager {
   ): void {
     // Only track if player left another team (was a true UFA)
     if (!oldTeamId) {
-      console.log(`ℹ️ [CompPicks] Skipping ${playerId} - not from another team`);
       return;
     }
 
     const player = this.allPlayers.find(p => p.id === playerId);
     if (!player) {
-      console.log(`❌ [CompPicks] Player not found: ${playerId}`);
       return;
     }
 
@@ -1254,7 +1345,6 @@ export class GameStateManager {
     };
 
     this.offseasonTransactions.push(transaction);
-    console.log(`✅ [CompPicks] Recorded signing: ${player.firstName} ${player.lastName} (${player.position}) ${oldTeamId} -> ${newTeamId} for $${(apy / 1_000_000).toFixed(1)}M APY`);
   }
 
   /**
@@ -1275,7 +1365,8 @@ export class GameStateManager {
     // Calculate comp picks using the system
     const newPicks = this.compensatoryPickSystem.calculateCompensatoryPicks(
       this.offseasonTransactions,
-      playerNames
+      playerNames,
+      this.debugMode
     );
 
     // Store in state
@@ -1600,6 +1691,7 @@ export class GameStateManager {
       currentWeek: this.currentWeek,
       currentPhase: this.currentPhase.toString(),
       leagueTradeBlock: this.leagueTradeBlock,
+      debugMode: this.debugMode,
       addHeadline: (h) => this.addHeadline(h.title, h.body, h.category as any, h.importance as any),
       addSocialPost: (_p) => { /* social posts handled separately */ },
     };
@@ -2179,6 +2271,84 @@ export class GameStateManager {
     // This would check for missing required positions once depth chart system is added
   }
 
+  // MARK: - Roster Management (Release, Restructure, Extend)
+
+  /**
+   * Release a player to free agency.
+   * Removes team attachment and sets status to FREE_AGENT.
+   */
+  releasePlayer(playerId: string): void {
+    const player = this.allPlayers.find(p => p.id === playerId);
+    if (!player) return;
+
+    const teamId = player.teamId;
+
+    // In a full implementation, we would calculate and accelerate dead cap here.
+    // For now, we ensure they are detached from the franchise.
+    player.teamId = undefined;
+    player.status = PlayerStatus.FREE_AGENT;
+
+    if (teamId) {
+      console.log(`✂️ [Roster] Released ${player.firstName} ${player.lastName} from ${teamId}`);
+      this.validateRosterConstraints();
+      this.onEngineStateChange?.();
+      this.onAutoSave?.();
+    }
+  }
+
+  /**
+   * Restructure a player's contract to create immediate cap space.
+   * Converts base salary to signing bonus.
+   */
+  restructureContract(playerId: string, conversionPercent: number): RestructureResult {
+    const player = this.allPlayers.find(p => p.id === playerId);
+    if (!player || !player.teamId) {
+      return { success: false, reason: 'Player not found or not on a team', capSavings: 0, newDeadCap: 0, newCurrentYearCap: 0 };
+    }
+
+    const team = this.teams.find(t => t.id === player.teamId);
+    if (!team) {
+      return { success: false, reason: 'Team not found', capSavings: 0, newDeadCap: 0, newCurrentYearCap: 0 };
+    }
+
+    const result = this.financeSystem.executeRestructure(player, team, conversionPercent);
+
+    if (result.success) {
+      this.addNotification(
+        'Contract Restructured',
+        `Restructured ${player.firstName} ${player.lastName} to save $${(result.capSavings / 1_000_000).toFixed(2)}M in cap space.`,
+        NotificationType.FINANCIAL,
+        NotificationPriority.LOW,
+        [player.id]
+      );
+      this.validateRosterConstraints();
+      this.onEngineStateChange?.();
+      this.onAutoSave?.();
+    }
+
+    return result;
+  }
+
+  /**
+   * Start extension negotiations for a player.
+   * Initializes the agent personality system and returns the negotiation state.
+   */
+  startExtensionNegotiation(playerId: string): PlayerNegotiationState | null {
+    const player = this.allPlayers.find(p => p.id === playerId);
+    if (!player || !player.teamId) return null;
+
+    const team = this.teams.find(t => t.id === player.teamId);
+    if (!team) return null;
+
+    const capSpace = this.getCapSpace(team.id);
+    const positionDepth = this.allPlayers.filter(p => p.teamId === team.id && p.position === player.position).length;
+    const isContender = this.tradeSystem.determineFranchiseTier(team, this.currentWeek) === FranchiseTier.CONTENDER;
+
+    const state = this.agentPersonalitySystem.beginPlayerNegotiation(player, capSpace, positionDepth, isContender);
+    console.log(`🤝 [Negotiation] Started extension talks with ${player.firstName} ${player.lastName}`);
+    return state;
+  }
+
   /**
    * Apply the franchise tag to a player.
    * Updates contract to 1-year fully guaranteed deal based on position/overall.
@@ -2213,6 +2383,85 @@ export class GameStateManager {
     );
 
     console.log(`✅ [Contract] Applied Franchise Tag to ${player.firstName} ${player.lastName}`);
+    this.validateRosterConstraints();
+    this.onEngineStateChange?.();
+    this.onAutoSave?.();
+  }
+
+  // MARK: - RFA Tendering
+
+  /**
+   * Get list of Restricted Free Agent candidates (3 accrued seasons, expiring contract).
+   */
+  getRFACandidates(): Player[] {
+    if (!this.userTeamId) return [];
+    return this.allPlayers.filter(p => 
+      p.teamId === this.userTeamId &&
+      p.contract &&
+      p.contract.yearsRemaining === 0 &&
+      p.accruedSeasons === 3
+    );
+  }
+
+  /**
+   * Apply a tender to a Restricted Free Agent.
+   */
+  applyRFATender(playerId: string, type: RFATenderType): void {
+    const player = this.allPlayers.find(p => p.id === playerId);
+    if (!player) return;
+
+    if (type === RFATenderType.FRANCHISE) {
+      this.applyFranchiseTag(player);
+      return;
+    }
+
+    let amount = 0;
+    let guaranteed = false;
+
+    switch (type) {
+      case RFATenderType.ROFR:
+        amount = 2_700_000;
+        break;
+      case RFATenderType.ORIGINAL_ROUND:
+        amount = 3_100_000;
+        break;
+      case RFATenderType.TRANSITION:
+        amount = Math.round(calculateFranchiseTagValue(player.position, this.allPlayers) * 0.85);
+        guaranteed = true;
+        break;
+    }
+
+    // Apply 1-year tender contract
+    player.contract = {
+      totalValue: amount,
+      yearsRemaining: 1,
+      guaranteedMoney: guaranteed ? amount : 0,
+      currentYearCap: amount,
+      signingBonus: 0,
+      incentives: 0,
+      canRestructure: false,
+      canCut: !guaranteed,
+      deadCap: guaranteed ? amount : 0,
+      hasNoTradeClause: false,
+      approvedTradeDestinations: [],
+    };
+    
+    player.status = PlayerStatus.ACTIVE;
+    
+    // Deduct tender amount from team cap space immediately
+    const team = this.teams.find(t => t.id === player.teamId);
+    if (team) {
+      team.capSpace -= amount;
+    }
+
+    this.addNotification(
+      'RFA Tender Applied',
+      `Applied ${type} to ${player.firstName} ${player.lastName} ($${(amount/1_000_000).toFixed(2)}M)`,
+      NotificationType.CONTRACT,
+      NotificationPriority.MEDIUM,
+      [player.id]
+    );
+    
     this.validateRosterConstraints();
     this.onEngineStateChange?.();
     this.onAutoSave?.();
@@ -2298,6 +2547,7 @@ export class GameStateManager {
       currentWeek: this.currentWeek,
       currentPhase: this.currentPhase.toString(),
       leagueTradeBlock: this.leagueTradeBlock,
+      debugMode: this.debugMode,
       addHeadline: h => this.addHeadline(h.title, h.body, h.category as any, h.importance as any),
       addSocialPost: _p => {},
     };
@@ -2461,7 +2711,10 @@ get enginePhaseLabel(): string {
       };
     } else if (p.scoutingPointsSpent >= 2) {
       // Fully revealed — collapse range to the true OVR
-      p.scoutingRange = { min: p.overall, max: p.overall };
+      p.scoutingRange = { min: p.trueOverall, max: p.trueOverall };
+      // Optional: Reveal true overall in UI object if you want to allow it now
+      p.overall = p.trueOverall;
+      p.potential = p.truePotential;
     }
     return true;
   }
@@ -2520,6 +2773,9 @@ get enginePhaseLabel(): string {
       return { accepted: false, reason: 'Trade partner team not found.', fairnessScore: 0, errorState: 'ASSET_INVALID' };
     }
     const offeringTeam = this.teams.find(t => t.id === payload.offeringTeamId);
+    if (!offeringTeam) {
+      return { accepted: false, reason: 'Offering team not found.', fairnessScore: 0, errorState: 'ASSET_INVALID' };
+    }
 
     // 3. Resolve IDs → live references
     const offeringPlayers  = payload.offeringPlayerIds.map(id => this.allPlayers.find(p => p.id === id)).filter(Boolean) as Player[];
@@ -2527,40 +2783,28 @@ get enginePhaseLabel(): string {
     const offeringPicks    = payload.offeringPickIds.map(id => this._findPickById(id)).filter(Boolean) as TeamDraftPick[];
     const receivingPicks   = payload.receivingPickIds.map(id => this._findPickById(id)).filter(Boolean) as TeamDraftPick[];
 
-    // 4. Cap space validation (both sides)
-    const incomingCapPartner  = offeringPlayers.reduce((s, p) => s + (p.contract?.currentYearCap ?? 0), 0);
-    const outgoingCapPartner  = receivingPlayers.reduce((s, p) => s + (p.contract?.currentYearCap ?? 0), 0);
-    if (partnerTeam.capSpace - (incomingCapPartner - outgoingCapPartner) < 0) {
-      return { accepted: false, reason: `${partnerTeam.abbreviation} does not have enough cap space for this trade.`, fairnessScore: 0, errorState: 'CAP_VIOLATION' };
-    }
-    if (offeringTeam) {
-      const incomingCapOffering = receivingPlayers.reduce((s, p) => s + (p.contract?.currentYearCap ?? 0), 0);
-      const outgoingCapOffering = offeringPlayers.reduce((s, p) => s + (p.contract?.currentYearCap ?? 0), 0);
-      if (offeringTeam.capSpace - (incomingCapOffering - outgoingCapOffering) < 0) {
-        return { accepted: false, reason: 'Your team does not have enough cap space for this trade.', fairnessScore: 0, errorState: 'CAP_VIOLATION' };
-      }
-    }
-
-    // 5. Negotiation fatigue multiplier
+    // 4. Negotiation fatigue multiplier
     const attempts   = this._negotiationAttempts.get(payload.receivingTeamId) ?? 0;
     const multiplier = this._getFibPenalty(attempts);
 
     const partnerRoster = this.allPlayers.filter(p => p.teamId === partnerTeam.id);
 
-    // 6. Evaluate
+    // 5. Get live cap space and evaluate
+    const offeringTeamCapSpace = this.getCapSpace(offeringTeam.id);
+    const receivingTeamCapSpace = this.getCapSpace(partnerTeam.id);
     const result = this.tradeSystem.evaluateTradeOffer(
       payload, offeringPlayers, receivingPlayers, offeringPicks, receivingPicks,
-      partnerTeam, partnerRoster, week, multiplier,
+      partnerTeam, partnerRoster, week, offeringTeam, offeringTeamCapSpace, receivingTeamCapSpace, multiplier
     );
 
-    // 7. Track negotiation attempts
+    // 6. Track negotiation attempts
     if (!result.accepted && !result.errorState) {
       this._negotiationAttempts.set(payload.receivingTeamId, attempts + 1);
     } else if (result.accepted) {
       this._negotiationAttempts.delete(payload.receivingTeamId);
     }
 
-    // 8. Generate counter-offer if "close" (fairness >= 0.85, not a hard error)
+    // 7. Generate counter-offer if "close" (fairness >= 0.85, not a hard error)
     if (
       !result.accepted &&
       result.fairnessScore >= 0.85 &&

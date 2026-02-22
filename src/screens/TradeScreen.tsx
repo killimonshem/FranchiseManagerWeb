@@ -137,6 +137,8 @@ export function TradeScreen({
   gsm: GameStateManager;
   refresh: () => void;
 }) {
+  const [activeTab, setActiveTab] = useState<"propose" | "history">("propose");
+
   const [partnerTeamId, setPartnerTeamId] = useState("");
   const [offeringPlayerIds, setOfferingPlayerIds] = useState<Set<string>>(new Set());
   const [receivingPlayerIds, setReceivingPlayerIds] = useState<Set<string>>(new Set());
@@ -157,6 +159,7 @@ export function TradeScreen({
     setReceivingPickIds(new Set(pending.offeringPickIds));
     setOfferingPickIds(new Set());
     setOfferingPlayerIds(new Set());
+    setActiveTab("propose");
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const userTeamId = gsm.userTeamId ?? "";

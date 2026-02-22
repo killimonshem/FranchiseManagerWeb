@@ -185,8 +185,24 @@ export class TradeSystem {
     receivingTeam: Team,
     receivingTeamRoster: Player[],
     currentWeek: number,
-    fairnessMultiplier: number = 1.0,
+    offeringTeam: Team,
+    offeringTeamCapSpace: number,
+    receivingTeamCapSpace: number,
+    fairnessMultiplier: number = 1.0
   ): TradeEvaluation {
+    // Cap space validation (both sides)
+    const incomingCapForReceiving = offeringPlayers.reduce((s, p) => s + (p.contract?.currentYearCap ?? 0), 0);
+    const outgoingCapForReceiving = receivingPlayers.reduce((s, p) => s + (p.contract?.currentYearCap ?? 0), 0);
+    if (receivingTeamCapSpace - (incomingCapForReceiving - outgoingCapForReceiving) < 0) {
+      return { accepted: false, reason: `${receivingTeam.abbreviation} does not have enough cap space for this trade.`, fairnessScore: 0, errorState: 'CAP_VIOLATION' };
+    }
+
+    const incomingCapForOffering = receivingPlayers.reduce((s, p) => s + (p.contract?.currentYearCap ?? 0), 0);
+    const outgoingCapForOffering = offeringPlayers.reduce((s, p) => s + (p.contract?.currentYearCap ?? 0), 0);
+    if (offeringTeamCapSpace - (incomingCapForOffering - outgoingCapForOffering) < 0) {
+      return { accepted: false, reason: `${offeringTeam.abbreviation} does not have enough cap space for this trade.`, fairnessScore: 0, errorState: 'CAP_VIOLATION' };
+    }
+
     // Lockout after too many rejected offers
     if (fairnessMultiplier >= 2.5) {
       return {

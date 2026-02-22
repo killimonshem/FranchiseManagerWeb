@@ -24,6 +24,8 @@ import { LoadGameScreen } from "./screens/LoadGameScreen";
 import { DraftScreen } from "./screens/DraftScreen";
 import { FinancesScreen } from "./screens/FinancesScreen";
 import { InboxScreen } from "./screens/InboxScreen";
+import { ReviewTradeOfferScreen } from "./screens/ReviewTradeOfferScreen";
+import { OffseasonGradeScreen } from "./screens/OffseasonGradeScreen";
 import { ScheduleScreen } from "./screens/ScheduleScreen";
 import { FrontOfficeScreen } from "./screens/FrontOfficeScreen";
 import { FreeAgencyScreen } from "./screens/FreeAgencyScreen";
@@ -34,6 +36,7 @@ import { TrophyScreen } from "./screens/TrophyScreen";
 import { PlayoffBracketScreen } from "./screens/PlayoffBracketScreen";
 import { PostDraftSummaryScreen } from "./screens/PostDraftSummaryScreen";
 import { DraftLeadUpScreen } from "./screens/DraftLeadUpScreen";
+import { RFATenderingScreen } from "./screens/RFATenderingScreen";
 import { gameStateManager } from "./types/GameStateManager";
 import { SimulationState } from "./types/GameStateManager";
 import { HardStopReason } from "./types/engine-types";
@@ -53,8 +56,8 @@ const ARCHITECTURE = [
     id: "office", label: "Office", icon: Briefcase, defaultScreen: "trade",
     subs: [
       { id: "trade", label: "Trade Center" },
-      { id: "tradeHistory", label: "Trade History" },
       { id: "freeAgency", label: "Free Agency" },
+      { id: "rfa", label: "RFA Tenders" },
       { id: "draft", label: "Draft Board" },
       { id: "finances", label: "Finances" },
     ]
@@ -273,10 +276,13 @@ export default function App() {
         }
         return <DraftScreen userTeamAbbr={userTeamMeta?.abbr ?? ""} gsm={gameStateManager} refresh={refresh} />;
       case "finances":   return <FinancesScreen />;
-      case "inbox":      return <InboxScreen />;
+      case "inbox":      return <InboxScreen gsm={gameStateManager} onNavigate={(s,d) => { setScreen(s); setDetail(d); }} refresh={refresh} />;
+      case "tradeReview": return <ReviewTradeOfferScreen gsm={gameStateManager} onNavigate={(s,d) => { setScreen(s); setDetail(d); }} refresh={refresh} />;
+      case "offseasonGrade": return <OffseasonGradeScreen gsm={gameStateManager} refresh={refresh} />;
       case "schedule":   return <ScheduleScreen />;
       case "staff":      return <FrontOfficeScreen />;
       case "freeAgency": return <FreeAgencyScreen onRosterChange={refresh} onNavigate={(s, d) => { setScreen(s); setDetail(d); }} />;
+      case "rfa":        return <RFATenderingScreen gsm={gameStateManager} />;
       case "contractNegotiation": 
         return (
           <ContractNegotiationScreen 
@@ -546,6 +552,47 @@ export default function App() {
         {/* Transaction Ticker — Fixed at bottom (above mobile nav) */}
         <TransactionTicker gsm={gameStateManager} />
       </main>
+
+      {/* ── GENERIC EVENT OVERLAY (Catches unhandled interrupts like Free Agency Open so game doesn't freeze) ── */}
+      {activeInterrupt && 
+       activeInterrupt.reason !== HardStopReason.TRADE_OFFER_RECEIVED && 
+       activeInterrupt.reason !== HardStopReason.LEAGUE_YEAR_RESET && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 500,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 20
+        }}>
+          <div style={{
+            background: COLORS.bg, border: `1px solid ${COLORS.darkMagenta}`, borderRadius: 12, padding: 28,
+            maxWidth: 400, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.6)", textAlign: "center"
+          }}>
+            <h3 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 800, color: COLORS.light }}>
+              {activeInterrupt.title}
+            </h3>
+            <p style={{ fontSize: 13, color: COLORS.muted, marginBottom: 24, lineHeight: 1.5 }}>
+              {activeInterrupt.description}
+            </p>
+            <button
+              onClick={() => {
+                const isRosterCut = activeInterrupt.reason === HardStopReason.ROSTER_CUTS_REQUIRED;
+                if (isRosterCut) {
+                  gameStateManager.resolveEngineInterrupt({ reason: activeInterrupt.reason, releasedPlayerIds: [] } as any);
+                  setPrimaryTab("team");
+                  setScreen("roster");
+                } else {
+                  gameStateManager.resolveEngineInterrupt({ reason: activeInterrupt.reason } as any);
+                }
+                refresh();
+              }}
+              style={{
+                width: "100%", padding: "12px", borderRadius: 8, background: COLORS.lime, color: COLORS.bg,
+                border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer"
+              }}
+            >
+              {activeInterrupt.reason === HardStopReason.ROSTER_CUTS_REQUIRED ? "Manage Roster" : "Acknowledge & Continue"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── TRADE_OFFER_RECEIVED modal overlay ───────────────────────────── */}
       {activeInterrupt?.reason === HardStopReason.TRADE_OFFER_RECEIVED && (() => {

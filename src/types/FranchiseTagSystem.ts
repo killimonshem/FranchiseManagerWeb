@@ -170,9 +170,6 @@ export function applyFranchiseTag(
 
   // Calculate tag value
   const tagValue = calculateFranchiseTagValue(player.position, allPlayers);
-  console.log(
-    `💰 Franchise tag value for ${player.position}: ${formatMoney(tagValue)}`
-  );
 
   // Create franchise tag contract (1 year, fully guaranteed)
   const tagContract: PlayerContract = {
@@ -200,12 +197,6 @@ export function applyFranchiseTag(
     tagValue,
     timestamp: new Date(),
   };
-
-  console.log("🏷️ ✅ Franchise tag successfully applied!");
-  console.log(`   Player: ${player.firstName} ${player.lastName}`);
-  console.log(`   Position: ${player.position}`);
-  console.log(`   Value: ${formatMoney(tagValue)}`);
-  console.log(`   Contract: 1 year, fully guaranteed`);
 
   return {
     success: true,
@@ -413,7 +404,6 @@ export function processAITeamFranchiseTag(
   );
 
   if (result.success && result.tag) {
-    console.log(`🤖 AI ${team.abbreviation} tagged ${result.tag.playerName}`);
     return {
       tagged: result.tag,
     };
@@ -447,18 +437,12 @@ export function processAITeamContractDecision(
 
   // AI logic: Extend if overall >= 80, release otherwise
   if (player.overall >= 80) {
-    console.log(
-      `🤖 AI ${team.abbreviation} extended ${player.firstName} ${player.lastName}`
-    );
     return {
       decision: DecisionType.EXTEND,
       reason: "High overall rating warrants extension",
     };
   }
 
-  console.log(
-    `🤖 AI ${team.abbreviation} released ${player.firstName} ${player.lastName}`
-  );
   return {
     decision: DecisionType.RELEASE,
     reason: "Low overall rating - not worth extending",

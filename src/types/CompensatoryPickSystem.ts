@@ -82,9 +82,10 @@ export class CompensatoryPickSystem {
    */
   calculateCompensatoryPicks(
     transactions: FreeAgencyTransaction[],
-    playerNames: Map<string, string> = new Map()
+    playerNames: Map<string, string> = new Map(),
+    debug: boolean = false
   ): CompPick[] {
-    console.log(`📊 [CompPicks] Processing ${transactions.length} free agency transactions...`);
+    if (debug) console.log(`📊 [CompPicks] Processing ${transactions.length} free agency transactions...`);
 
     // ----------------------------
     // 1. Identify Qualifying CFAs
@@ -104,10 +105,10 @@ export class CompensatoryPickSystem {
         projectedRound: null
       }));
 
-    console.log(`✅ [CompPicks] Identified ${cfas.length} qualifying CFAs (UFA, expired, >= $1.5M APY)`);
+    if (debug) console.log(`✅ [CompPicks] Identified ${cfas.length} qualifying CFAs (UFA, expired, >= $1.5M APY)`);
 
     if (cfas.length === 0) {
-      console.log('ℹ️ [CompPicks] No qualifying CFAs - no comp picks generated');
+      if (debug) console.log('ℹ️ [CompPicks] No qualifying CFAs - no comp picks generated');
       return [];
     }
 
@@ -144,7 +145,7 @@ export class CompensatoryPickSystem {
 
     // Filter out those that didn't make the cut
     const qualifiedCFAs = cfas.filter((cfa) => cfa.projectedRound !== null);
-    console.log(`✅ [CompPicks] ${qualifiedCFAs.length} CFAs assigned to rounds 3-7`);
+    if (debug) console.log(`✅ [CompPicks] ${qualifiedCFAs.length} CFAs assigned to rounds 3-7`);
 
     // ------------------------------------------
     // 3. Group by Team (Lost vs Gained)
@@ -172,7 +173,7 @@ export class CompensatoryPickSystem {
       teamLedgers.get(newTeamId)!.gained.push(cfa);
     }
 
-    console.log(`✅ [CompPicks] Grouped into ${teamLedgers.size} teams with gains/losses`);
+    if (debug) console.log(`✅ [CompPicks] Grouped into ${teamLedgers.size} teams with gains/losses`);
 
     // ---------------------------------------------
     // 4. Cancellation Formula
@@ -197,7 +198,7 @@ export class CompensatoryPickSystem {
         );
         if (sameRoundIndex !== -1) {
           uncancelledLost.splice(sameRoundIndex, 1);
-          console.log(
+          if (debug) console.log(
             `  📋 [Cancel] Team ${teamId}: Gained round ${gainedRound} player cancels lost round ${gainedRound} pick`
           );
           continue;
@@ -211,7 +212,7 @@ export class CompensatoryPickSystem {
         if (lowerRoundIndex !== -1) {
           const cancelledRound = uncancelledLost[lowerRoundIndex].projectedRound;
           uncancelledLost.splice(lowerRoundIndex, 1);
-          console.log(
+          if (debug) console.log(
             `  📋 [Cancel] Team ${teamId}: Gained round ${gainedRound} player cancels lost round ${cancelledRound} pick`
           );
           continue;
@@ -222,7 +223,7 @@ export class CompensatoryPickSystem {
         if (uncancelledLost.length > 0) {
           const cancelledRound = uncancelledLost[0].projectedRound;
           uncancelledLost.splice(0, 1);
-          console.log(
+          if (debug) console.log(
             `  📋 [Cancel] Team ${teamId}: Gained player cancels highest remaining lost round ${cancelledRound} pick`
           );
         }
@@ -245,8 +246,7 @@ export class CompensatoryPickSystem {
           });
         }
       }
-
-      if (eligiblePicks.length > 0) {
+      if (debug && eligiblePicks.length > 0) {
         console.log(`  ✅ Team ${teamId} awarded ${eligiblePicks.length} comp picks`);
       }
     }
@@ -261,15 +261,15 @@ export class CompensatoryPickSystem {
     // Hard cap of 32 picks
     const finalPicks = preliminaryPicks.slice(0, 32);
 
-    console.log(`✅ [CompPicks] Generated ${finalPicks.length} total compensatory picks (max 32)`);
-
-    // Log breakdown by round
-    const byRound = new Map<number, number>();
-    for (const pick of finalPicks) {
-      byRound.set(pick.round, (byRound.get(pick.round) || 0) + 1);
-    }
-    for (const [round, count] of byRound.entries()) {
-      console.log(`  Round ${round}: ${count} picks`);
+    if (debug) {
+      console.log(`✅ [CompPicks] Generated ${finalPicks.length} total compensatory picks (max 32)`);
+      const byRound = new Map<number, number>();
+      for (const pick of finalPicks) {
+        byRound.set(pick.round, (byRound.get(pick.round) || 0) + 1);
+      }
+      for (const [round, count] of byRound.entries()) {
+        console.log(`  Round ${round}: ${count} picks`);
+      }
     }
 
     return finalPicks;

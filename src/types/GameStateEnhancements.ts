@@ -485,6 +485,10 @@ function generateDraftProspectsForSeason(gameState: EnhancedGameState): void {
       characterGrade: generateCharacterGrade(),
       workEthic: Math.floor(Math.random() * 100),
       coachability: Math.floor(Math.random() * 100),
+      overall: 0,
+      potential: 0,
+      trueOverall: Math.floor(Math.random() * 40) + 50, // Placeholder for generation logic
+      truePotential: Math.floor(Math.random() * 40) + 60,
     };
 
     gameState.draftProspects.push(prospect);

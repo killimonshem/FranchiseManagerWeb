@@ -87,6 +87,7 @@ export interface GameStateForAI {
   currentWeek: number;
   currentPhase: string; // "preseason", "regularSeason", "freeAgency", etc.
   leagueTradeBlock: Set<string>; // Player IDs on trade block
+  debugMode?: boolean;
 
   // Methods
   addHeadline: (headline: Headline) => void;
@@ -370,9 +371,9 @@ export class AITeamManager {
 
     this.gameState.addSocialPost(socialPost);
 
-    console.log(
-      `✅ Trade: ${player.lastName} from ${seller.abbreviation} to ${buyer.abbreviation}`
-    );
+    if (this.gameState.debugMode) {
+      console.log(`✅ Trade: ${player.lastName} from ${seller.abbreviation} to ${buyer.abbreviation}`);
+    }
   }
 
   // ============================================================================
@@ -535,9 +536,9 @@ export class AITeamManager {
         });
       }
 
-      console.log(
-        `✂️ Cut: ${player.firstName} ${player.lastName} from ${team.abbreviation} (${reason})`
-      );
+      if (this.gameState.debugMode) {
+        console.log(`✂️ Cut: ${player.firstName} ${player.lastName} from ${team.abbreviation} (${reason})`);
+      }
     }
   }
 
@@ -571,9 +572,9 @@ export class AITeamManager {
 
       this.gameState.allPlayers.push(signed);
 
-      console.log(
-        `✍️ Signed: ${player.firstName} ${player.lastName} to ${team.abbreviation}`
-      );
+      if (this.gameState.debugMode) {
+        console.log(`✍️ Signed: ${player.firstName} ${player.lastName} to ${team.abbreviation}`);
+      }
     }
   }
 

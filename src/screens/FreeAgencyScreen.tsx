@@ -80,11 +80,23 @@ export function FreeAgencyScreen({ onRosterChange, onNavigate }: Props) {
 
   return (
     <div style={{ animation: "fadeIn .4s" }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 12 }}>
-        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: COLORS.light }}>Free Agency</h2>
-        <span style={{ fontSize: 11, color: COLORS.muted }}>
-          Cap Space: <span style={{ color: COLORS.lime, fontFamily: "monospace" }}>{fmtCurrency(capSpace)}</span>
-        </span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: COLORS.light }}>Free Agency</h2>
+          <span style={{ fontSize: 11, color: COLORS.muted }}>
+            Cap Space: <span style={{ color: COLORS.lime, fontFamily: "monospace" }}>{fmtCurrency(capSpace)}</span>
+          </span>
+        </div>
+        <button
+          onClick={() => onNavigate?.("rfa")}
+          style={{
+            background: "rgba(116,0,86,0.3)", border: `1px solid ${COLORS.darkMagenta}`,
+            color: COLORS.light, borderRadius: 6, padding: "6px 12px",
+            fontSize: 11, fontWeight: 600, cursor: "pointer"
+          }}
+        >
+          Manage RFA Tenders
+        </button>
       </div>
 
       <Section pad={false}>

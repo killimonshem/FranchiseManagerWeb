@@ -192,6 +192,28 @@ export class DraftEngine {
     if (Math.random() < 0.05) {
       const tradingTeam = this._findTradeUpCandidate(pickNumber);
       if (tradingTeam) {
+        // Build a minimal UI payload representing the trade-up offer so the
+        // GameStateManager can execute it automatically if the user accepts.
+        const year = new Date().getFullYear();
+        const uiPayload = {
+          offeringTeamId: tradingTeam.id,
+          receivingTeamId: this._host.userTeamId ?? '',
+          offeringPlayerIds: [] as string[],
+          receivingPlayerIds: [] as string[],
+          offeringPickIds: [`${year}-2-${tradingTeam.id}`, `${year}-4-${tradingTeam.id}`],
+          receivingPickIds: [] as string[],
+        };
+
+        // Set pendingAITradeOffer on the host so resolveEngineInterrupt can
+        // call executeTrade() when the user accepts the interrupt.
+        try {
+          (this._host as any).pendingAITradeOffer = uiPayload;
+        } catch (e) {
+          // Non-fatal — continue to push interrupt even if setting failed
+          // eslint-disable-next-line no-console
+          console.warn('Failed to set pendingAITradeOffer on host', e);
+        }
+
         this._host.pushEngineInterrupt(
           HardStopReason.TRADE_OFFER_RECEIVED,
           {
@@ -204,6 +226,7 @@ export class DraftEngine {
           `Trade-Up Offer — Pick #${pickNumber}`,
           `${tradingTeam.fullName} is offering a 2nd and 4th round pick to move up to your spot.`,
         );
+
         // Wait for the user to resolve the interrupt before continuing
         await this._waitForResume();
       }
@@ -308,7 +331,7 @@ export class DraftEngine {
 
     // AI sees true overall — fog-of-war is a UI mechanic for the human GM only.
     // Sort by true overall descending and return the best available.
-    const sorted = [...prospects].sort((a, b) => b.overall - a.overall);
+    const sorted = [...prospects].sort((a, b) => b.trueOverall - a.trueOverall);
     return sorted[0] ?? null;
   }
 
@@ -465,8 +488,10 @@ function hydrateProspect(shell: BigBoardEntry): DraftProspect {
     name: shell.player,
     position: mapBigBoardPosition(shell.position),
     college: shell.college,
-    overall,
-    potential,
+    overall: 0, // Masked for UI
+    potential: 0, // Masked for UI
+    trueOverall: overall,
+    truePotential: potential,
     projectedRound,
     scoutingRange: computeScoutingRange(overall, projectedRound),
     scoutingPointsSpent: 0,
@@ -546,8 +571,10 @@ function generateProceduralProspect(): DraftProspect {
     name: `${firstName} ${lastName}`,
     position,
     college: 'Unknown',
-    overall,
-    potential,
+    overall: 0, // Masked for UI
+    potential: 0, // Masked for UI
+    trueOverall: overall,
+    truePotential: potential,
     projectedRound,
     scoutingRange: computeScoutingRange(overall, projectedRound),
     scoutingPointsSpent: 0,
