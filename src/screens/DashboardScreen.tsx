@@ -9,8 +9,10 @@ import {
   RatingBadge, Section, CapBar, PhaseTag, PosTag, MoraleMeter,
   AlertDot,
 } from "../ui/components";
+import { AlertTriangle } from "lucide-react";
 import { Player } from "../types/player";
 import { TeamMeta, GMProfile } from "./TeamSelectScreen";
+import type { GameStateManager, ActionItem } from "../types/GameStateManager";
 
 // ─── Season phase table ───────────────────────────────────────────────────────
 
@@ -33,7 +35,7 @@ const SALARY_CAP = 255_400_000;
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function DashboardScreen({
-  week, season, setScreen, setDetail, players, userTeam, gm,
+  week, season, setScreen, setDetail, players, userTeam, gm, gsm,
 }: {
   week: number;
   season: number;
@@ -42,6 +44,7 @@ export function DashboardScreen({
   players: Player[];
   userTeam: TeamMeta;
   gm: GMProfile;
+  gsm?: GameStateManager;
 }) {
   const phase = SEASON_PHASES.find(p => week >= p.weeks[0] && week <= p.weeks[1]) ?? SEASON_PHASES[0];
 
@@ -103,6 +106,51 @@ export function DashboardScreen({
           <CapBar used={totalCap} total={SALARY_CAP} />
         </div>
       </div>
+
+      {/* Action Items Alert */}
+      {gsm && gsm.actionItemQueue.length > 0 && (
+        <div style={{
+          gridColumn: "1/-1",
+          background: "rgba(255, 100, 100, 0.1)",
+          border: "1px solid rgba(255, 100, 100, 0.3)",
+          borderRadius: 8,
+          padding: 14,
+        }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <AlertTriangle size={18} color="#ff6464" style={{ marginTop: 2, flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.light, marginBottom: 8 }}>
+                {gsm.actionItemQueue.length === 1 ? "Action Required" : "Multiple Issues"}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {gsm.actionItemQueue.map((item: ActionItem) => (
+                  <div key={item.id} style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: COLORS.light }}>{item.description}</div>
+                    </div>
+                    <button
+                      onClick={() => setScreen(item.resolution.route.replace("/", ""))}
+                      style={{
+                        fontSize: 11,
+                        padding: "6px 12px",
+                        borderRadius: 4,
+                        border: `1px solid ${COLORS.magenta}`,
+                        background: "transparent",
+                        color: COLORS.magenta,
+                        cursor: "pointer",
+                        fontWeight: 600,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {item.resolution.actionLabel}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Key Players */}
       <Section title="Key Players">

@@ -161,6 +161,7 @@ export default function App() {
             players={teamPlayers}
             userTeam={userTeamMeta!}
             gm={gm!}
+            gsm={gameStateManager}
           />
         );
       case "roster":
@@ -183,6 +184,7 @@ export default function App() {
             players={teamPlayers}
             userTeam={userTeamMeta!}
             gm={gm!}
+            gsm={gameStateManager}
           />
         );
     }
