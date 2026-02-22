@@ -277,7 +277,18 @@ export default function App() {
       case "schedule":   return <ScheduleScreen />;
       case "staff":      return <FrontOfficeScreen />;
       case "freeAgency": return <FreeAgencyScreen onRosterChange={refresh} onNavigate={(s, d) => { setScreen(s); setDetail(d); }} />;
-      case "contractNegotiation": return <ContractNegotiationScreen playerId={detail?.playerId} onDone={() => { setScreen("freeAgency"); setDetail(null); }} onRosterChange={refresh} />;
+      case "contractNegotiation": 
+        return (
+          <ContractNegotiationScreen 
+            playerId={detail?.playerId} 
+            negotiationContext={detail?.context || 'freeAgency'}
+            onDone={() => { 
+              setScreen(detail?.context === 'extension' ? 'roster' : 'freeAgency'); 
+              setDetail(null); 
+            }} 
+            onRosterChange={refresh} 
+          />
+        );
       case "trade":      return <TradeScreen gsm={gameStateManager} refresh={refresh} />;
       case "tradeHistory": return <TradeHistoryScreen gsm={gameStateManager} />;
       case "bracket":    return <PlayoffBracketScreen gsm={gameStateManager} refresh={refresh} />;

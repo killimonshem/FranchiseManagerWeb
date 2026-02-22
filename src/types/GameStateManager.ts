@@ -2180,6 +2180,45 @@ export class GameStateManager {
   }
 
   /**
+   * Apply the franchise tag to a player.
+   * Updates contract to 1-year fully guaranteed deal based on position/overall.
+   */
+  applyFranchiseTag(player: Player): void {
+    // Calculation matching UI modal in Overlays.tsx
+    const tagValue = Math.round(player.overall * 300_000 * (player.position === Position.QB ? 1.5 : 1));
+
+    player.contract = {
+      totalValue: tagValue,
+      yearsRemaining: 1,
+      guaranteedMoney: tagValue,
+      currentYearCap: tagValue,
+      signingBonus: 0,
+      incentives: 0,
+      canRestructure: false,
+      canCut: false, // Franchise tags are fully guaranteed
+      deadCap: tagValue,
+      hasNoTradeClause: false,
+      approvedTradeDestinations: [],
+    };
+
+    // Ensure player stays on team and is active
+    player.status = PlayerStatus.ACTIVE;
+
+    this.addNotification(
+      'Franchise Tag Applied',
+      `${player.firstName} ${player.lastName} has been designated with the Franchise Tag ($${(tagValue / 1_000_000).toFixed(1)}M).`,
+      NotificationType.CONTRACT,
+      NotificationPriority.HIGH,
+      [player.id]
+    );
+
+    console.log(`✅ [Contract] Applied Franchise Tag to ${player.firstName} ${player.lastName}`);
+    this.validateRosterConstraints();
+    this.onEngineStateChange?.();
+    this.onAutoSave?.();
+  }
+
+  /**
    * Commit a free agent signing from contract negotiation.
    * Finalizes player contract, updates rosters, records transaction, and triggers constraint validation.
    */

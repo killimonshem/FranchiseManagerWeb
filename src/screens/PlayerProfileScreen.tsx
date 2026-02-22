@@ -446,7 +446,7 @@ function ContractTab({
         <FranchiseTagModal
           player={player}
           onConfirm={() => {
-            // Logic to apply tag would go here (e.g., update contract to 1yr guaranteed)
+            gameStateManager.applyFranchiseTag(player);
             setShowTag(false);
           }}
           onCancel={() => setShowTag(false)}

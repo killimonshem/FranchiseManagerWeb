@@ -19,6 +19,7 @@ import {
   IconBtn,
   CapBar,
   StatBar,
+  FinancialHealthBadge,
 } from '../ui/components';
 import { gameStateManager } from '../types/GameStateManager';
 import { Player, PlayerStatus } from '../types/player';
@@ -34,6 +35,7 @@ import {
   AGENT_ICONS,
 } from '../types/ContractSystem';
 import { PlayerNegotiationState } from '../systems/AgentPersonalitySystem';
+import { CashReserveTier } from '../systems/FinanceSystem';
 
 const AGENT_ICON_MAP: Record<string, string> = {
   'The Shark': 'SharkIcon',
@@ -45,6 +47,7 @@ const AGENT_ICON_MAP: Record<string, string> = {
 interface Props {
   playerId: string;
   onDone: () => void;
+  negotiationContext?: 'freeAgency' | 'extension' | 'franchiseTag';
   onRosterChange?: () => void;
 }
 
@@ -53,19 +56,24 @@ interface OfferDraft {
   apyMillions: number;
   guaranteedPct: number;
   signingBonusMillions: number;
+  voidYears: number;
+  offsetLanguage: boolean;
 }
 
-export function ContractNegotiationScreen({ playerId, onDone, onRosterChange }: Props) {
+export function ContractNegotiationScreen({ playerId, onDone, negotiationContext = 'freeAgency', onRosterChange }: Props) {
   const [offerDraft, setOfferDraft] = useState<OfferDraft>({
     years: 2,
     apyMillions: 5,
     guaranteedPct: 60,
     signingBonusMillions: 0.5,
+    voidYears: 0,
+    offsetLanguage: false,
   });
 
   const [lastResponse, setLastResponse] = useState<NegotiationResponse | null>(null);
   const [responseHistory, setResponseHistory] = useState<NegotiationResponse[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Get fresh negotiation state
   const negotiationState = gameStateManager.agentPersonalitySystem.getPlayerNegotiationState(
@@ -112,6 +120,9 @@ export function ContractNegotiationScreen({ playerId, onDone, onRosterChange }: 
   const signingBonus = offerDraft.signingBonusMillions * 1_000_000;
   const totalValue = apy * offerDraft.years + signingBonus;
   const guaranteedMoney = totalValue * (offerDraft.guaranteedPct / 100);
+  const userTeam = gameStateManager.userTeam;
+  const cashReserves = userTeam?.cashReserves ?? 0;
+  const cashTier = userTeam ? gameStateManager.financeSystem.getCashReserveTier(userTeam) : CashReserveTier.COMFORTABLE;
 
   // Build contract offer from draft
   const buildOffer = (): ContractOffer => ({
@@ -122,14 +133,15 @@ export function ContractNegotiationScreen({ playerId, onDone, onRosterChange }: 
     guaranteedMoney,
     ltbeIncentives: [],
     nltbeIncentives: [],
-    voidYears: 0,
-    offsetLanguage: false,
+    voidYears: offerDraft.voidYears,
+    offsetLanguage: offerDraft.offsetLanguage,
   });
 
   // Calculate projected Year 1 cap hit
   const offer = buildOffer();
   const projectedCapHit = getContractOfferCapHitYear1(offer);
   const canAfford = capSpace >= projectedCapHit;
+  const canAffordCash = userTeam ? gameStateManager.financeSystem.canAffordSigningBonus(userTeam, signingBonus) : true;
 
   // Handle offer submission
   const handleMakeOffer = async () => {
@@ -155,6 +167,22 @@ export function ContractNegotiationScreen({ playerId, onDone, onRosterChange }: 
   // Clamp years to agent max length
   const maxYears = negotiationState.agent.maxContractLength || 10;
 
+  // Market Context Calculation
+  const marketContext = (() => {
+    const allPlayers = gameStateManager.allPlayers;
+    const posPlayers = allPlayers.filter(p => p.position === player.position && p.contract);
+    
+    // Top 5 at position
+    const top5 = [...posPlayers].sort((a, b) => (b.contract!.currentYearCap) - (a.contract!.currentYearCap)).slice(0, 5);
+    const top5Avg = top5.length ? top5.reduce((sum, p) => sum + p.contract!.currentYearCap, 0) / top5.length : 0;
+
+    // Comparables (OVR +/- 3)
+    const comparables = posPlayers.filter(p => Math.abs(p.overall - player.overall) <= 3);
+    const compAvg = comparables.length ? comparables.reduce((sum, p) => sum + p.contract!.currentYearCap, 0) / comparables.length : 0;
+    
+    return { top5Avg, compAvg };
+  })();
+
   return (
     <div style={{ animation: 'fadeIn .4s', paddingBottom: 40 }}>
       <div
@@ -168,7 +196,7 @@ export function ContractNegotiationScreen({ playerId, onDone, onRosterChange }: 
         <div>
           <h2>{player.firstName} {player.lastName}</h2>
           <div style={{ fontSize: 12, color: COLORS.neutral }}>
-            {player.position} | Age {player.age}
+            {player.position} | Age {player.age} | {negotiationContext === 'extension' ? 'Extension' : 'Free Agent'}
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
@@ -215,7 +243,7 @@ export function ContractNegotiationScreen({ playerId, onDone, onRosterChange }: 
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
           <div>
             <div style={{ fontSize: 10, color: COLORS.neutral }}>Market Value</div>
             <div style={{ fontSize: 12, fontWeight: 600 }}>
@@ -403,6 +431,21 @@ export function ContractNegotiationScreen({ playerId, onDone, onRosterChange }: 
           {/* ── SECTION B: Offer Builder ──────────────────────────────────────── */}
 
           <Section title="Build Your Offer" pad style={{ marginBottom: 20 }}>
+            {/* Market Context Banner */}
+            <div style={{ 
+              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, 
+              marginBottom: 16, padding: 10, background: 'rgba(255,255,255,0.03)', borderRadius: 6 
+            }}>
+              <div>
+                <div style={{ fontSize: 9, color: COLORS.muted, textTransform: 'uppercase' }}>Top 5 {player.position} Avg</div>
+                <div style={{ fontSize: 11, color: COLORS.light, fontFamily: 'monospace' }}>{fmtCurrency(marketContext.top5Avg)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 9, color: COLORS.muted, textTransform: 'uppercase' }}>Comparable Avg</div>
+                <div style={{ fontSize: 11, color: COLORS.lime, fontFamily: 'monospace' }}>{fmtCurrency(marketContext.compAvg)}</div>
+              </div>
+            </div>
+
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 11, color: COLORS.neutral, marginBottom: 4 }}>
                 Years: {offerDraft.years}
@@ -469,6 +512,44 @@ export function ContractNegotiationScreen({ playerId, onDone, onRosterChange }: 
               />
             </div>
 
+            {/* Advanced Structure */}
+            <div style={{ marginBottom: 16 }}>
+              <button 
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                style={{ 
+                  background: 'transparent', border: 'none', color: COLORS.lime, 
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 
+                }}
+              >
+                {showAdvanced ? 'Hide Structure Options' : 'Show Contract Structure'}
+              </button>
+
+              {showAdvanced && (
+                <div style={{ marginTop: 12, padding: 12, background: 'rgba(0,0,0,0.2)', borderRadius: 6 }}>
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ display: 'block', fontSize: 11, color: COLORS.neutral, marginBottom: 4 }}>
+                      Void Years: {offerDraft.voidYears}
+                    </label>
+                    <input
+                      type="range" min="0" max="3" step="1"
+                      value={offerDraft.voidYears}
+                      onChange={(e) => setOfferDraft({ ...offerDraft, voidYears: parseInt(e.target.value) })}
+                      style={{ width: '100%' }}
+                    />
+                    <div style={{ fontSize: 9, color: COLORS.neutral }}>Spreads signing bonus cap hit over extra years.</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input 
+                      type="checkbox" 
+                      checked={offerDraft.offsetLanguage}
+                      onChange={(e) => setOfferDraft({ ...offerDraft, offsetLanguage: e.target.checked })}
+                    />
+                    <span style={{ fontSize: 11, color: COLORS.light }}>Offset Language (Reduces dead cap if cut & signed elsewhere)</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div
               style={{
                 backgroundColor: COLORS.neutral + '10',
@@ -506,7 +587,7 @@ export function ContractNegotiationScreen({ playerId, onDone, onRosterChange }: 
             <IconBtn
               variant={canAfford && !submitting ? 'primary' : 'ghost'}
               onClick={handleMakeOffer}
-              disabled={!canAfford || submitting}
+              disabled={!canAfford || !canAffordCash || submitting}
               style={{ width: '100%' }}
             >
               {submitting ? 'Submitting...' : 'Make Offer'}
@@ -514,6 +595,11 @@ export function ContractNegotiationScreen({ playerId, onDone, onRosterChange }: 
             {!canAfford && (
               <div style={{ fontSize: 10, color: COLORS.negative, marginTop: 8, textAlign: 'center' }}>
                 Insufficient cap space (need {fmtCurrency(projectedCapHit - capSpace)} more)
+              </div>
+            )}
+            {!canAffordCash && (
+              <div style={{ fontSize: 10, color: COLORS.negative, marginTop: 8, textAlign: 'center' }}>
+                Owner blocked: Insufficient cash reserves for this signing bonus.
               </div>
             )}
           </Section>

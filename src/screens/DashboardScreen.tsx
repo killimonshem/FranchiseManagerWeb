@@ -7,7 +7,7 @@
 import { COLORS, FONT, fmtCurrency } from "../ui/theme";
 import {
   RatingBadge, Section, CapBar, PhaseTag, PosTag, MoraleMeter,
-  AlertDot,
+  AlertDot, FinancialHealthBadge,
 } from "../ui/components";
 import { AlertTriangle } from "lucide-react";
 import { Player } from "../types/player";
@@ -52,11 +52,31 @@ export function DashboardScreen({
   // Cap from real contracts
   const totalCap = players.reduce((sum, p) => sum + (p.contract?.currentYearCap ?? 0), 0);
   const capPct   = SALARY_CAP > 0 ? (totalCap / SALARY_CAP) * 100 : 0;
+  
+  // Owner & Fanbase (from backend)
+  const fullUserTeam = gsm?.userTeam;
+  const cashReserves = fullUserTeam?.cashReserves ?? 0;
 
-  // Top 3 players by overall for the "key players" widget
-  const keyPlayers = [...players]
-    .sort((a, b) => b.overall - a.overall)
-    .slice(0, 3);
+  // Smart "Key Players" logic: Attention needed > Stars
+  // Priority: Injured > Expiring (High OVR) > Low Morale > Top OVR
+  const attentionPlayers = players.filter(p =>
+    p.injuryStatus !== 'Healthy' ||
+    (p.contract && p.contract.yearsRemaining <= 1 && p.overall > 75) ||
+    p.morale < 45
+  ).sort((a, b) => {
+    const getScore = (p: Player) => {
+      let score = 0;
+      if (p.injuryStatus !== 'Healthy') score += 100;
+      if (p.contract?.yearsRemaining === 1) score += 50 + (p.overall / 2);
+      if (p.morale < 45) score += 20 + (100 - p.morale);
+      return score;
+    };
+    return getScore(b) - getScore(a);
+  });
+
+  const topStars = [...players].sort((a, b) => b.overall - a.overall);
+  // Merge: Take up to 3 attention players, fill rest with stars (deduplicated)
+  const keyPlayers = Array.from(new Set([...attentionPlayers, ...topStars])).slice(0, 3);
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, animation: "fadeIn .4s" }}>
@@ -95,6 +115,10 @@ export function DashboardScreen({
                 <span style={{ color: COLORS.lime, fontWeight: 700 }}>{fmtCurrency(SALARY_CAP - totalCap)}</span>
               </div>
               <div style={{ fontSize: 10, color: COLORS.muted }}>
+                Cash:{" "}
+                <span style={{ color: COLORS.light, fontWeight: 700 }}>{fmtCurrency(cashReserves)}</span>
+              </div>
+              <div style={{ fontSize: 10, color: COLORS.muted }}>
                 Roster:{" "}
                 <span style={{ color: COLORS.lime, fontWeight: 700 }}>{players.length}</span> players
               </div>
@@ -110,6 +134,28 @@ export function DashboardScreen({
           <CapBar used={totalCap} total={SALARY_CAP} />
         </div>
       </div>
+
+      {/* Owner & Fanbase Pulse */}
+      {fullUserTeam && (
+        <div style={{ gridColumn: "1/-1", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <Section title="Owner Sentiment">
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+                <span style={{ color: COLORS.muted }}>Patience</span>
+                <span style={{ color: fullUserTeam.ownerPatience < 30 ? COLORS.coral : COLORS.lime, fontWeight: 700 }}>{fullUserTeam.ownerPatience}/100</span>
+              </div>
+              <CapBar used={fullUserTeam.ownerPatience} total={100} />
+            </div>
+          </Section>
+          <Section title="Fanbase Pulse">
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 6 }}>
+              <span style={{ color: COLORS.muted }}>Loyalty</span>
+              <span style={{ color: COLORS.light, fontWeight: 700 }}>{fullUserTeam.fanLoyalty}/100</span>
+            </div>
+            <div style={{ fontSize: 10, color: COLORS.muted }}>Mood: {fullUserTeam.fanMorale > 60 ? "Optimistic" : "Restless"}</div>
+          </Section>
+        </div>
+      )}
 
       {/* Action Items Alert */}
       {gsm && gsm.actionItemQueue.length > 0 && (
@@ -132,22 +178,28 @@ export function DashboardScreen({
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 11, color: COLORS.light }}>{item.description}</div>
                     </div>
-                    <button
-                      onClick={() => setScreen(item.resolution.route.replace("/", ""))}
-                      style={{
-                        fontSize: 11,
-                        padding: "6px 12px",
-                        borderRadius: 4,
-                        border: `1px solid ${COLORS.magenta}`,
-                        background: "transparent",
-                        color: COLORS.magenta,
-                        cursor: "pointer",
-                        fontWeight: 600,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {item.resolution.actionLabel}
-                    </button>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button
+                        onClick={() => setScreen(item.resolution.route.replace("/", ""))}
+                        style={{
+                          fontSize: 10, padding: "4px 8px", borderRadius: 4,
+                          border: `1px solid ${COLORS.magenta}`, background: "transparent",
+                          color: COLORS.magenta, cursor: "pointer", fontWeight: 600,
+                        }}
+                      >
+                        Resolve
+                      </button>
+                      <button
+                        onClick={() => { /* Defer logic would go here */ }}
+                        style={{
+                          fontSize: 10, padding: "4px 8px", borderRadius: 4,
+                          border: `1px solid ${COLORS.muted}`, background: "transparent",
+                          color: COLORS.muted, cursor: "pointer",
+                        }}
+                      >
+                        Defer
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -160,29 +212,45 @@ export function DashboardScreen({
       <Section title="Key Players">
         {keyPlayers.length === 0 ? (
           <div style={{ fontSize: 12, color: COLORS.muted, padding: "12px 0" }}>No players on roster</div>
-        ) : keyPlayers.map(p => (
-          <div
-            key={p.id}
-            style={{
-              display: "flex", alignItems: "center", gap: 8,
-              padding: "6px 0", borderBottom: `1px solid rgba(116,0,86,0.4)`, cursor: "pointer",
-            }}
-            onClick={() => { setDetail(p); setScreen("playerProfile"); }}
-          >
-            <RatingBadge value={p.overall} size="sm" />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.light }}>
-                {p.firstName} {p.lastName}{" "}
-                <span style={{ fontSize: 9, color: COLORS.muted }}>#{p.jerseyNumber}</span>
+        ) : keyPlayers.map(p => {
+          let statusText = `Age ${p.age} · ${fmtCurrency(p.contract?.currentYearCap ?? 0)}/yr`;
+          let statusColor = COLORS.muted;
+
+          if (p.injuryStatus !== 'Healthy') {
+            statusText = `${p.injuryStatus} Injury`;
+            statusColor = COLORS.coral;
+          } else if (p.contract?.yearsRemaining === 1) {
+            statusText = "Contract Expiring";
+            statusColor = COLORS.gold;
+          } else if (p.morale < 45) {
+            statusText = "Low Morale";
+            statusColor = COLORS.coral;
+          }
+
+          return (
+            <div
+              key={p.id}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "6px 0", borderBottom: `1px solid rgba(116,0,86,0.4)`, cursor: "pointer",
+              }}
+              onClick={() => { setDetail(p); setScreen("playerProfile"); }}
+            >
+              <RatingBadge value={p.overall} size="sm" />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.light }}>
+                  {p.firstName} {p.lastName}{" "}
+                  <span style={{ fontSize: 9, color: COLORS.muted }}>#{p.jerseyNumber}</span>
+                </div>
+                <div style={{ fontSize: 9, color: statusColor, fontWeight: statusColor !== COLORS.muted ? 600 : 400 }}>
+                  {statusText}
+                </div>
               </div>
-              <div style={{ fontSize: 9, color: COLORS.muted }}>
-                Age {p.age} · {fmtCurrency(p.contract?.currentYearCap ?? 0)}/yr
-              </div>
+              <PosTag pos={p.position} />
+              <span className="dash-morale"><MoraleMeter value={p.morale} /></span>
             </div>
-            <PosTag pos={p.position} />
-            <span className="dash-morale"><MoraleMeter value={p.morale} /></span>
-          </div>
-        ))}
+          );
+        })}
       </Section>
 
       {/* Financial Snapshot */}
@@ -191,6 +259,7 @@ export function DashboardScreen({
           {[
             { l: "Cap Used",  v: fmtCurrency(totalCap),             c: COLORS.light },
             { l: "Cap Space", v: fmtCurrency(SALARY_CAP - totalCap), c: COLORS.lime  },
+            { l: "Cash Reserves", v: fmtCurrency(cashReserves), c: cashReserves < 10000000 ? COLORS.coral : COLORS.lime },
           ].map((s, i) => (
             <div key={i} style={{
               background: "rgba(116,0,86,0.2)", borderRadius: 6, padding: 10, textAlign: "center",

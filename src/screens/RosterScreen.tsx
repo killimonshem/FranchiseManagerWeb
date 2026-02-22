@@ -221,6 +221,21 @@ export function RosterScreen({
                       <span style={{ flex: 2, fontSize: 9, color: COLORS.muted, fontStyle: "italic" }}>
                         {tradeReq ? "Requested Trade" : hasNTC ? "No Trade Clause" : ""}
                       </span>
+                      {expiring && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDetail({ playerId: p.id, context: 'extension' });
+                            setScreen("contractNegotiation");
+                          }}
+                          style={{
+                            marginLeft: 8, padding: "4px 8px", borderRadius: 4, border: "none",
+                            background: COLORS.lime, color: COLORS.bg, fontSize: 9, fontWeight: 700, cursor: "pointer"
+                          }}
+                        >
+                          Extend
+                        </button>
+                      )}
                     </>
                   )}
                 </DataRow>
