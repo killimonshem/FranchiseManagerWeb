@@ -1587,6 +1587,13 @@ export class GameStateManager {
   async advance(targetPhase?: EnginePhase): Promise<void> {
     if (this.simulationState !== SimulationState.IDLE) return;
 
+    // Check for action item blockers (roster, cap, etc.)
+    if (this.actionItemQueue.length > 0) {
+      console.warn('[Engine] Progression blocked by action items:', this.actionItemQueue);
+      this.onEngineStateChange?.(); // Notify UI to show blockers
+      return;
+    }
+
     const currentWeek = this.currentGameDate.week;
 
     if (targetPhase) {

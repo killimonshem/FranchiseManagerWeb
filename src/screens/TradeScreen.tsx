@@ -126,6 +126,39 @@ export function TradeScreen({
   const [evaluation, setEvaluation]               = useState<TradeEvaluation | null>(null);
   const [activeTab, setActiveTab]                 = useState<"players" | "picks">("players");
 
+  // ─── Hydration Guard ─────────────────────────────────────────────────────────
+  // Ensure teams and players are loaded before rendering interactive elements
+  const isHydrated = gsm.teams.length > 0 && gsm.allPlayers.length > 0;
+
+  if (!isHydrated) {
+    return (
+      <div style={{ padding: 20, textAlign: "center" }}>
+        <h2 style={{ color: COLORS.light, marginBottom: 12 }}>Trade Center</h2>
+        <div style={{ fontSize: 12, color: COLORS.muted }}>Loading teams and players...</div>
+        <div style={{ marginTop: 16, display: "flex", gap: 4, justifyContent: "center" }}>
+          <div style={{
+            width: 8, height: 8, borderRadius: "50%", background: COLORS.lime,
+            animation: "pulse 1.5s infinite"
+          }} />
+          <div style={{
+            width: 8, height: 8, borderRadius: "50%", background: COLORS.lime,
+            animation: "pulse 1.5s infinite 0.3s",
+          }} />
+          <div style={{
+            width: 8, height: 8, borderRadius: "50%", background: COLORS.lime,
+            animation: "pulse 1.5s infinite 0.6s",
+          }} />
+        </div>
+        <style>{`
+          @keyframes pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
   // Pre-populate from AI-initiated offer (Negotiate flow)
   useEffect(() => {
     const pending = gsm.pendingAITradeOffer;
