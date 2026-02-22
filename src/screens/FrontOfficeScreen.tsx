@@ -2,13 +2,22 @@ import { useState } from "react";
 import { COLORS, fmtCurrency } from "../ui/theme";
 import { Section, DataRow, RatingBadge, Pill, IconBtn } from "../ui/components";
 import { gameStateManager } from "../types/GameStateManager";
-import { UserPlus } from "lucide-react";
+import { UserPlus, ArrowUp, ArrowDown } from "lucide-react";
 import frontOfficeData from "../../frontoffice.json";
 
 export function FrontOfficeScreen() {
   const [tab, setTab] = useState<"coaching" | "frontOffice">("coaching");
   const [showHire, setShowHire] = useState(false);
+  const [columnSort, setColumnSort] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const userTeam = gameStateManager.userTeam;
+
+  const requestColumnSort = (key: string) => {
+    if (columnSort?.key === key) {
+      setColumnSort({ key, direction: columnSort.direction === 'asc' ? 'desc' : 'asc' });
+    } else {
+      setColumnSort({ key, direction: 'desc' });
+    }
+  };
 
   // Fallback mock data if game state is empty
   const MOCK_COACHING = [
@@ -33,7 +42,34 @@ export function FrontOfficeScreen() {
     ? userTeam.coachingStaff 
     : (teamData?.coaching_staff?.length ? teamData.coaching_staff : MOCK_COACHING);
 
-  const list = tab === "coaching" ? coaching : frontOffice;
+  let listToDisplay = tab === "coaching" ? coaching : frontOffice;
+  
+  // Apply sorting
+  listToDisplay = [...listToDisplay].sort((a: any, b: any) => {
+    if (!columnSort) return 0;
+    const { key, direction } = columnSort;
+    let aVal: any, bVal: any;
+    
+    switch (key) {
+      case "rating":
+        aVal = a.overallRating || a.effectiveness || 75;
+        bVal = b.overallRating || b.effectiveness || 75;
+        break;
+      case "salary":
+        aVal = a.salary || 0;
+        bVal = b.salary || 0;
+        break;
+      default:
+        return 0;
+    }
+    
+    if (typeof aVal === "number" && typeof bVal === "number") {
+      return direction === "asc" ? aVal - bVal : bVal - aVal;
+    }
+    return 0;
+  });
+
+  const list = listToDisplay;
   const freeAgents = frontOfficeData.free_agents || [];
 
   if (showHire) {
@@ -95,9 +131,28 @@ export function FrontOfficeScreen() {
 
       <Section pad={false}>
         <DataRow header>
-          {["Name", "Role", "Rating", "Salary"].map(h => (
-            <span key={h} style={{ flex: h === "Name" ? 1.5 : 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700 }}>{h}</span>
-          ))}
+          <span style={{ flex: 1.5, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700 }}>Name</span>
+          <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700 }}>Role</span>
+          <span
+            onClick={() => requestColumnSort("rating")}
+            style={{
+              flex: 1, fontSize: 8, color: columnSort?.key === "rating" ? COLORS.lime : COLORS.muted,
+              textTransform: "uppercase", fontWeight: columnSort?.key === "rating" ? 800 : 700,
+              cursor: "pointer", userSelect: "none", display: "flex", alignItems: "center", gap: 4
+            }}
+          >
+            Rating {columnSort?.key === "rating" && (columnSort.direction === 'asc' ? <ArrowUp size={10} /> : <ArrowDown size={10} />)}
+          </span>
+          <span
+            onClick={() => requestColumnSort("salary")}
+            style={{
+              flex: 1, fontSize: 8, color: columnSort?.key === "salary" ? COLORS.lime : COLORS.muted,
+              textTransform: "uppercase", fontWeight: columnSort?.key === "salary" ? 800 : 700,
+              cursor: "pointer", userSelect: "none", display: "flex", alignItems: "center", gap: 4
+            }}
+          >
+            Salary {columnSort?.key === "salary" && (columnSort.direction === 'asc' ? <ArrowUp size={10} /> : <ArrowDown size={10} />)}
+          </span>
         </DataRow>
         {list.map((s: any, i: number) => (
           <DataRow key={i} even={i % 2 === 0}>

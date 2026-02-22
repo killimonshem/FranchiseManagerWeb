@@ -281,7 +281,7 @@ export default function App() {
       case "offseasonGrade": return <OffseasonGradeScreen gsm={gameStateManager} refresh={refresh} />;
       case "schedule":   return <ScheduleScreen />;
       case "staff":      return <FrontOfficeScreen />;
-      case "freeAgency": return <FreeAgencyScreen onRosterChange={refresh} onNavigate={(s, d) => { setScreen(s); setDetail(d); }} />;
+      case "freeAgency": return <FreeAgencyScreen gsm={gameStateManager} onRosterChange={refresh} onNavigate={(s, d) => { setScreen(s); setDetail(d); }} />;
       case "rfa":        return <RFATenderingScreen gsm={gameStateManager} />;
       case "contractNegotiation": 
         return (

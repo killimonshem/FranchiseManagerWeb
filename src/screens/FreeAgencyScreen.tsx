@@ -4,29 +4,71 @@ import { Section, DataRow, RatingBadge, PosTag } from "../ui/components";
 import { gameStateManager } from "../types/GameStateManager";
 import { Player, PlayerStatus } from "../types/player";
 import { calculatePlayerMarketValue } from "../types/player";
+import { ArrowUp, ArrowDown } from "lucide-react";
 
 interface Props {
+  gsm?: any;
   onRosterChange?: () => void;
   onNavigate?: (screen: string, detail?: any) => void;
 }
 
-export function FreeAgencyScreen({ onRosterChange, onNavigate }: Props) {
+export function FreeAgencyScreen({ gsm, onRosterChange, onNavigate }: Props) {
   const [signingId, setSigningId] = useState<string | null>(null);
+  const [columnSort, setColumnSort] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
-  const freeAgents = gameStateManager.freeAgents;
-  const userTeamId = gameStateManager.userTeamId ?? "";
-  const capSpace   = gameStateManager.getCapSpace(userTeamId);
+  const engine = gsm ?? gameStateManager;
+  const userTeamId = engine.userTeamId ?? "";
+  const capSpace   = engine.getCapSpace(userTeamId);
+  
+  // Sort free agents
+  const freeAgents = engine.freeAgents;
+  const sortedAgents = [...freeAgents].sort((a, b) => {
+    if (!columnSort) return 0;
+    
+    const { key, direction } = columnSort;
+    let aVal: any, bVal: any;
+    
+    switch (key) {
+      case "rating":
+        aVal = a.overall;
+        bVal = b.overall;
+        break;
+      case "age":
+        aVal = a.age;
+        bVal = b.age;
+        break;
+      case "value":
+        aVal = calculatePlayerMarketValue(a);
+        bVal = calculatePlayerMarketValue(b);
+        break;
+      default:
+        return 0;
+    }
+    
+    if (typeof aVal === "number" && typeof bVal === "number") {
+      return direction === "asc" ? aVal - bVal : bVal - aVal;
+    }
+    return 0;
+  });
 
-  function handleMinDealSign(player: Player) {
+  const requestColumnSort = (key: string) => {
+    if (columnSort?.key === key) {
+      setColumnSort({ key, direction: columnSort.direction === 'asc' ? 'desc' : 'asc' });
+    } else {
+      setColumnSort({ key, direction: 'desc' });
+    }
+  };
+
+  function handleMinDealSign(player: Player, years: number = 1) {
     if (!userTeamId) return;
     setSigningId(player.id);
 
     // ─── FA Contract System (spec 1.2) ───────────────────────────────────────
-    const NFL_MIN_SALARY = 795_000;
+    const NFL_MIN_SALARY = engine.leagueMinimumSalary ?? 795_000;
     const baseSalary = Math.max(player.contract?.currentYearCap ?? NFL_MIN_SALARY, NFL_MIN_SALARY);
 
     // Prorate cap hit if mid-season (weeks 29-46 = regular season)
-    const { week } = gameStateManager.currentGameDate;
+    const { week } = engine.currentGameDate;
     let capHit = baseSalary;
     if (week >= 29 && week <= 46) {
       const weeksRemaining = 46 - week + 1; // +1 to include current week
@@ -37,7 +79,7 @@ export function FreeAgencyScreen({ onRosterChange, onNavigate }: Props) {
     const apy = capHit;
 
     // Record for compensatory pick tracking
-    gameStateManager.recordFreeAgentSigning(
+    engine.recordFreeAgentSigning(
       player.id,
       player.teamId ?? null,
       userTeamId,
@@ -45,15 +87,15 @@ export function FreeAgencyScreen({ onRosterChange, onNavigate }: Props) {
     );
 
     // Move player onto the user's roster and update contract
-    const idx = gameStateManager.allPlayers.findIndex(p => p.id === player.id);
+    const idx = engine.allPlayers.findIndex(p => p.id === player.id);
     if (idx !== -1) {
-      const signedPlayer = gameStateManager.allPlayers[idx];
+      const signedPlayer = engine.allPlayers[idx];
       signedPlayer.teamId = userTeamId;
-      signedPlayer.status = PlayerStatus.ACTIVE; // Spec 1.2: Set to ACTIVE when signed
-      // Generate default 1-year contract at calculated cap hit
+      signedPlayer.status = PlayerStatus.ACTIVE;
+      // If multi-year extension requested, generate accordingly
       signedPlayer.contract = {
-        totalValue: baseSalary,
-        yearsRemaining: 1,
+        totalValue: baseSalary * years,
+        yearsRemaining: years,
         guaranteedMoney: 0,
         currentYearCap: capHit,
         signingBonus: 0,
@@ -67,11 +109,50 @@ export function FreeAgencyScreen({ onRosterChange, onNavigate }: Props) {
     }
 
     // Remove from free agent pool
-    gameStateManager.freeAgents = gameStateManager.freeAgents.filter(p => p.id !== player.id);
+    engine.freeAgents = engine.freeAgents.filter(p => p.id !== player.id);
 
     // Validate roster constraints after signing
-    gameStateManager.validateRosterConstraints();
+    engine.validateRosterConstraints();
 
+    setSigningId(null);
+    onRosterChange?.();
+  }
+
+  function handleQuickOffer(player: Player, years: number) {
+    if (!userTeamId) return;
+    setSigningId(player.id);
+
+    const marketValue = calculatePlayerMarketValue(player);
+    const apy = Math.round(marketValue);
+    const totalValue = Math.round(marketValue * years);
+    const guaranteed = Math.round(totalValue * 0.35);
+    const signingBonus = Math.round(totalValue * 0.15);
+
+    // Record FA signing for comp pick tracking
+    engine.recordFreeAgentSigning(player.id, player.teamId ?? null, userTeamId, apy);
+
+    const idx = engine.allPlayers.findIndex(p => p.id === player.id);
+    if (idx !== -1) {
+      const signedPlayer = engine.allPlayers[idx];
+      signedPlayer.teamId = userTeamId;
+      signedPlayer.status = PlayerStatus.ACTIVE;
+      signedPlayer.contract = {
+        totalValue,
+        yearsRemaining: years,
+        guaranteedMoney: guaranteed,
+        currentYearCap: marketValue,
+        signingBonus,
+        incentives: 0,
+        canRestructure: true,
+        canCut: true,
+        deadCap: Math.round(signingBonus / years),
+        hasNoTradeClause: false,
+        approvedTradeDestinations: [],
+      };
+    }
+
+    engine.freeAgents = engine.freeAgents.filter(p => p.id !== player.id);
+    engine.validateRosterConstraints();
     setSigningId(null);
     onRosterChange?.();
   }
@@ -101,15 +182,39 @@ export function FreeAgencyScreen({ onRosterChange, onNavigate }: Props) {
 
       <Section pad={false}>
         <DataRow header>
-          {["Player", "Pos", "Rating", "Age", "Market Value", ""].map((h, i) =>
-            <span key={i} style={{
-              fontSize: 8, color: COLORS.muted, textTransform: "uppercase",
-              letterSpacing: 0.8, fontWeight: 700,
-              flex: h === "Player" ? 1.5 : h === "" ? 0.8 : 1,
-            }}>
-              {h}
-            </span>
-          )}
+          <span style={{ flex: 1.5, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Player</span>
+          <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Pos</span>
+          <span
+            onClick={() => requestColumnSort("rating")}
+            style={{
+              flex: 1, fontSize: 8, color: columnSort?.key === "rating" ? COLORS.lime : COLORS.muted, 
+              textTransform: "uppercase", letterSpacing: 0.8, fontWeight: columnSort?.key === "rating" ? 800 : 700,
+              cursor: "pointer", userSelect: "none", display: "flex", alignItems: "center", gap: 4
+            }}
+          >
+            Rating {columnSort?.key === "rating" && (columnSort.direction === 'asc' ? <ArrowUp size={10} /> : <ArrowDown size={10} />)}
+          </span>
+          <span
+            onClick={() => requestColumnSort("age")}
+            style={{
+              flex: 1, fontSize: 8, color: columnSort?.key === "age" ? COLORS.lime : COLORS.muted,
+              textTransform: "uppercase", letterSpacing: 0.8, fontWeight: columnSort?.key === "age" ? 800 : 700,
+              cursor: "pointer", userSelect: "none", display: "flex", alignItems: "center", gap: 4
+            }}
+          >
+            Age {columnSort?.key === "age" && (columnSort.direction === 'asc' ? <ArrowUp size={10} /> : <ArrowDown size={10} />)}
+          </span>
+          <span
+            onClick={() => requestColumnSort("value")}
+            style={{
+              flex: 1, fontSize: 8, color: columnSort?.key === "value" ? COLORS.lime : COLORS.muted,
+              textTransform: "uppercase", letterSpacing: 0.8, fontWeight: columnSort?.key === "value" ? 800 : 700,
+              cursor: "pointer", userSelect: "none", display: "flex", alignItems: "center", gap: 4
+            }}
+          >
+            Market Value {columnSort?.key === "value" && (columnSort.direction === 'asc' ? <ArrowUp size={10} /> : <ArrowDown size={10} />)}
+          </span>
+          <span style={{ flex: 0.8 }} />
         </DataRow>
 
         {isEmpty && (
@@ -118,7 +223,7 @@ export function FreeAgencyScreen({ onRosterChange, onNavigate }: Props) {
           </div>
         )}
 
-        {freeAgents.map((player, i) => {
+        {sortedAgents.map((player, i) => {
           const marketValue = calculatePlayerMarketValue(player);
           const isMinSalaryPlayer = marketValue <= 1_200_000;
           const canAfford = capSpace >= marketValue;
@@ -152,20 +257,49 @@ export function FreeAgencyScreen({ onRosterChange, onNavigate }: Props) {
                     {isSigning ? "…" : "Sign (Min)"}
                   </button>
                 ) : (
-                  // Regular player: "Negotiate" button
-                  <button
-                    disabled={isSigning}
-                    onClick={() => onNavigate?.("contractNegotiation", { playerId: player.id })}
-                    style={{
-                      fontSize: 8, fontWeight: 700, padding: "3px 6px", borderRadius: 3,
-                      border: "none", cursor: "pointer",
-                      background: COLORS.magenta,
-                      color: COLORS.light,
-                      flex: 1,
-                    }}
-                  >
-                    {isSigning ? "…" : "Negotiate"}
-                  </button>
+                  <div style={{ display: "flex", gap: 6, width: "100%" }}>
+                    <button
+                      disabled={!canAfford || isSigning}
+                      onClick={() => handleQuickOffer(player, 2)}
+                      style={{
+                        fontSize: 8, fontWeight: 700, padding: "3px 6px", borderRadius: 3,
+                        border: "none", cursor: canAfford ? "pointer" : "not-allowed",
+                        background: canAfford ? "#b8f18b" : "rgba(255,255,255,0.06)",
+                        color: canAfford ? "#000" : COLORS.muted,
+                        flex: 1,
+                      }}
+                    >
+                      {isSigning ? "…" : "Quick 2yr"}
+                    </button>
+
+                    <button
+                      disabled={!canAfford || isSigning}
+                      onClick={() => handleQuickOffer(player, 3)}
+                      style={{
+                        fontSize: 8, fontWeight: 700, padding: "3px 6px", borderRadius: 3,
+                        border: "none", cursor: canAfford ? "pointer" : "not-allowed",
+                        background: canAfford ? COLORS.lime : "rgba(255,255,255,0.06)",
+                        color: canAfford ? "#000" : COLORS.muted,
+                        flex: 1,
+                      }}
+                    >
+                      {isSigning ? "…" : "Quick 3yr"}
+                    </button>
+
+                    <button
+                      disabled={isSigning}
+                      onClick={() => onNavigate?.("contractNegotiation", { playerId: player.id })}
+                      style={{
+                        fontSize: 8, fontWeight: 700, padding: "3px 6px", borderRadius: 3,
+                        border: "none", cursor: "pointer",
+                        background: COLORS.magenta,
+                        color: COLORS.light,
+                        flex: 1,
+                      }}
+                    >
+                      {isSigning ? "…" : "Negotiate"}
+                    </button>
+                  </div>
                 )}
               </span>
             </DataRow>

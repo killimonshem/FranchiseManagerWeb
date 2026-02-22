@@ -221,76 +221,6 @@ export const TimeSlots: Record<string, TimeSlot> = {
     baseDuration: 1.0,
     shouldProcessAIActions: true
   }
-
-  /**
-   * Compute an offseason grade for the user across cap health, roster improvement,
-   * draft haul quality, and free agent acquisitions. Returns normalized 0-100
-   * scores for each pillar and an aggregated grade.
-   */
-  computeOffseasonGrade(): {
-    capHealth: number;
-    rosterImprovement: number;
-    draftHaul: number;
-    faAcquisitions: number;
-    overall: number;
-    summaryText: string;
-  } {
-    const result = {
-      capHealth: 0,
-      rosterImprovement: 0,
-      draftHaul: 0,
-      faAcquisitions: 0,
-      overall: 0,
-      summaryText: ''
-    };
-
-    if (!this.userTeamId) return result;
-
-    const teamId = this.userTeamId;
-
-    // Cap health: proportion of cap space to salary cap, scaled to 0-100
-    const capSpace = this.getCapSpace(teamId);
-    result.capHealth = Math.round(Math.max(0, Math.min(1, capSpace / this.salaryCap)) * 100);
-
-    // Roster improvement: compare current active roster average OVR to a simple baseline (75)
-    const roster = this.allPlayers.filter(p => p.teamId === teamId && p.status === PlayerStatus.ACTIVE);
-    const avgOvr = roster.length ? Math.round(roster.reduce((s, p) => s + p.overall, 0) / roster.length) : 75;
-    // Baseline of 75 -> map difference of -10..+10 to 0..100
-    const delta = Math.max(-10, Math.min(10, avgOvr - 75));
-    result.rosterImprovement = Math.round(((delta + 10) / 20) * 100);
-
-    // Draft haul: inspect draft picks assigned to user this season and weight earlier rounds higher
-    const draftedThisSeason = this.allPlayers.filter(p => p.draftYear === this.currentSeason && p.teamId === teamId);
-    if (draftedThisSeason.length === 0) {
-      result.draftHaul = 40; // conservative baseline
-    } else {
-      // Score by average potential (higher is better) and give weight to round (if available)
-      const avgPotential = draftedThisSeason.reduce((s, p) => s + (p.potential || p.overall), 0) / draftedThisSeason.length;
-      const normalized = Math.max(40, Math.min(99, avgPotential));
-      result.draftHaul = Math.round(((normalized - 40) / (99 - 40)) * 100);
-    }
-
-    // Free agent acquisitions: count meaningful acquisitions for user team last offseason
-    const faForUser = this.offseasonTransactions.filter(t => t.newTeamId === teamId);
-    if (faForUser.length === 0) {
-      result.faAcquisitions = 35;
-    } else {
-      // Score by average APY (clamp and map to 0-100)
-      const avgApy = faForUser.reduce((s, t) => s + (t.averageYearlyValue || 0), 0) / faForUser.length;
-      // Map avgApy (0..30M) to 30..90
-      const apyScore = Math.max(30, Math.min(90, Math.round((avgApy / 30_000_000) * 60 + 30)));
-      result.faAcquisitions = Math.round(((apyScore - 30) / 60) * 100);
-    }
-
-    // Overall: simple average
-    result.overall = Math.round((result.capHealth + result.rosterImprovement + result.draftHaul + result.faAcquisitions) / 4);
-
-    // Summary text for sharing
-    result.summaryText = `${this.userProfile?.firstName ?? 'GM'}'s Offseason Grade — ${result.overall}/100\n` +
-      `Cap Health: ${result.capHealth}/100, Roster: ${result.rosterImprovement}/100, Draft: ${result.draftHaul}/100, FA: ${result.faAcquisitions}/100`;
-
-    return result;
-  }
 };
 
 export const TimeSlotProgression = [
@@ -501,6 +431,9 @@ export interface DraftProspect {
   college: string;
   // Hidden truth (never exposed directly in draft UI before scouting)
   overall: number;
+  // The true underlying ratings (used internally and revealed by scouting)
+  trueOverall?: number;
+  truePotential?: number;
   potential: number;
   projectedRound: number;   // 1–7; 8 = UDFA
   // Scouting fog-of-war
@@ -850,6 +783,76 @@ export class GameStateManager {
   getCapHit(teamId: string): number {
     const roster = this.allPlayers.filter(p => p.teamId === teamId);
     return roster.reduce((sum, p) => sum + (p.contract?.currentYearCap || 0), 0);
+  }
+
+  /**
+   * Compute an offseason grade for the user across cap health, roster improvement,
+   * draft haul quality, and free agent acquisitions. Returns normalized 0-100
+   * scores for each pillar and an aggregated grade.
+   */
+  computeOffseasonGrade(): {
+    capHealth: number;
+    rosterImprovement: number;
+    draftHaul: number;
+    faAcquisitions: number;
+    overall: number;
+    summaryText: string;
+  } {
+    const result = {
+      capHealth: 0,
+      rosterImprovement: 0,
+      draftHaul: 0,
+      faAcquisitions: 0,
+      overall: 0,
+      summaryText: ''
+    };
+
+    if (!this.userTeamId) return result;
+
+    const teamId = this.userTeamId;
+
+    // Cap health: proportion of cap space to salary cap, scaled to 0-100
+    const capSpace = this.getCapSpace(teamId);
+    result.capHealth = Math.round(Math.max(0, Math.min(1, capSpace / this.salaryCap)) * 100);
+
+    // Roster improvement: compare current active roster average OVR to a simple baseline (75)
+    const roster = this.allPlayers.filter(p => p.teamId === teamId && p.status === PlayerStatus.ACTIVE);
+    const avgOvr = roster.length ? Math.round(roster.reduce((s, p) => s + p.overall, 0) / roster.length) : 75;
+    // Baseline of 75 -> map difference of -10..+10 to 0..100
+    const delta = Math.max(-10, Math.min(10, avgOvr - 75));
+    result.rosterImprovement = Math.round(((delta + 10) / 20) * 100);
+
+    // Draft haul: inspect draft picks assigned to user this season and weight earlier rounds higher
+    const draftedThisSeason = this.allPlayers.filter(p => p.draftYear === this.currentSeason && p.teamId === teamId);
+    if (draftedThisSeason.length === 0) {
+      result.draftHaul = 40; // conservative baseline
+    } else {
+      // Score by average potential (higher is better) and give weight to round (if available)
+      const avgPotential = draftedThisSeason.reduce((s, p) => s + (p.potential || p.overall), 0) / draftedThisSeason.length;
+      const normalized = Math.max(40, Math.min(99, avgPotential));
+      result.draftHaul = Math.round(((normalized - 40) / (99 - 40)) * 100);
+    }
+
+    // Free agent acquisitions: count meaningful acquisitions for user team last offseason
+    const faForUser = this.offseasonTransactions.filter(t => t.newTeamId === teamId);
+    if (faForUser.length === 0) {
+      result.faAcquisitions = 35;
+    } else {
+      // Score by average APY (clamp and map to 0-100)
+      const avgApy = faForUser.reduce((s, t) => s + (t.averageYearlyValue || 0), 0) / faForUser.length;
+      // Map avgApy (0..30M) to 30..90
+      const apyScore = Math.max(30, Math.min(90, Math.round((avgApy / 30_000_000) * 60 + 30)));
+      result.faAcquisitions = Math.round(((apyScore - 30) / 60) * 100);
+    }
+
+    // Overall: simple average
+    result.overall = Math.round((result.capHealth + result.rosterImprovement + result.draftHaul + result.faAcquisitions) / 4);
+
+    // Summary text for sharing
+    result.summaryText = `${this.userProfile?.firstName ?? 'GM'}'s Offseason Grade — ${result.overall}/100\n` +
+      `Cap Health: ${result.capHealth}/100, Roster: ${result.rosterImprovement}/100, Draft: ${result.draftHaul}/100, FA: ${result.faAcquisitions}/100`;
+
+    return result;
   }
 
   private getSeasonPhase(week: number): SeasonPhase {
@@ -2297,6 +2300,20 @@ export class GameStateManager {
   }
 
   /**
+   * Defer an action item by moving it to the end of the queue.
+   * This preserves the item but lowers its priority so the player can address
+   * other items first. Triggers UI refresh and autosave.
+   */
+  deferActionItem(actionItemId: string): void {
+    const idx = this.actionItemQueue.findIndex(a => a.id === actionItemId);
+    if (idx === -1) return;
+    const [item] = this.actionItemQueue.splice(idx, 1);
+    this.actionItemQueue.push(item);
+    this.onEngineStateChange?.();
+    this.onAutoSave?.();
+  }
+
+  /**
    * Restructure a player's contract to create immediate cap space.
    * Converts base salary to signing bonus.
    */
@@ -2601,10 +2618,10 @@ export class GameStateManager {
     this.processOffseasonDevelopment();
   }
 
-/** Convenience: current engine phase label for UI display. */
-get enginePhaseLabel(): string {
-  return PHASE_LABELS[getEnginePhaseForWeek(this.currentGameDate.week)];
-}
+  /** Convenience: current engine phase label for UI display. */
+  get enginePhaseLabel(): string {
+    return PHASE_LABELS[getEnginePhaseForWeek(this.currentGameDate.week)];
+  }
 
   // MARK: - Roster Churn Hooks
 

@@ -8,12 +8,14 @@
 
 import { useState } from "react";
 import { COLORS } from "../ui/theme";
+import { gameStateManager } from "../types/GameStateManager";
 import {
   RatingBadge, PosTag, Section, DataRow, Pill, TabBtn, MoraleMeter,
   ShieldAlert, Lock, AlertTriangle, Clock,
 } from "../ui/components";
 import { Player, PlayerStatus } from "../types/player";
 import { InjuryStatus } from "../types/nfl-types";
+import { ArrowUp, ArrowDown } from "lucide-react";
 
 const POSITIONS = ["QB", "RB", "WR", "TE", "OL", "DL", "LB", "CB", "S", "K", "P"];
 
@@ -31,10 +33,12 @@ export function RosterScreen({
   setDetail: (d: any) => void;
   players: Player[];
 }) {
+  const [confirmRelease, setConfirmRelease] = useState<{ open: boolean; player?: Player }>({ open: false });
   const [filter, setFilter] = useState("ALL");
   const [sort, setSort]     = useState("ovr");
   const [tab, setTab]       = useState("active");
   const [view, setView]     = useState<"overview" | "contract" | "status">("overview");
+  const [columnSort, setColumnSort] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
   const active   = players.filter(p => p.status !== PlayerStatus.PRACTICE_SQUAD);
   const practice = players.filter(p => p.status === PlayerStatus.PRACTICE_SQUAD);
@@ -42,11 +46,113 @@ export function RosterScreen({
   const list     = tab === "practice" ? practice : tab === "tradeBlock" ? tradeBlock : active;
 
   const filtered = filter === "ALL" ? list : list.filter(p => p.position === filter);
-  const sorted   = [...filtered].sort((a, b) =>
-    sort === "ovr"  ? b.overall - a.overall :
-    sort === "sal"  ? (b.contract?.currentYearCap ?? 0) - (a.contract?.currentYearCap ?? 0) :
-    sort === "age"  ? a.age - b.age :
-    `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
+  
+  // Helper to sort by column
+  const getSortedPlayers = (players: Player[]) => {
+    return [...players].sort((a, b) => {
+      if (columnSort) {
+        const { key, direction } = columnSort;
+        let aVal: any, bVal: any;
+        
+        switch (key) {
+          case "age":
+            aVal = a.age;
+            bVal = b.age;
+            break;
+          case "rating":
+            aVal = a.overall;
+            bVal = b.overall;
+            break;
+          case "potential":
+            aVal = a.potential;
+            bVal = b.potential;
+            break;
+          case "salary":
+          case "capHit":
+            aVal = a.contract?.currentYearCap ?? 0;
+            bVal = b.contract?.currentYearCap ?? 0;
+            break;
+          case "total":
+            aVal = a.contract?.totalValue ?? 0;
+            bVal = b.contract?.totalValue ?? 0;
+            break;
+          case "guaranteed":
+            aVal = a.contract?.guaranteedMoney ?? 0;
+            bVal = b.contract?.guaranteedMoney ?? 0;
+            break;
+          case "bonus":
+            aVal = a.contract?.signingBonus ?? 0;
+            bVal = b.contract?.signingBonus ?? 0;
+            break;
+          case "deadcap":
+            aVal = a.contract?.deadCap ?? 0;
+            bVal = b.contract?.deadCap ?? 0;
+            break;
+          case "years":
+            aVal = a.contract?.yearsRemaining ?? 0;
+            bVal = b.contract?.yearsRemaining ?? 0;
+            break;
+          case "morale":
+            aVal = a.morale ?? 0;
+            bVal = b.morale ?? 0;
+            break;
+          default:
+            aVal = a.overall;
+            bVal = b.overall;
+        }
+        
+        if (typeof aVal === "number" && typeof bVal === "number") {
+          return direction === "asc" ? aVal - bVal : bVal - aVal;
+        }
+        return 0;
+      }
+      
+      // Fallback to TabBtn sorting
+      return (
+        sort === "ovr"  ? b.overall - a.overall :
+        sort === "sal"  ? (b.contract?.currentYearCap ?? 0) - (a.contract?.currentYearCap ?? 0) :
+        sort === "age"  ? a.age - b.age :
+        `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
+      );
+    });
+  };
+
+  const sorted = getSortedPlayers(filtered);
+  
+  const requestColumnSort = (key: string) => {
+    if (columnSort?.key === key) {
+      // Toggle direction
+      setColumnSort({ key, direction: columnSort.direction === 'asc' ? 'desc' : 'asc' });
+    } else {
+      // New column - default to descending (highest to lowest)
+      setColumnSort({ key, direction: 'desc' });
+    }
+  };
+
+  // Helper to render sortable header
+  const renderHeader = (label: string, key: string, flex = 1) => (
+    <span
+      onClick={() => requestColumnSort(key)}
+      style={{
+        flex,
+        fontSize: 8,
+        color: columnSort?.key === key ? COLORS.lime : COLORS.muted,
+        textTransform: "uppercase",
+        letterSpacing: 0.8,
+        fontWeight: columnSort?.key === key ? 800 : 700,
+        cursor: "pointer",
+        userSelect: "none",
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        transition: "color 0.15s"
+      }}
+    >
+      {label}
+      {columnSort?.key === key && (
+        columnSort.direction === 'asc' ? <ArrowUp size={10} /> : <ArrowDown size={10} />
+      )}
+    </span>
   );
 
   return (
@@ -111,34 +217,34 @@ export function RosterScreen({
             <DataRow header>
               <span style={{ flex: 2, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Player</span>
               <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Pos</span>
-              <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Age</span>
+              {renderHeader("Age", "age", 1)}
               
               {view === "overview" && (
                 <>
-                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Rating</span>
-                  <span className="roster-pot"    style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Pot</span>
-                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Salary</span>
-                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Yrs</span>
-                  <span className="roster-morale" style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Morale</span>
+                  {renderHeader("Rating", "rating", 1)}
+                  <span className="roster-pot" style={{ flex: 1, fontSize: 8, color: columnSort?.key === "potential" ? COLORS.lime : COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: columnSort?.key === "potential" ? 800 : 700, cursor: "pointer", userSelect: "none", display: "flex", alignItems: "center", gap: 4 }} onClick={() => requestColumnSort("potential")}>Pot {columnSort?.key === "potential" && (columnSort.direction === 'asc' ? <ArrowUp size={10} /> : <ArrowDown size={10} />)}</span>
+                  {renderHeader("Salary", "salary", 1)}
+                  {renderHeader("Yrs", "years", 1)}
+                  <span className="roster-morale" style={{ flex: 1, fontSize: 8, color: columnSort?.key === "morale" ? COLORS.lime : COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: columnSort?.key === "morale" ? 800 : 700, cursor: "pointer", userSelect: "none", display: "flex", alignItems: "center", gap: 4 }} onClick={() => requestColumnSort("morale")}>Morale {columnSort?.key === "morale" && (columnSort.direction === 'asc' ? <ArrowUp size={10} /> : <ArrowDown size={10} />)}</span>
                   <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Alerts</span>
                 </>
               )}
 
               {view === "contract" && (
                 <>
-                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Cap Hit</span>
-                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Total</span>
-                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Guaranteed</span>
-                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Bonus</span>
-                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Dead Cap</span>
+                  {renderHeader("Cap Hit", "capHit", 1)}
+                  {renderHeader("Total", "total", 1)}
+                  {renderHeader("Guaranteed", "guaranteed", 1)}
+                  {renderHeader("Bonus", "bonus", 1)}
+                  {renderHeader("Dead Cap", "deadcap", 1)}
                   <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Expires</span>
                 </>
               )}
 
               {view === "status" && (
                 <>
-                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Rating</span>
-                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Morale</span>
+                  {renderHeader("Rating", "rating", 1)}
+                  {renderHeader("Morale", "morale", 1)}
                   <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Injury</span>
                   <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Trade Status</span>
                   <span style={{ flex: 2, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Notes</span>
@@ -236,12 +342,43 @@ export function RosterScreen({
                           Extend
                         </button>
                       )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmRelease({ open: true, player: p });
+                        }}
+                        style={{
+                          marginLeft: 8, padding: "4px 8px", borderRadius: 4, border: "1px solid transparent",
+                          background: COLORS.coral, color: COLORS.bg, fontSize: 9, fontWeight: 700, cursor: "pointer"
+                        }}
+                      >
+                        Release
+                      </button>
                     </>
                   )}
                 </DataRow>
               );
             })}
           </Section>
+        </div>
+      )}
+
+      {confirmRelease.open && confirmRelease.player && (
+        <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} onClick={() => setConfirmRelease({ open: false })} />
+          <div style={{ background: COLORS.bg, padding: 18, borderRadius: 8, width: 380, boxShadow: '0 8px 30px rgba(0,0,0,0.6)', zIndex: 201 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>Confirm Release</div>
+            <div style={{ fontSize: 13, color: COLORS.muted, marginBottom: 16 }}>
+              Are you sure you want to release {confirmRelease.player.firstName} {confirmRelease.player.lastName}? This action is immediate and cannot be undone.
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmRelease({ open: false })} style={{ padding: '6px 12px', borderRadius: 6, background: 'transparent', border: `1px solid ${COLORS.muted}`, color: COLORS.muted, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={() => {
+                if (confirmRelease.player) gameStateManager.releasePlayer(confirmRelease.player.id);
+                setConfirmRelease({ open: false });
+              }} style={{ padding: '6px 12px', borderRadius: 6, background: COLORS.coral, border: 'none', color: COLORS.bg, cursor: 'pointer', fontWeight: 700 }}>Release</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

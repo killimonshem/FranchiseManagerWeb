@@ -105,18 +105,18 @@ export function DashboardScreen({
             </div>
             <div style={{ display: "flex", gap: 12, marginTop: 10, flexWrap: "wrap" }}>
               <div style={{ fontSize: 10, color: COLORS.muted }}>
-                Cap used:{" "}
-                <span style={{ color: capPct > 95 ? COLORS.magenta : COLORS.lime, fontWeight: 700 }}>
-                  {capPct.toFixed(1)}%
-                </span>
+                <div style={{ fontSize: 10, color: COLORS.muted }}>Cap used</div>
+                <div style={{ fontSize: 18, color: capPct > 95 ? COLORS.magenta : COLORS.lime, fontWeight: 900 }}>
+                  {capPct.toFixed(1)}% used
+                </div>
               </div>
               <div style={{ fontSize: 10, color: COLORS.muted }}>
-                Space:{" "}
-                <span style={{ color: COLORS.lime, fontWeight: 700 }}>{fmtCurrency(SALARY_CAP - totalCap)}</span>
+                Space
+                <div style={{ fontSize: 18, color: COLORS.lime, fontWeight: 900 }}>{fmtCurrency(SALARY_CAP - totalCap)}</div>
               </div>
               <div style={{ fontSize: 10, color: COLORS.muted }}>
-                Cash:{" "}
-                <span style={{ color: COLORS.light, fontWeight: 700 }}>{fmtCurrency(cashReserves)}</span>
+                Cash
+                <div style={{ fontSize: 14, color: COLORS.light, fontWeight: 700 }}>{fmtCurrency(cashReserves)}</div>
               </div>
               <div style={{ fontSize: 10, color: COLORS.muted }}>
                 Roster:{" "}
@@ -190,7 +190,7 @@ export function DashboardScreen({
                         Resolve
                       </button>
                       <button
-                        onClick={() => { /* Defer logic would go here */ }}
+                        onClick={() => gsm?.deferActionItem(item.id)}
                         style={{
                           fontSize: 10, padding: "4px 8px", borderRadius: 4,
                           border: `1px solid ${COLORS.muted}`, background: "transparent",
