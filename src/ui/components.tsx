@@ -216,6 +216,90 @@ export function TabBtn({ active, children, onClick }: { active?: boolean; childr
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// RADAR CHART — For attributes visualization
+// ═══════════════════════════════════════════════════════════════════
+export function RadarChart({ data, size = 200, color = COLORS.lime }: { data: { label: string; value: number }[]; size?: number; color?: string }) {
+  const center = size / 2;
+  const radius = (size / 2) - 30; // Padding for labels
+  const angleSlice = (Math.PI * 2) / data.length;
+
+  const points = data.map((d, i) => {
+    const r = (d.value / 100) * radius;
+    const angle = i * angleSlice - Math.PI / 2;
+    return {
+      x: center + r * Math.cos(angle),
+      y: center + r * Math.sin(angle),
+      lx: center + (radius + 15) * Math.cos(angle), // Label X
+      ly: center + (radius + 15) * Math.sin(angle), // Label Y
+    };
+  });
+
+  const pathData = points.map((p, i) => (i === 0 ? "M" : "L") + `${p.x},${p.y}`).join(" ") + "Z";
+
+  return (
+    <div style={{ width: size, height: size, position: "relative", margin: "0 auto" }}>
+      <svg width={size} height={size}>
+        {/* Background Web */}
+        {[0.2, 0.4, 0.6, 0.8, 1].map((scale, j) => (
+          <polygon
+            key={j}
+            points={data.map((_, i) => {
+              const r = radius * scale;
+              const angle = i * angleSlice - Math.PI / 2;
+              return `${center + r * Math.cos(angle)},${center + r * Math.sin(angle)}`;
+            }).join(" ")}
+            fill="none"
+            stroke={COLORS.darkMagenta}
+            strokeWidth="1"
+            opacity={0.5}
+          />
+        ))}
+        
+        {/* Axis Lines */}
+        {points.map((p, i) => (
+          <line key={i} x1={center} y1={center} x2={p.lx} y2={p.ly} stroke={COLORS.darkMagenta} strokeWidth="1" opacity={0.3} />
+        ))}
+
+        {/* Data Shape */}
+        <path d={pathData} fill={`${color}33`} stroke={color} strokeWidth="2" />
+
+        {/* Labels */}
+        {points.map((p, i) => (
+          <text
+            key={i}
+            x={p.lx}
+            y={p.ly}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill={COLORS.muted}
+            fontSize="9"
+            fontWeight="600"
+            style={{ textTransform: "uppercase" }}
+          >
+            {data[i].label}
+          </text>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FINANCIAL HEALTH BADGE
+// ═══════════════════════════════════════════════════════════════════
+export function FinancialHealthBadge({ capSpace }: { capSpace: number }) {
+  let label = "Stable";
+  let color = COLORS.lime;
+  if (capSpace > 40_000_000) { label = "Wealthy"; color = COLORS.lime; }
+  else if (capSpace > 20_000_000) { label = "Healthy"; color = COLORS.warmLime; }
+  else if (capSpace > 10_000_000) { label = "Stable"; color = COLORS.light; }
+  else if (capSpace > 0) { label = "Strained"; color = COLORS.gold; }
+  else { label = "Crisis"; color = COLORS.coral; }
+
+  return <StatusBadge label={label} variant={capSpace > 10_000_000 ? "positive" : capSpace > 0 ? "warning" : "negative"} />;
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // ICON BUTTON — icon + label, replaces all emoji-prefixed buttons
 // ═══════════════════════════════════════════════════════════════════
 type IconBtnVariant = "primary" | "ghost" | "danger" | "accent";

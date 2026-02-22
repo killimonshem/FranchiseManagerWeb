@@ -2,13 +2,14 @@ import { useState } from "react";
 import { COLORS, FONT, fmtCurrency } from "../ui/theme";
 import {
   RatingBadge, PosTag, Section, StatBar, MoraleMeter, IconBtn, TabBtn,
-  StatusBadge, DataRow, Pill
+  StatusBadge, DataRow, Pill, RadarChart
 } from "../ui/components";
 import { ArrowLeft, TrendingUp, Heart, AlertTriangle } from "lucide-react";
 import type { Player, PlayerStatus } from "../types/player";
 import { ShoppingStatus, TradeRequestState, PlayerStatus as PlayerStatusEnum } from "../types/player";
 import { Position } from "../types/nfl-types";
 import { gameStateManager } from "../types/GameStateManager";
+import { RestructureModal, FranchiseTagModal } from "../ui/Overlays";
 
 export function PlayerProfileScreen({ player, setScreen }: { player: Player | null; setScreen: (s: string) => void }) {
   if (!player) return null;
@@ -151,9 +152,17 @@ export function PlayerProfileScreen({ player, setScreen }: { player: Player | nu
           {/* Personality Traits */}
           <Section title="Personality">
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <StatBar label="Leadership" value={player.personality.leadership} />
               <StatBar label="Work Ethic" value={player.personality.workEthic} />
               <StatBar label="Team Player" value={player.personality.teamPlayer} />
+              <StatBar label="Motivation" value={player.personality.motivation} />
               <StatBar label="Consistency" value={player.personality.consistency} />
+              <StatBar label="Clutch" value={player.personality.clutch} />
+              <StatBar label="Loyalty" value={player.personality.loyalty} />
+              <StatBar label="Marketability" value={player.personality.marketability} />
+              <StatBar label="Discipline" value={player.personality.discipline} />
+              <StatBar label="Ego" value={player.personality.ego} />
+              <StatBar label="Media" value={player.personality.mediaSensitivity} />
             </div>
           </Section>
 
@@ -253,25 +262,25 @@ function AttributesTab({ player }: { player: Player }) {
   // Real attributes grouped by position
   const attr = player.attributes;
 
+  const physicalData = [
+    { label: "SPD", value: attr.speed },
+    { label: "STR", value: attr.strength },
+    { label: "AGI", value: attr.agility },
+    { label: "ACC", value: attr.acceleration },
+    { label: "JMP", value: attr.jumping },
+    { label: "STA", value: attr.stamina },
+  ];
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
       {/* Physical */}
       <Section title="Physical">
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <StatBar label="Speed" value={attr.speed} />
-          <StatBar label="Strength" value={attr.strength} />
-          <StatBar label="Agility" value={attr.agility} />
-          <StatBar label="Acceleration" value={attr.acceleration} />
-        </div>
+        <RadarChart data={physicalData} size={180} color={COLORS.lime} />
       </Section>
 
       {/* Mental */}
       <Section title="Mental">
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <StatBar label="Awareness" value={attr.awareness} />
-          <StatBar label="Play Recognition" value={attr.playRecognition} />
-          <StatBar label="Leadership" value={attr.leadership} />
-        </div>
+        <RadarChart data={[{ label: "AWR", value: attr.awareness }, { label: "PRC", value: attr.playRecognition }, { label: "LDR", value: attr.leadership }, { label: "DSC", value: attr.discipline }]} size={180} color={COLORS.sky} />
       </Section>
 
       {/* Position-specific groups */}
@@ -363,6 +372,9 @@ function ContractTab({
   releaseConfirm: boolean;
   setReleaseConfirm: (b: boolean) => void;
 }) {
+  const [showRestructure, setShowRestructure] = useState(false);
+  const [showTag, setShowTag] = useState(false);
+
   if (!player.contract) {
     return <Section title="Contract">
       <div style={{ fontSize: 11, color: COLORS.muted }}>No active contract — Free Agent</div>
@@ -370,8 +382,6 @@ function ContractTab({
   }
 
   const contract = player.contract;
-  const conversionAmount = contract.currentYearCap * (restructurePercent / 100);
-  const newCap = contract.currentYearCap - conversionAmount;
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
@@ -415,57 +425,62 @@ function ContractTab({
         </Section>
       </div>
 
-      {/* Restructure Widget */}
-      {contract.canRestructure && contract.yearsRemaining > 1 && (
-        <div style={{ gridColumn: "1/-1" }}>
-          <Section title="Contract Restructure">
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div>
-              <div style={{ fontSize: 10, color: COLORS.muted, marginBottom: 8 }}>
-                Convert base salary to signing bonus: {restructurePercent}%
-              </div>
-              <input
-                type="range"
-                min="1"
-                max="50"
-                value={restructurePercent}
-                onChange={(e) => setRestructurePercent(Number(e.target.value))}
-                style={{ width: "100%", cursor: "pointer" }}
-              />
-            </div>
-            <div style={{ fontSize: 10, color: COLORS.lime, fontFamily: FONT.mono }}>
-              Saves {fmtCurrency(conversionAmount)}/yr | Adds {fmtCurrency(conversionAmount)} dead cap
-            </div>
-            <button
-              onClick={() => {
-                const result = gameStateManager.financeSystem.executeRestructure(player, team, restructurePercent);
-                if (result.success) {
-                  gameStateManager.validateRosterConstraints();
-                  gameStateManager.onEngineStateChange?.();
-                }
-              }}
-              style={{
-                padding: "8px 14px",
-                borderRadius: 6,
-                background: COLORS.lime,
-                color: COLORS.bg,
-                border: "none",
-                fontSize: 10,
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              Restructure
-            </button>
-            </div>
-          </Section>
-        </div>
+      {/* Modals */}
+      {showRestructure && (
+        <RestructureModal
+          player={player}
+          team={team}
+          onConfirm={(pct) => {
+            const result = gameStateManager.financeSystem.executeRestructure(player, team, pct);
+            if (result.success) {
+              gameStateManager.validateRosterConstraints();
+              gameStateManager.onEngineStateChange?.();
+            }
+            setShowRestructure(false);
+          }}
+          onCancel={() => setShowRestructure(false)}
+        />
+      )}
+
+      {showTag && (
+        <FranchiseTagModal
+          player={player}
+          onConfirm={() => {
+            // Logic to apply tag would go here (e.g., update contract to 1yr guaranteed)
+            setShowTag(false);
+          }}
+          onCancel={() => setShowTag(false)}
+        />
       )}
 
       {/* Status-Driven Action Buttons */}
       <div style={{ gridColumn: "1/-1" }}>
         <Section title="Actions">
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {contract.canRestructure && contract.yearsRemaining > 1 && (
+            <button
+              onClick={() => setShowRestructure(true)}
+              style={{
+                padding: "8px 14px", borderRadius: 6, background: "rgba(215,241,113,0.15)",
+                color: COLORS.lime, border: `1px solid ${COLORS.lime}`, fontSize: 10, fontWeight: 700, cursor: "pointer"
+              }}
+            >
+              Restructure Contract
+            </button>
+          )}
+
+          {contract.yearsRemaining === 1 && (
+            <button
+              onClick={() => setShowTag(true)}
+              style={{
+                padding: "8px 14px", borderRadius: 6, background: "rgba(141,36,110,0.2)",
+                color: COLORS.magenta, border: `1px solid ${COLORS.magenta}`, fontSize: 10, fontWeight: 700, cursor: "pointer"
+              }}
+            >
+              Apply Franchise Tag
+            </button>
+          )}
+
           {player.status === PlayerStatusEnum.PRACTICE_SQUAD && (
             <button
               onClick={() => {

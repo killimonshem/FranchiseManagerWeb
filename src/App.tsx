@@ -12,7 +12,8 @@
 
 import { useState, useCallback } from "react";
 import { COLORS, FONT } from "./ui/theme";
-import { LayoutDashboard, Users, Briefcase, Trophy, Mail } from "./ui/components";
+import { LayoutDashboard, Users, Briefcase, Trophy, Mail, FinancialHealthBadge, RatingBadge, PosTag } from "./ui/components";
+import { HoldoutModal, BlackMondayModal } from "./ui/Overlays";
 import { TransactionTicker } from "./ui/TransactionTicker";
 
 import { TeamSelectScreen, GameStartData, TeamMeta, GMProfile, NFL_TEAMS } from "./screens/TeamSelectScreen";
@@ -90,6 +91,26 @@ export default function App() {
     window.addEventListener("resize", () => setIsMobile(window.innerWidth < 768));
   }
 
+  // Local state for modal-based negotiation (League Year Reset)
+  const [negotiatingPlayerId, setNegotiatingPlayerId] = useState<string | null>(null);
+
+  // ── Asset Resilience: Fetch Logo ──────────────────────────────────
+  const [teamLogo, setTeamLogo] = useState<string | null>(null);
+  useState(() => {
+    const fetchLogo = async () => {
+      if (!gameStateManager.userTeamId) return;
+      try {
+        const response = await fetch("https://github.com/nflverse/nflverse-data/releases/download/manually_updated/teams_colors_logos.json");
+        const data = await response.json();
+        const teamData = data.find((t: any) => t.team_abbr === gameStateManager.userTeamId);
+        if (teamData) setTeamLogo(teamData.team_logo_espn);
+      } catch (e) {
+        console.warn("Failed to fetch team logo", e);
+      }
+    };
+    fetchLogo();
+  });
+
   // ── Engine-derived values (read from manager, not local state) ────
   // These are re-evaluated on every render triggered by refresh()
   const WEEK    = gameStateManager.currentGameDate.week;
@@ -100,6 +121,9 @@ export default function App() {
   const hasCriticalError = simState === SimulationState.CRITICAL_ERROR;
   const activeInterrupt  = gameStateManager.engineActiveInterrupt;
   const unreadInbox = gameStateManager.inbox.filter(m => !m.isRead).length;
+
+  const userTeam = gameStateManager.userTeam;
+  const capSpace = userTeam ? gameStateManager.getCapSpace(userTeam.id) : 0;
 
   const handleScreenChange = (s: string) => {
     const parent = ARCHITECTURE.find(a => a.id === s || a.subs?.find(sub => sub.id === s));
@@ -396,10 +420,20 @@ export default function App() {
             {isMobile && (
               <span style={{ fontSize: 13, fontWeight: 800, color: COLORS.light }}>FM 2025</span>
             )}
+            {teamLogo && (
+              <img src={teamLogo} alt="Team Logo" style={{ width: 24, height: 24, objectFit: "contain" }} />
+            )}
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {userTeam && (
+                <span style={{ fontSize: 11, fontWeight: 800, color: COLORS.light, marginRight: 4 }}>
+                  {userTeam.wins}-{userTeam.losses}-{userTeam.ties}
+                </span>
+              )}
+              <FinancialHealthBadge capSpace={capSpace} />
+              <div style={{ width: 1, height: 16, background: COLORS.darkMagenta, margin: "0 4px" }} />
               <span style={{
                 fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
-                background: "rgba(215,241,113,0.12)", color: COLORS.lime,
+                background: "rgba(215,241,113,0.1)", color: COLORS.lime,
                 borderRadius: 4, padding: "2px 7px",
                 border: `1px solid rgba(215,241,113,0.25)`,
               }}>
@@ -580,6 +614,84 @@ export default function App() {
           </div>
         );
       })()}
+
+      {/* ── LEAGUE_YEAR_RESET modal overlay ──────────────────────────────── */}
+      {activeInterrupt?.reason === HardStopReason.LEAGUE_YEAR_RESET && (() => {
+        const payload = activeInterrupt.payload as any;
+        const expiringIds = (payload.expiringContracts as string[]) || [];
+        // Filter to only show those who STILL have 0 years (in case user extended some)
+        const expiringPlayers = expiringIds
+          .map(id => gameStateManager.allPlayers.find(p => p.id === id))
+          .filter(p => p && p.contract && p.contract.yearsRemaining === 0) as any[];
+
+        if (negotiatingPlayerId) {
+          return (
+            <div style={{
+              position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)",
+              zIndex: 500, display: "flex", flexDirection: "column", padding: 20
+            }}>
+              <div style={{ flex: 1, overflowY: "auto", background: COLORS.bg, borderRadius: 12, border: `1px solid ${COLORS.darkMagenta}`, padding: 20, maxWidth: 800, margin: "0 auto", width: "100%" }}>
+                <button 
+                  onClick={() => setNegotiatingPlayerId(null)}
+                  style={{ marginBottom: 10, background: "transparent", border: "none", color: COLORS.muted, cursor: "pointer" }}
+                >
+                  ← Back to List
+                </button>
+                <ContractNegotiationScreen 
+                  playerId={negotiatingPlayerId} 
+                  onDone={() => { setNegotiatingPlayerId(null); refresh(); }} 
+                  onRosterChange={refresh}
+                />
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)",
+            zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <div style={{
+              background: COLORS.bg, border: `1px solid ${COLORS.darkMagenta}`,
+              borderRadius: 12, padding: 28, maxWidth: 500, width: "90%", maxHeight: "80vh", display: "flex", flexDirection: "column",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+            }}>
+              <h3 style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 800, color: COLORS.light }}>Expiring Contracts</h3>
+              <p style={{ fontSize: 12, color: COLORS.muted, marginBottom: 20 }}>
+                The following players are about to become free agents. Negotiate now or they will be released.
+              </p>
+
+              <div style={{ flex: 1, overflowY: "auto", marginBottom: 20, display: "flex", flexDirection: "column", gap: 8 }}>
+                {expiringPlayers.length === 0 ? (
+                  <div style={{ padding: 20, textAlign: "center", color: COLORS.lime, fontSize: 12 }}>All contracts resolved!</div>
+                ) : (
+                  expiringPlayers.map(p => (
+                    <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px", background: "rgba(255,255,255,0.03)", borderRadius: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <PosTag pos={p.position} />
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.light }}>{p.firstName} {p.lastName}</div>
+                          <div style={{ fontSize: 10, color: COLORS.muted }}>{p.age} yo · {p.overall} OVR</div>
+                        </div>
+                      </div>
+                      <button onClick={() => setNegotiatingPlayerId(p.id)} style={{ padding: "6px 12px", borderRadius: 4, background: COLORS.magenta, color: COLORS.light, border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Negotiate</button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <button onClick={() => { gameStateManager.resolveEngineInterrupt({ reason: HardStopReason.LEAGUE_YEAR_RESET }); refresh(); }} style={{ width: "100%", padding: "12px", borderRadius: 8, background: COLORS.lime, color: COLORS.bg, border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+                {expiringPlayers.length > 0 ? `Release ${expiringPlayers.length} Players & Advance` : "Finalize Season"}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Narrative Overlays (Placeholders for future engine events) ── */}
+      {/* <HoldoutModal player={...} onResolve={...} /> */}
+      {/* <BlackMondayModal firedCoaches={...} vacancies={...} onDismiss={...} /> */}
 
       {/* Mobile Bottom Nav */}
       {isMobile && (

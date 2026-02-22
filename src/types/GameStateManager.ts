@@ -1928,7 +1928,11 @@ export class GameStateManager {
   private _buildCalendarPayload(reason: HardStopReason): import('./engine-types').InterruptPayload | null {
     switch (reason) {
       case HardStopReason.LEAGUE_YEAR_RESET:
-        return { reason, expiringContracts: [] };
+        const expiring = this.allPlayers
+          .filter(p => p.teamId === this.userTeamId && p.contract && p.contract.yearsRemaining === 0)
+          .map(p => p.id);
+        // Only interrupt if there are actually expiring contracts to manage
+        return expiring.length > 0 ? { reason, expiringContracts: expiring } : null;
       case HardStopReason.FREE_AGENCY_OPEN:
         return { reason, topFreeAgents: [] };
       case HardStopReason.DRAFT_PICK_READY:
@@ -2032,6 +2036,20 @@ export class GameStateManager {
 
       case HardStopReason.LEAGUE_YEAR_RESET:
       case HardStopReason.FREE_AGENCY_OPEN:
+        if (resolution.reason === HardStopReason.LEAGUE_YEAR_RESET && this.userTeamId) {
+          // Auto-release any players on user team who still have 0 years remaining
+          const expiring = this.allPlayers.filter(p =>
+            p.teamId === this.userTeamId &&
+            p.contract &&
+            p.contract.yearsRemaining === 0
+          );
+          for (const p of expiring) {
+            p.teamId = undefined;
+            p.status = PlayerStatus.FREE_AGENT;
+          }
+          if (expiring.length > 0) console.log(`[League Year] Released ${expiring.length} expiring players.`);
+        }
+        break;
       case HardStopReason.STARTER_INJURED:
         // Acknowledgement-only; no state change needed
         break;
