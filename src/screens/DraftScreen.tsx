@@ -1,8 +1,8 @@
 import { COLORS } from "../ui/theme";
-import { Section, RatingBadge, DataRow, PosTag, Pill } from "../ui/components";
+import { Section, RatingBadge, DataRow, PosTag, Pill, StatBar } from "../ui/components";
 import { useState, useEffect, useRef, useMemo } from "react";
 import type { GameStateManager, DraftProspect } from "../types/GameStateManager";
-import { Phone, User, Glasses, AlertOctagon, X, Check, Siren, Gavel, Star, ArrowUp, ArrowDown } from "lucide-react";
+import { Phone, User, Glasses, AlertOctagon, X, Check, Siren, Gavel, Star, ArrowUp, ArrowDown, FastForward } from "lucide-react";
 import { HardStopReason } from "../types/engine-types";
 import { analyzeTeamNeeds } from "../types/DraftWeekSystem";
 
@@ -16,7 +16,6 @@ interface DraftPick {
   notes?: string;
 }
 
-const DRAFT_YEARS = [2026, 2027, 2028];
 const TOTAL_ROUNDS = 7;
 const ROUND_LABEL = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th"];
 
@@ -277,6 +276,171 @@ function PhoneCallOverlay({ offer, onAccept, onDecline, onNegotiate }: { offer: 
   );
 }
 
+function TradeUpOverlay({ offer, onAccept, onCancel }: { offer: any, onAccept: () => void, onCancel: () => void }) {
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 200,
+      background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center"
+    }}>
+      <div style={{
+        background: COLORS.bg, border: `1px solid ${COLORS.lime}`, borderRadius: 12, padding: 24, width: 400,
+        boxShadow: "0 20px 50px rgba(0,0,0,0.5)"
+      }}>
+        <h3 style={{ margin: "0 0 16px", color: COLORS.light }}>Trade Up Opportunity</h3>
+        <div style={{ marginBottom: 20, fontSize: 13, color: COLORS.muted }}>
+          <strong style={{ color: COLORS.light }}>{offer.targetTeamId}</strong> is willing to trade the <strong style={{ color: COLORS.lime }}>Round {offer.targetRound}, Pick {offer.targetPick}</strong>.
+        </div>
+        
+        <div style={{ background: "rgba(255,255,255,0.05)", padding: 12, borderRadius: 8, marginBottom: 20 }}>
+          <div style={{ fontSize: 11, color: COLORS.muted, textTransform: "uppercase", marginBottom: 8 }}>They Want</div>
+          {offer.myPicks.map((p: any) => (
+            <div key={`${p.year}-${p.round}-${p.originalTeamId}`} style={{ fontSize: 13, color: COLORS.light, marginBottom: 4 }}>
+              {p.year} Round {p.round} <span style={{ color: COLORS.muted }}>(Pick {p.overallPick || "?"})</span>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onAccept} style={{
+            flex: 1, padding: 12, background: COLORS.lime, color: COLORS.bg, border: "none", borderRadius: 6, fontWeight: 700, cursor: "pointer"
+          }}>
+            Accept Trade
+          </button>
+          <button onClick={onCancel} style={{
+            flex: 1, padding: 12, background: "transparent", color: COLORS.muted, border: `1px solid ${COLORS.muted}`, borderRadius: 6, fontWeight: 600, cursor: "pointer"
+          }}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScoutingReportModal({ prospect, onClose, onScout, scoutPts }: { prospect: DraftProspect, onClose: () => void, onScout: () => void, scoutPts: number }) {
+  const isFullyRevealed = prospect.scoutingPointsSpent >= 2;
+  
+  // Mock attributes for display since they aren't fully modeled in the draft class yet
+  const mockAttrs = useMemo(() => {
+    return [
+      { label: "Athleticism", value: 70 + Math.floor(Math.random() * 25) },
+      { label: "Technique", value: 60 + Math.floor(Math.random() * 30) },
+      { label: "Football IQ", value: 65 + Math.floor(Math.random() * 25) },
+      { label: "Durability", value: prospect.medicalGrade === 'A' ? 90 : prospect.medicalGrade === 'B' ? 80 : 60 },
+    ];
+  }, [prospect.id]);
+
+  const personality = useMemo(() => {
+     const traits = ["Leader", "High Motor", "Team First", "Competitor", "Disciplined", "Raw Talent"];
+     // Simple hash to keep traits consistent for the same prospect
+     const idx = prospect.id.charCodeAt(0) % traits.length;
+     return [traits[idx], traits[(idx + 2) % traits.length]];
+  }, [prospect.id]);
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 300,
+      background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center",
+      animation: "fadeIn 0.2s"
+    }} onClick={onClose}>
+      <div style={{
+        background: COLORS.bg, border: `1px solid ${COLORS.darkMagenta}`, borderRadius: 12,
+        width: 500, maxWidth: "90%", maxHeight: "90vh", overflowY: "auto",
+        boxShadow: "0 20px 50px rgba(0,0,0,0.5)", position: "relative"
+      }} onClick={e => e.stopPropagation()}>
+        
+        {/* Header */}
+        <div style={{ padding: 20, borderBottom: `1px solid ${COLORS.darkMagenta}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.light, marginBottom: 4 }}>{prospect.name}</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <PosTag pos={prospect.position} />
+              <span style={{ fontSize: 12, color: COLORS.muted }}>{prospect.college}</span>
+            </div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+             <div style={{ fontSize: 10, color: COLORS.muted, textTransform: "uppercase", marginBottom: 2 }}>Scouting Grade</div>
+             {renderOvr(prospect)}
+          </div>
+        </div>
+
+        <div style={{ padding: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+          {/* Physicals */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.lime, textTransform: "uppercase", marginBottom: 8 }}>Physical Profile</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+               <div style={{ background: "rgba(255,255,255,0.05)", padding: 8, borderRadius: 6 }}>
+                 <div style={{ fontSize: 9, color: COLORS.muted }}>Height</div>
+                 <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.light }}>{prospect.height ? `${Math.floor(prospect.height/12)}'${prospect.height%12}"` : "N/A"}</div>
+               </div>
+               <div style={{ background: "rgba(255,255,255,0.05)", padding: 8, borderRadius: 6 }}>
+                 <div style={{ fontSize: 9, color: COLORS.muted }}>Weight</div>
+                 <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.light }}>{prospect.weight ? `${prospect.weight} lbs` : "N/A"}</div>
+               </div>
+            </div>
+            
+            <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.lime, textTransform: "uppercase", marginBottom: 8 }}>Combine Data</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+                 <span style={{ color: COLORS.muted }}>40 Yard Dash</span>
+                 <span style={{ color: COLORS.light, fontFamily: "monospace" }}>{prospect.fortyYardDash?.toFixed(2) || "-"}</span>
+               </div>
+               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+                 <span style={{ color: COLORS.muted }}>Bench Press</span>
+                 <span style={{ color: COLORS.light, fontFamily: "monospace" }}>{prospect.benchPress || "-"} reps</span>
+               </div>
+               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+                 <span style={{ color: COLORS.muted }}>Vertical</span>
+                 <span style={{ color: COLORS.light, fontFamily: "monospace" }}>{prospect.verticalJump || "-"} in</span>
+               </div>
+            </div>
+          </div>
+
+          {/* Attributes & Personality */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.lime, textTransform: "uppercase", marginBottom: 8 }}>Scout Analysis</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+              {mockAttrs.map(a => (
+                <StatBar key={a.label} label={a.label} value={isFullyRevealed ? a.value : Math.max(40, a.value - 10)} max={100} color={COLORS.sky} />
+              ))}
+            </div>
+
+            <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.lime, textTransform: "uppercase", marginBottom: 8 }}>Personality</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {personality.map(t => (
+                <span key={t} style={{ fontSize: 10, padding: "4px 8px", background: "rgba(141,36,110,0.2)", color: COLORS.light, borderRadius: 4, border: `1px solid ${COLORS.magenta}` }}>
+                  {t}
+                </span>
+              ))}
+              <span style={{ fontSize: 10, padding: "4px 8px", background: prospect.medicalGrade === 'A' ? "rgba(34, 197, 94, 0.1)" : "rgba(239, 68, 68, 0.1)", color: prospect.medicalGrade === 'A' ? COLORS.lime : COLORS.coral, borderRadius: 4, border: `1px solid ${prospect.medicalGrade === 'A' ? COLORS.lime : COLORS.coral}` }}>
+                Medical: {prospect.medicalGrade}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div style={{ padding: 20, borderTop: `1px solid ${COLORS.darkMagenta}`, display: "flex", justifyContent: "flex-end", gap: 10 }}>
+          <button onClick={onClose} style={{ padding: "8px 16px", background: "transparent", border: `1px solid ${COLORS.muted}`, color: COLORS.muted, borderRadius: 6, cursor: "pointer" }}>Close</button>
+          {prospect.scoutingPointsSpent < 2 && (
+            <button 
+              onClick={onScout} 
+              disabled={scoutPts < 1}
+              style={{ 
+                padding: "8px 16px", background: scoutPts >= 1 ? COLORS.lime : "rgba(255,255,255,0.1)", 
+                color: scoutPts >= 1 ? COLORS.bg : COLORS.muted, border: "none", borderRadius: 6, 
+                cursor: scoutPts >= 1 ? "pointer" : "not-allowed", fontWeight: 700 
+              }}
+            >
+              Scout Player (1 Pt)
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function DraftScreen({
@@ -293,10 +457,14 @@ export function DraftScreen({
   const [targetedPlayers, setTargetedPlayers] = useState<Set<string>>(new Set());
   const [showSnipeAlert, setShowSnipeAlert] = useState<DraftProspect | null>(null);
   const [showAdvisor, setShowAdvisor] = useState(false);
+  const [tradeUpOffer, setTradeUpOffer] = useState<any>(null);
+  const [viewProspect, setViewProspect] = useState<DraftProspect | null>(null);
   const lastPickRef = useRef<number>(0);
 
+  const currentSeason = gsm.currentGameDate.season;
+  const draftYears = [currentSeason, currentSeason + 1, currentSeason + 2];
   const myPicks = computeTeamPicks(userTeamAbbr, gsm);
-  const byYear  = DRAFT_YEARS.map(yr => ({
+  const byYear  = draftYears.map(yr => ({
     year: yr,
     picks: myPicks.filter(p => p.year === yr),
   }));
@@ -396,6 +564,68 @@ export function DraftScreen({
     setTargetedPlayers(next);
   }
 
+  function handleTradeUp() {
+    if (!gsm.draftEngine || !gsm.isDraftActive) return;
+    gsm.draftEngine.pause();
+
+    const currentPickNum = gsm.currentDraftPick;
+    const currentRound = gsm.currentDraftRound;
+    const teamOnClockId = gsm.draftOrder[currentPickNum - 1];
+
+    if (teamOnClockId === userTeamAbbr) {
+      alert("You are already on the clock!");
+      gsm.draftEngine.resume();
+      return;
+    }
+
+    // Find user picks to offer (simple heuristic: next 2 available picks)
+    const myPicks = gsm.draftPicks
+      .filter(p => p.currentTeamId === userTeamAbbr && p.year === gsm.currentGameDate.season)
+      .sort((a, b) => a.round - b.round);
+
+    const offerPicks = myPicks.slice(0, 2);
+
+    if (offerPicks.length === 0) {
+      alert("You don't have enough draft capital to trade up.");
+      gsm.draftEngine.resume();
+      return;
+    }
+
+    setTradeUpOffer({
+      targetTeamId: teamOnClockId,
+      targetRound: currentRound,
+      targetPick: currentPickNum,
+      myPicks: offerPicks
+    });
+  }
+
+  function executeTradeUp() {
+    if (!tradeUpOffer) return;
+    
+    const targetPickObj = gsm.draftPicks.find(p => 
+        p.currentTeamId === tradeUpOffer.targetTeamId && 
+        p.year === gsm.currentGameDate.season && 
+        p.round === tradeUpOffer.targetRound
+    );
+
+    const payload = {
+        offeringTeamId: userTeamAbbr,
+        receivingTeamId: tradeUpOffer.targetTeamId,
+        offeringPlayerIds: [],
+        receivingPlayerIds: [],
+        offeringPickIds: tradeUpOffer.myPicks.map((p: any) => `${p.year}-${p.round}-${p.originalTeamId}`),
+        receivingPickIds: targetPickObj ? [`${targetPickObj.year}-${targetPickObj.round}-${targetPickObj.originalTeamId}`] : []
+    };
+    
+    gsm.executeTrade(payload);
+    // Force update draft order to reflect user is now on clock
+    gsm.draftOrder[gsm.currentDraftPick - 1] = userTeamAbbr;
+    
+    setTradeUpOffer(null);
+    gsm.draftEngine.resume();
+    refresh();
+  }
+
   // Intercept Trade Offers
   const activeTradeInterrupt = gsm.activeInterrupt?.reason === HardStopReason.TRADE_OFFER_RECEIVED 
     ? gsm.activeInterrupt 
@@ -412,10 +642,30 @@ export function DraftScreen({
       <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: COLORS.light, marginBottom: 8 }}>
         {gsm.currentGameDate.season} NFL Draft
       </h2>
-      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-        <Pill active={tab === "board"}  onClick={() => setTab("board")}>Big Board</Pill>
-        <Pill active={tab === "picks"}  onClick={() => setTab("picks")}>My Picks</Pill>
-        <Pill active={tab === "needs"}  onClick={() => setTab("needs")}>Team Needs</Pill>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 6 }}>
+          <Pill active={tab === "board"}  onClick={() => setTab("board")}>Big Board</Pill>
+          <Pill active={tab === "picks"}  onClick={() => setTab("picks")}>My Picks</Pill>
+          <Pill active={tab === "needs"}  onClick={() => setTab("needs")}>Team Needs</Pill>
+        </div>
+        {gsm.isDraftActive && (
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={handleTradeUp} style={{
+              background: COLORS.lime, color: COLORS.bg, border: "none", borderRadius: 4,
+              padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 6
+            }}>
+              <ArrowUp size={14} /> Trade Up
+            </button>
+            <button onClick={() => gsm.draftEngine?.simulateToNextUserPick()} style={{
+              background: "rgba(255,255,255,0.1)", color: COLORS.light, border: "1px solid rgba(255,255,255,0.2)", borderRadius: 4,
+              padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 6
+            }}>
+              <FastForward size={14} /> Sim to Next Pick
+            </button>
+          </div>
+        )}
       </div>
 
       {tab === "board" && (
@@ -454,7 +704,7 @@ export function DraftScreen({
                 const isTarget = targetedPlayers.has(p.id);
                 const rank = prospects.indexOf(p) + 1;
                 return (
-                  <DataRow key={p.id} even={i % 2 === 0} hover>
+                  <DataRow key={p.id} even={i % 2 === 0} hover onClick={() => setViewProspect(p)}>
                     <span style={{ flex: 1, fontSize: 10, fontFamily: "monospace", color: COLORS.muted }}>{rank}</span>
                     <span style={{ flex: 2, fontSize: 11, fontWeight: 600, color: COLORS.light }}>{p.name}</span>
                     <span style={{ flex: 1 }}><PosTag pos={p.position} /></span>
@@ -463,7 +713,7 @@ export function DraftScreen({
                     <span style={{ flex: 1, fontSize: 10, color: COLORS.muted }}>Rd {p.projectedRound === 8 ? "UDFA" : p.projectedRound}</span>
                     <span style={{ flex: 1 }}>
                       <button 
-                        onClick={() => toggleTarget(p.id)}
+                        onClick={(e) => { e.stopPropagation(); toggleTarget(p.id); }}
                         style={{ 
                           background: "transparent", border: "none", cursor: "pointer",
                           color: isTarget ? COLORS.gold : "rgba(255,255,255,0.1)"
@@ -474,7 +724,7 @@ export function DraftScreen({
                     </span>
                     <span style={{ flex: 1 }}>
                       <button
-                        onClick={() => canScout && handleScout(p.id)}
+                        onClick={(e) => { e.stopPropagation(); canScout && handleScout(p.id); }}
                         disabled={!canScout}
                         style={{
                           fontSize: 9,
@@ -547,11 +797,68 @@ export function DraftScreen({
       )}
 
       {tab === "needs" && (
-        <Section title="Team Needs">
-          <div style={{ fontSize: 12, color: COLORS.muted, padding: "12px 0" }}>
-            Team needs analysis coming soon.
-          </div>
-        </Section>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <Section title="Identified Weaknesses" pad={false}>
+            <div style={{ padding: 16 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+                {teamNeeds.length === 0 ? (
+                  <div style={{ fontSize: 11, color: COLORS.lime }}>No critical weaknesses identified.</div>
+                ) : (
+                  teamNeeds.map((pos: string) => (
+                    <div key={pos} style={{ 
+                      display: "flex", alignItems: "center", gap: 8, 
+                      background: "rgba(255, 85, 85, 0.1)", border: "1px solid rgba(255, 85, 85, 0.25)", 
+                      borderRadius: 6, padding: "6px 10px" 
+                    }}>
+                      <PosTag pos={pos} />
+                      <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.light }}>Need</span>
+                    </div>
+                  ))
+                )}
+              </div>
+              <p style={{ fontSize: 11, color: COLORS.muted, margin: 0, lineHeight: 1.4 }}>
+                Scouts recommend prioritizing these positions in early rounds due to lack of depth or starter quality.
+              </p>
+            </div>
+          </Section>
+
+          <Section title="Positional Depth Chart (Needs)" pad={false}>
+            <DataRow header>
+              <span style={{ flex: 0.8, fontSize: 8, color: COLORS.muted, fontWeight: 700 }}>Pos</span>
+              <span style={{ flex: 0.8, fontSize: 8, color: COLORS.muted, fontWeight: 700 }}>Count</span>
+              <span style={{ flex: 0.8, fontSize: 8, color: COLORS.muted, fontWeight: 700 }}>Avg</span>
+              <span style={{ flex: 3, fontSize: 8, color: COLORS.muted, fontWeight: 700 }}>Depth (Top 3)</span>
+            </DataRow>
+            {teamNeeds.map((pos: string) => {
+              const playersAtPos = gsm.allPlayers
+                .filter((p: any) => p.teamId === userTeamAbbr && p.position === pos)
+                .sort((a: any, b: any) => b.overall - a.overall);
+              
+              const count = playersAtPos.length;
+              const avg = count > 0 ? Math.round(playersAtPos.reduce((s: number, p: any) => s + p.overall, 0) / count) : 0;
+
+              return (
+                <DataRow key={pos} even={false}>
+                  <span style={{ flex: 0.8 }}><PosTag pos={pos} /></span>
+                  <span style={{ flex: 0.8, fontSize: 11, color: count < 2 ? COLORS.coral : COLORS.light }}>{count}</span>
+                  <span style={{ flex: 0.8 }}><RatingBadge value={avg} size="sm" /></span>
+                  <div style={{ flex: 3, display: "flex", gap: 6, overflowX: "auto" }}>
+                    {playersAtPos.slice(0, 3).map((p: any) => (
+                      <div key={p.id} style={{ 
+                        background: "rgba(255,255,255,0.05)", borderRadius: 4, padding: "2px 6px", 
+                        fontSize: 9, display: "flex", alignItems: "center", gap: 4 
+                      }}>
+                        <span style={{ color: COLORS.light }}>{p.lastName}</span>
+                        <span style={{ color: p.overall >= 80 ? COLORS.lime : p.overall >= 70 ? COLORS.gold : COLORS.muted, fontWeight: 700 }}>{p.overall}</span>
+                      </div>
+                    ))}
+                    {playersAtPos.length === 0 && <span style={{ fontSize: 9, color: COLORS.coral, fontStyle: "italic" }}>Empty</span>}
+                  </div>
+                </DataRow>
+              );
+            })}
+          </Section>
+        </div>
       )}
 
       {/* ── Overlays ── */}
@@ -568,6 +875,23 @@ export function DraftScreen({
         <SnipeAlertOverlay 
           player={showSnipeAlert} 
           onDismiss={() => setShowSnipeAlert(null)} 
+        />
+      )}
+
+      {tradeUpOffer && (
+        <TradeUpOverlay 
+          offer={tradeUpOffer}
+          onAccept={executeTradeUp}
+          onCancel={() => { setTradeUpOffer(null); gsm.draftEngine?.resume(); }}
+        />
+      )}
+
+      {viewProspect && (
+        <ScoutingReportModal 
+          prospect={viewProspect} 
+          onClose={() => setViewProspect(null)} 
+          onScout={() => handleScout(viewProspect.id)}
+          scoutPts={scoutPtsLeft}
         />
       )}
 

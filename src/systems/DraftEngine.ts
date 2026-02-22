@@ -76,6 +76,7 @@ export class DraftEngine {
   private _running = false;
   private _paused = false;
   private _pickResults: DraftPickResult[] = [];
+  private _simulatingToNextUserPick = false;
 
   constructor(host: DraftEngineHost) {
     this._host = host;
@@ -145,6 +146,14 @@ export class DraftEngine {
   }
 
   /**
+   * Fast-forward the draft until the user is on the clock.
+   */
+  simulateToNextUserPick(): void {
+    this._simulatingToNextUserPick = true;
+    if (this._paused) this.resume();
+  }
+
+  /**
    * Called by the UI when the user manually selects a player.
    * The clock waits for this via a polling promise.
    */
@@ -163,7 +172,9 @@ export class DraftEngine {
     round: number,
   ): Promise<void> {
     // Simulate the "on the clock" tension
-    await new Promise<void>(resolve => setTimeout(resolve, 1500));
+    if (!this._simulatingToNextUserPick) {
+      await new Promise<void>(resolve => setTimeout(resolve, 1500));
+    }
 
     const team = this._host.teams.find(t => t.id === teamId);
     if (!team) return;
@@ -188,6 +199,8 @@ export class DraftEngine {
   }
 
   private async _handleUserPick(pickNumber: number, round: number): Promise<void> {
+    this._simulatingToNextUserPick = false;
+
     // 5% chance of a mid-draft trade-up offer before the user picks
     if (Math.random() < 0.05) {
       const tradingTeam = this._findTradeUpCandidate(pickNumber);

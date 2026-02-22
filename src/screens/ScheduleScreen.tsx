@@ -10,7 +10,7 @@ export function ScheduleScreen() {
 
   return (
     <div style={{ animation: "fadeIn .4s" }}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 800, color: COLORS.light }}>2025 Schedule</h2>
+      <h2 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 800, color: COLORS.light }}>2026 Schedule</h2>
       
       <Section title="Regular Season" pad={false}>
         <DataRow header>

@@ -210,13 +210,13 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
         title={`${negotiationState.agent.name}`}
         pad
         style={{
-          borderLeft: `4px solid ${getAgentMoodColor(negotiationState.agentMood)}`,
+          borderLeft: `4px solid ${getAgentMoodColor(negotiationState.agentMood) || COLORS.muted}`,
           marginBottom: 20,
         }}
       >
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
           <div>
-            <div style={{ fontSize: 11, color: COLORS.neutral, marginBottom: 4 }}>
+            <div style={{ fontSize: 11, color: COLORS.muted, marginBottom: 4 }}>
               ARCHETYPE
             </div>
             <div style={{ fontSize: 13, fontWeight: 500 }}>
@@ -224,7 +224,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: COLORS.neutral, marginBottom: 4 }}>
+            <div style={{ fontSize: 11, color: COLORS.muted, marginBottom: 4 }}>
               MOOD
             </div>
             <StatusBadge
@@ -245,25 +245,25 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
           <div>
-            <div style={{ fontSize: 10, color: COLORS.neutral }}>Market Value</div>
+            <div style={{ fontSize: 10, color: COLORS.muted }}>Market Value</div>
             <div style={{ fontSize: 12, fontWeight: 600 }}>
               {fmtCurrency(negotiationState.marketValue)}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 10, color: COLORS.neutral }}>Your Cap Space</div>
+            <div style={{ fontSize: 10, color: COLORS.muted }}>Your Cap Space</div>
             <div
               style={{
                 fontSize: 12,
                 fontWeight: 600,
-                color: capSpace < projectedCapHit ? COLORS.negative : COLORS.positive,
+                color: capSpace < projectedCapHit ? COLORS.coral : COLORS.lime,
               }}
             >
               {fmtCurrency(capSpace)}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 10, color: COLORS.neutral }}>Round</div>
+            <div style={{ fontSize: 10, color: COLORS.muted }}>Round</div>
             <div style={{ fontSize: 12, fontWeight: 600 }}>
               {negotiationState.negotiationRound}
             </div>
@@ -272,7 +272,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
 
         {/* Leverage Bar */}
         <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 10, color: COLORS.neutral, marginBottom: 4 }}>
+          <div style={{ fontSize: 10, color: COLORS.muted, marginBottom: 4 }}>
             LEVERAGE: {
               negotiationState.leverage.userLeverage > negotiationState.leverage.agentLeverage + 0.2
                 ? 'You Dominate'
@@ -285,9 +285,9 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
             label=""
             value={negotiationState.leverage.userLeverage * 100}
             max={100}
-            color={COLORS.positive}
+            color={COLORS.lime}
           />
-          <div style={{ fontSize: 9, textAlign: 'center', color: COLORS.neutral, marginTop: 4 }}>
+          <div style={{ fontSize: 9, textAlign: 'center', color: COLORS.muted, marginTop: 4 }}>
             You {Math.round(negotiationState.leverage.userLeverage * 100)}% | Agent{' '}
             {Math.round(negotiationState.leverage.agentLeverage * 100)}%
           </div>
@@ -301,8 +301,8 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
           <Section
             pad
             style={{
-              backgroundColor: COLORS.negative + '20',
-              borderLeft: `4px solid ${COLORS.negative}`,
+              backgroundColor: COLORS.coral + '20',
+              borderLeft: `4px solid ${COLORS.coral}`,
               marginBottom: 20,
             }}
           >
@@ -315,7 +315,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
             {negotiationState.pressLeaks.length > 0 && (
               <div
                 style={{
-                  backgroundColor: COLORS.warning + '10',
+                  backgroundColor: COLORS.gold + '10',
                   padding: 12,
                   borderRadius: 4,
                   marginBottom: 12,
@@ -323,7 +323,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
               >
                 {negotiationState.pressLeaks.map((leak, i) => (
                   <div key={i} style={{ fontSize: 11, marginBottom: i < negotiationState.pressLeaks.length - 1 ? 8 : 0 }}>
-                    <strong style={{ color: COLORS.warning }}>Press Leak:</strong> {leak.headline}
+                    <strong style={{ color: COLORS.gold }}>Press Leak:</strong> {leak.headline}
                   </div>
                 ))}
               </div>
@@ -385,7 +385,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
                     fontSize: 12,
                     marginBottom: 8,
                     fontWeight: 600,
-                    color: COLORS.warning,
+                    color: COLORS.gold,
                   }}
                 >
                   Blocked Number
@@ -447,7 +447,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 11, color: COLORS.neutral, marginBottom: 4 }}>
+              <label style={{ display: 'block', fontSize: 11, color: COLORS.muted, marginBottom: 4 }}>
                 Years: {offerDraft.years}
               </label>
               <input
@@ -463,7 +463,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 11, color: COLORS.neutral, marginBottom: 4 }}>
+              <label style={{ display: 'block', fontSize: 11, color: COLORS.muted, marginBottom: 4 }}>
                 APY: {fmtCurrency(apy)}
               </label>
               <input
@@ -480,7 +480,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 11, color: COLORS.neutral, marginBottom: 4 }}>
+              <label style={{ display: 'block', fontSize: 11, color: COLORS.muted, marginBottom: 4 }}>
                 Guaranteed: {Math.round(offerDraft.guaranteedPct)}% ({fmtCurrency(guaranteedMoney)})
               </label>
               <input
@@ -496,7 +496,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 11, color: COLORS.neutral, marginBottom: 4 }}>
+              <label style={{ display: 'block', fontSize: 11, color: COLORS.muted, marginBottom: 4 }}>
                 Signing Bonus: {fmtCurrency(signingBonus)}
               </label>
               <input
@@ -527,7 +527,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
               {showAdvanced && (
                 <div style={{ marginTop: 12, padding: 12, background: 'rgba(0,0,0,0.2)', borderRadius: 6 }}>
                   <div style={{ marginBottom: 12 }}>
-                    <label style={{ display: 'block', fontSize: 11, color: COLORS.neutral, marginBottom: 4 }}>
+                    <label style={{ display: 'block', fontSize: 11, color: COLORS.muted, marginBottom: 4 }}>
                       Void Years: {offerDraft.voidYears}
                     </label>
                     <input
@@ -536,7 +536,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
                       onChange={(e) => setOfferDraft({ ...offerDraft, voidYears: parseInt(e.target.value) })}
                       style={{ width: '100%' }}
                     />
-                    <div style={{ fontSize: 9, color: COLORS.neutral }}>Spreads signing bonus cap hit over extra years.</div>
+                    <div style={{ fontSize: 9, color: COLORS.muted }}>Spreads signing bonus cap hit over extra years.</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <input 
@@ -552,20 +552,20 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
 
             <div
               style={{
-                backgroundColor: COLORS.neutral + '10',
+                backgroundColor: COLORS.muted + '10',
                 padding: 12,
                 borderRadius: 4,
                 marginBottom: 16,
               }}
             >
-              <div style={{ fontSize: 10, color: COLORS.neutral, marginBottom: 4 }}>
+              <div style={{ fontSize: 10, color: COLORS.muted, marginBottom: 4 }}>
                 Total Value
               </div>
               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
                 {fmtCurrency(totalValue)}
               </div>
 
-              <div style={{ fontSize: 10, color: COLORS.neutral, marginBottom: 4 }}>
+              <div style={{ fontSize: 10, color: COLORS.muted, marginBottom: 4 }}>
                 Year 1 Cap Hit (Projected)
               </div>
               <CapBar value={projectedCapHit} max={capSpace * 1.2} label="" />
@@ -575,8 +575,8 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
                   textAlign: 'right',
                   color:
                     projectedCapHit > capSpace
-                      ? COLORS.negative
-                      : COLORS.positive,
+                      ? COLORS.coral
+                      : COLORS.lime,
                   marginTop: 4,
                 }}
               >
@@ -593,12 +593,12 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
               {submitting ? 'Submitting...' : 'Make Offer'}
             </IconBtn>
             {!canAfford && (
-              <div style={{ fontSize: 10, color: COLORS.negative, marginTop: 8, textAlign: 'center' }}>
+              <div style={{ fontSize: 10, color: COLORS.coral, marginTop: 8, textAlign: 'center' }}>
                 Insufficient cap space (need {fmtCurrency(projectedCapHit - capSpace)} more)
               </div>
             )}
             {!canAffordCash && (
-              <div style={{ fontSize: 10, color: COLORS.negative, marginTop: 8, textAlign: 'center' }}>
+              <div style={{ fontSize: 10, color: COLORS.coral, marginTop: 8, textAlign: 'center' }}>
                 Owner blocked: Insufficient cash reserves for this signing bonus.
               </div>
             )}
@@ -616,7 +616,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
             }}
           >
             {responseHistory.length === 0 ? (
-              <div style={{ fontSize: 12, color: COLORS.neutral }}>
+              <div style={{ fontSize: 12, color: COLORS.muted }}>
                 Submit your first offer to begin negotiations.
               </div>
             ) : (
@@ -626,12 +626,12 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
                   style={{
                     padding: 12,
                     marginBottom: idx < responseHistory.length - 1 ? 12 : 0,
-                    backgroundColor: COLORS.neutral + '10',
+                    backgroundColor: COLORS.muted + '10',
                     borderRadius: 4,
-                    borderLeft: `3px solid ${getAgentMoodColor(response.newMood)}`,
+                    borderLeft: `3px solid ${getAgentMoodColor(response.newMood) || COLORS.muted}`,
                   }}
                 >
-                  <div style={{ fontSize: 10, color: COLORS.neutral, marginBottom: 4 }}>
+                  <div style={{ fontSize: 10, color: COLORS.muted, marginBottom: 4 }}>
                     Round {idx + 1} — {response.newMood}
                   </div>
                   <div style={{ fontSize: 12, marginBottom: 8 }}>

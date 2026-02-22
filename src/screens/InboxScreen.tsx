@@ -4,7 +4,7 @@ import { CategoryIcon } from "../ui/components";
 import { useState } from "react";
 import type { GameStateManager } from "../types/GameStateManager";
 
-export function InboxScreen({ gsm, onNavigate, refresh }: { gsm: GameStateManager; onNavigate: (s: string, d?: any) => void; refresh: () => void; }) {
+export function InboxScreen({ gsm, onNavigate, refresh, isMobile = false }: { gsm: GameStateManager; onNavigate: (s: string, d?: any) => void; refresh: () => void; isMobile?: boolean }) {
   const [sel, setSel] = useState<any>(null);
 
   const inbox = gsm.inbox;
@@ -12,6 +12,10 @@ export function InboxScreen({ gsm, onNavigate, refresh }: { gsm: GameStateManage
   function handleClick(item: any) {
     setSel(item);
     if (item.category === 'trade' && item.requiresAction) {
+      // Mark as read before navigating
+      if (!item.isRead) {
+        item.isRead = true;
+      }
       // Open the dedicated review screen for trade offers
       onNavigate('tradeReview', { inboxId: item.id });
     }
@@ -21,7 +25,7 @@ export function InboxScreen({ gsm, onNavigate, refresh }: { gsm: GameStateManage
     <div style={{ animation: "fadeIn .4s" }}>
       <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: COLORS.light, marginBottom: 12 }}>Inbox</h2>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
         <Section pad={false}>
           {inbox.map((item: any) => (
             <div key={item.id} onClick={() => handleClick(item)} style={{ display: "flex", gap: 10, padding: "12px 14px", borderBottom: `1px solid rgba(116,0,86,0.4)`, cursor: "pointer", background: sel?.id === item.id ? "rgba(141,36,110,0.2)" : "transparent" }}>

@@ -587,7 +587,7 @@ export class GameStateManager {
 
   constructor() {
     this.currentGameDate = {
-      season: 2025,
+      season: 2026,
       week: 1,
       dayOfWeek: 1,
       timeSlot: TimeSlots.earlyMorning
@@ -644,6 +644,24 @@ export class GameStateManager {
     }
     this.draftPicks = picks;
     console.log(`✅ [GameStateManager] Generated ${picks.length} initial draft picks`);
+  }
+
+  generateFutureDraftPicks(year: number): void {
+    const TOTAL_ROUNDS = 7;
+    const picks: TeamDraftPick[] = [];
+    
+    for (let round = 1; round <= TOTAL_ROUNDS; round++) {
+      for (const team of this.teams) {
+        picks.push({
+          year,
+          round,
+          originalTeamId: team.id,
+          currentTeamId: team.id,
+        });
+      }
+    }
+    this.draftPicks.push(...picks);
+    console.log(`✅ [GameStateManager] Generated ${picks.length} draft picks for ${year}`);
   }
 
   // ── Draft engine factory ────────────────────────────────────────────────────
@@ -1615,8 +1633,16 @@ export class GameStateManager {
 
   /** Called once when the clock rolls into a new week. */
   private onWeekBoundary(): void {
-    const newWeek = this.currentGameDate.week + 1;
-    this.currentGameDate = { ...this.currentGameDate, week: newWeek };
+    let newWeek = this.currentGameDate.week + 1;
+    let newSeason = this.currentGameDate.season;
+
+    if (newWeek > 52) {
+      newWeek = 1;
+      newSeason++;
+      this.generateFutureDraftPicks(newSeason + 2);
+    }
+
+    this.currentGameDate = { ...this.currentGameDate, week: newWeek, season: newSeason };
     console.log(`📅 [advanceWeek] Week ${newWeek}, Season ${this.currentGameDate.season}`);
 
     // Annual veteran retirement (start of League Year)

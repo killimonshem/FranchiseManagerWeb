@@ -202,7 +202,7 @@ export function RosterScreen({
       {/* Sort */}
       <div style={{ display: "flex", gap: 14, marginBottom: 10 }}>
         {[{ k: "ovr", l: "Rating" }, { k: "sal", l: "Salary" }, { k: "age", l: "Age" }, { k: "name", l: "Name" }].map(s => (
-          <TabBtn key={s.k} active={sort === s.k} onClick={() => setSort(s.k)}>{s.l}</TabBtn>
+          <TabBtn key={s.k} active={sort === s.k} onClick={() => { setSort(s.k); setColumnSort(null); }}>{s.l}</TabBtn>
         ))}
       </div>
 

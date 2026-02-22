@@ -10,7 +10,7 @@
  *    own a copy.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { COLORS, FONT } from "./ui/theme";
 import { LayoutDashboard, Users, Briefcase, Trophy, Mail, FinancialHealthBadge, RatingBadge, PosTag } from "./ui/components";
 import { HoldoutModal, BlackMondayModal } from "./ui/Overlays";
@@ -90,16 +90,18 @@ export default function App() {
     typeof window !== "undefined" ? window.innerWidth < 768 : false
   );
 
-  if (typeof window !== "undefined") {
-    window.addEventListener("resize", () => setIsMobile(window.innerWidth < 768));
-  }
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Local state for modal-based negotiation (League Year Reset)
   const [negotiatingPlayerId, setNegotiatingPlayerId] = useState<string | null>(null);
 
   // ── Asset Resilience: Fetch Logo ──────────────────────────────────
   const [teamLogo, setTeamLogo] = useState<string | null>(null);
-  useState(() => {
+  useEffect(() => {
     const fetchLogo = async () => {
       if (!gameStateManager.userTeamId) return;
       try {
@@ -112,7 +114,7 @@ export default function App() {
       }
     };
     fetchLogo();
-  });
+  }, [gameStateManager.userTeamId]);
 
   // ── Engine-derived values (read from manager, not local state) ────
   // These are re-evaluated on every render triggered by refresh()

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { COLORS, fmtCurrency } from "../ui/theme";
 import { Section, DataRow, RatingBadge, PosTag } from "../ui/components";
-import { gameStateManager } from "../types/GameStateManager";
 import { Player, PlayerStatus } from "../types/player";
 import { calculatePlayerMarketValue } from "../types/player";
 import { ArrowUp, ArrowDown } from "lucide-react";
@@ -16,7 +15,7 @@ export function FreeAgencyScreen({ gsm, onRosterChange, onNavigate }: Props) {
   const [signingId, setSigningId] = useState<string | null>(null);
   const [columnSort, setColumnSort] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
-  const engine = gsm ?? gameStateManager;
+  const engine = gsm;
   const userTeamId = engine.userTeamId ?? "";
   const capSpace   = engine.getCapSpace(userTeamId);
   

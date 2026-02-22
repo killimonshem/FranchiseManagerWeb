@@ -4,7 +4,13 @@ import { COLORS, fmtCurrency } from "../ui/theme";
 import { RFATenderType } from "../types/GameStateManager";
 
 export function RFATenderingScreen({ gsm }: { gsm: any }) {
-  const candidates = gsm.getRFACandidates();
+  // Filter for RFA candidates directly from allPlayers to ensure real data usage
+  const candidates = gsm.allPlayers.filter((p: any) => 
+    p.teamId === gsm.userTeamId &&
+    p.contract &&
+    p.contract.yearsRemaining === 0 &&
+    p.accruedSeasons === 3
+  );
 
   return (
     <div style={{ animation: "fadeIn .3s" }}>
