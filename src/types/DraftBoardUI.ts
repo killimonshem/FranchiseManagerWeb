@@ -4,7 +4,7 @@
  * Provides draft board management, prospect analysis, and mock draft simulation
  */
 
-import { Position } from "./nfl-types";
+import { Position, ALL_POSITIONS } from "./nfl-types";
 import { Player, PlayerStatus } from "./player";
 import { Team } from "./team";
 
@@ -347,27 +347,13 @@ export class DraftBoardViewModel {
     );
     const needs: Record<Position, number> = {} as Record<Position, number>;
 
-    const positions: Position[] = [
-      "QB",
-      "RB",
-      "WR",
-      "TE",
-      "OL",
-      "DL",
-      "LB",
-      "CB",
-      "S",
-      "K",
-      "P",
-    ];
-
-    for (const position of positions) {
+    for (const position of ALL_POSITIONS) {
       const players = roster.filter((p) => p.position === position);
       const avgOverall =
         players.length > 0
           ? players.reduce((sum, p) => sum + p.overall, 0) / players.length
           : 0;
-      const count = players.count;
+      const count = players.length;
 
       let needScore = 0;
 

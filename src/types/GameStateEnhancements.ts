@@ -4,10 +4,9 @@
  * Extends game state with advanced draft validation, week advancement control, and season lifecycle
  */
 
-import { Position } from "./nfl-types";
+import { Position, DraftProspect, ALL_POSITIONS } from "./nfl-types";
 import { Player, PlayerStatus } from "./player";
 import { Team } from "./team";
-import { DraftProspect } from "./DraftSystem";
 import { DraftCompletionManager } from "./DraftCompletionSystem";
 
 // ============================================================================
@@ -456,20 +455,7 @@ function generateDraftProspectsForSeason(gameState: EnhancedGameState): void {
   console.log(`🏗️ Generating ${gameState.currentSeason} draft class prospects...`);
 
   for (let i = 1; i <= 300; i++) {
-    const positions: Position[] = [
-      "QB",
-      "RB",
-      "WR",
-      "TE",
-      "OL",
-      "DL",
-      "LB",
-      "CB",
-      "S",
-      "K",
-      "P",
-    ];
-    const position = positions[Math.floor(Math.random() * positions.length)];
+    const position = ALL_POSITIONS[Math.floor(Math.random() * ALL_POSITIONS.length)];
 
     const prospect: DraftProspect = {
       id: Math.random().toString(36).substr(2, 9),

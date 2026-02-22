@@ -4,10 +4,9 @@
  * Three phases: Lead-Up (Mon-Wed), War Room (Draft Day), Post-Draft
  */
 
-import { Position } from "./nfl-types";
+import { Position, DraftProspect } from "./nfl-types";
 import { Player, PlayerStatus } from "./player";
 import { Team } from "./team";
-import { DraftProspect } from "./DraftSystem";
 
 // ============================================================================
 // DRAFT WEEK PHASE & DAY ENUMS
@@ -1010,15 +1009,15 @@ export function analyzeTeamNeeds(team: Team, allPlayers: Player[]): Position[] {
 
   const needs: Position[] = [];
 
-  if (positionCounts["QB"] < 2) needs.push("QB");
-  if (positionCounts["RB"] < 3) needs.push("RB");
-  if (positionCounts["WR"] < 4) needs.push("WR");
-  if (positionCounts["TE"] < 2) needs.push("TE");
-  if (positionCounts["OL"] < 6) needs.push("OL");
-  if (positionCounts["DL"] < 5) needs.push("DL");
-  if (positionCounts["LB"] < 4) needs.push("LB");
-  if (positionCounts["CB"] < 4) needs.push("CB");
-  if (positionCounts["S"] < 2) needs.push("S");
+  if (positionCounts[Position.QB] < 2) needs.push(Position.QB);
+  if (positionCounts[Position.RB] < 3) needs.push(Position.RB);
+  if (positionCounts[Position.WR] < 4) needs.push(Position.WR);
+  if (positionCounts[Position.TE] < 2) needs.push(Position.TE);
+  if (positionCounts[Position.OL] < 6) needs.push(Position.OL);
+  if (positionCounts[Position.DL] < 5) needs.push(Position.DL);
+  if (positionCounts[Position.LB] < 4) needs.push(Position.LB);
+  if (positionCounts[Position.CB] < 4) needs.push(Position.CB);
+  if (positionCounts[Position.S] < 2) needs.push(Position.S);
 
   return needs.shuffle().slice(0, 3);
 }

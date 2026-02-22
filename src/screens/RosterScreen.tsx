@@ -34,6 +34,7 @@ export function RosterScreen({
   const [filter, setFilter] = useState("ALL");
   const [sort, setSort]     = useState("ovr");
   const [tab, setTab]       = useState("active");
+  const [view, setView]     = useState<"overview" | "contract" | "status">("overview");
 
   const active   = players.filter(p => p.status !== PlayerStatus.PRACTICE_SQUAD);
   const practice = players.filter(p => p.status === PlayerStatus.PRACTICE_SQUAD);
@@ -66,11 +67,27 @@ export function RosterScreen({
         </div>
       </div>
 
-      {/* Position filter */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 10, flexWrap: "wrap" }}>
-        {["ALL", ...POSITIONS].map(p => (
-          <Pill key={p} active={filter === p} onClick={() => setFilter(p)}>{p}</Pill>
-        ))}
+      {/* Filters & View Selector */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, gap: 10, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", flex: 1 }}>
+          {["ALL", ...POSITIONS].map(p => (
+            <Pill key={p} active={filter === p} onClick={() => setFilter(p)}>{p}</Pill>
+          ))}
+        </div>
+        
+        <select
+          value={view}
+          onChange={(e) => setView(e.target.value as any)}
+          style={{
+            padding: "4px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+            background: "rgba(116,0,86,0.2)", color: COLORS.light, border: `1px solid ${COLORS.darkMagenta}`,
+            outline: "none", cursor: "pointer"
+          }}
+        >
+          <option value="overview">Overview</option>
+          <option value="contract">Contract</option>
+          <option value="status">Status</option>
+        </select>
       </div>
 
       {/* Sort */}
@@ -92,12 +109,38 @@ export function RosterScreen({
               <span style={{ flex: 2, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Player</span>
               <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Pos</span>
               <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Age</span>
-              <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Rating</span>
-              <span className="roster-pot"    style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Pot</span>
-              <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Salary</span>
-              <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Yrs</span>
-              <span className="roster-morale" style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Morale</span>
-              <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Alerts</span>
+              
+              {view === "overview" && (
+                <>
+                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Rating</span>
+                  <span className="roster-pot"    style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Pot</span>
+                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Salary</span>
+                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Yrs</span>
+                  <span className="roster-morale" style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Morale</span>
+                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Alerts</span>
+                </>
+              )}
+
+              {view === "contract" && (
+                <>
+                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Cap Hit</span>
+                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Total</span>
+                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Guaranteed</span>
+                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Bonus</span>
+                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Dead Cap</span>
+                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Expires</span>
+                </>
+              )}
+
+              {view === "status" && (
+                <>
+                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Rating</span>
+                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Morale</span>
+                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Injury</span>
+                  <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Trade Status</span>
+                  <span style={{ flex: 2, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Notes</span>
+                </>
+              )}
             </DataRow>
 
             {sorted.map((p, i) => {
@@ -118,21 +161,65 @@ export function RosterScreen({
                   </div>
                   <span style={{ flex: 1 }}><PosTag pos={p.position} /></span>
                   <span style={{ flex: 1, fontSize: 11, color: COLORS.muted, fontFamily: "monospace" }}>{p.age}</span>
-                  <span style={{ flex: 1 }}><RatingBadge value={p.overall} size="sm" /></span>
-                  <span className="roster-pot"    style={{ flex: 1 }}><RatingBadge value={p.potential} size="sm" /></span>
-                  <span style={{ flex: 1, fontSize: 10, color: COLORS.lime, fontFamily: "monospace", fontWeight: 600 }}>
-                    {salary > 0 ? `${(salary / 1e6).toFixed(1)}M` : "—"}
-                  </span>
-                  <span style={{ flex: 1, fontSize: 10, color: COLORS.muted }}>
-                    {years > 0 ? `${years}yr` : "FA"}
-                  </span>
-                  <span className="roster-morale" style={{ flex: 1 }}><MoraleMeter value={p.morale} /></span>
-                  <span style={{ flex: 1, display: "flex", gap: 4, alignItems: "center" }}>
-                    {injured  && <span title={p.injuryStatus}><ShieldAlert   size={14} color={COLORS.magenta} /></span>}
-                    {hasNTC   && <span title="NTC"><Lock          size={12} color={COLORS.midMagenta} /></span>}
-                    {tradeReq && <span title="Trade Request"><AlertTriangle size={13} color={COLORS.magenta} /></span>}
-                    {expiring && <span title="Expiring"><Clock         size={13} color={COLORS.muted} /></span>}
-                  </span>
+
+                  {view === "overview" && (
+                    <>
+                      <span style={{ flex: 1 }}><RatingBadge value={p.overall} size="sm" /></span>
+                      <span className="roster-pot"    style={{ flex: 1 }}><RatingBadge value={p.potential} size="sm" /></span>
+                      <span style={{ flex: 1, fontSize: 10, color: COLORS.lime, fontFamily: "monospace", fontWeight: 600 }}>
+                        {salary > 0 ? `${(salary / 1e6).toFixed(1)}M` : "—"}
+                      </span>
+                      <span style={{ flex: 1, fontSize: 10, color: COLORS.muted }}>
+                        {years > 0 ? `${years}yr` : "FA"}
+                      </span>
+                      <span className="roster-morale" style={{ flex: 1 }}><MoraleMeter value={p.morale} /></span>
+                      <span style={{ flex: 1, display: "flex", gap: 4, alignItems: "center" }}>
+                        {injured  && <span title={p.injuryStatus}><ShieldAlert   size={14} color={COLORS.magenta} /></span>}
+                        {hasNTC   && <span title="NTC"><Lock          size={12} color={COLORS.midMagenta} /></span>}
+                        {tradeReq && <span title="Trade Request"><AlertTriangle size={13} color={COLORS.magenta} /></span>}
+                        {expiring && <span title="Expiring"><Clock         size={13} color={COLORS.muted} /></span>}
+                      </span>
+                    </>
+                  )}
+
+                  {view === "contract" && (
+                    <>
+                      <span style={{ flex: 1, fontSize: 10, color: COLORS.lime, fontFamily: "monospace", fontWeight: 600 }}>
+                        {salary > 0 ? `${(salary / 1e6).toFixed(1)}M` : "—"}
+                      </span>
+                      <span style={{ flex: 1, fontSize: 10, color: COLORS.muted, fontFamily: "monospace" }}>
+                        {p.contract?.totalValue ? `${(p.contract.totalValue / 1e6).toFixed(1)}M` : "—"}
+                      </span>
+                      <span style={{ flex: 1, fontSize: 10, color: COLORS.muted, fontFamily: "monospace" }}>
+                        {p.contract?.guaranteedMoney ? `${(p.contract.guaranteedMoney / 1e6).toFixed(1)}M` : "—"}
+                      </span>
+                      <span style={{ flex: 1, fontSize: 10, color: COLORS.muted, fontFamily: "monospace" }}>
+                        {p.contract?.signingBonus ? `${(p.contract.signingBonus / 1e6).toFixed(1)}M` : "—"}
+                      </span>
+                      <span style={{ flex: 1, fontSize: 10, color: COLORS.coral, fontFamily: "monospace" }}>
+                        {p.contract?.deadCap ? `${(p.contract.deadCap / 1e6).toFixed(1)}M` : "0.0M"}
+                      </span>
+                      <span style={{ flex: 1, fontSize: 10, color: expiring ? COLORS.gold : COLORS.muted }}>
+                        {years > 0 ? `${new Date().getFullYear() + years}` : "—"}
+                      </span>
+                    </>
+                  )}
+
+                  {view === "status" && (
+                    <>
+                      <span style={{ flex: 1 }}><RatingBadge value={p.overall} size="sm" /></span>
+                      <span style={{ flex: 1 }}><MoraleMeter value={p.morale} /></span>
+                      <span style={{ flex: 1, fontSize: 10, color: injured ? COLORS.coral : COLORS.lime, fontWeight: 600 }}>
+                        {p.injuryStatus === "Healthy" ? "Active" : p.injuryStatus}
+                      </span>
+                      <span style={{ flex: 1, fontSize: 10, color: p.shoppingStatus === "On The Block" ? COLORS.gold : COLORS.muted }}>
+                        {p.shoppingStatus === "On The Block" ? "On Block" : "—"}
+                      </span>
+                      <span style={{ flex: 2, fontSize: 9, color: COLORS.muted, fontStyle: "italic" }}>
+                        {tradeReq ? "Requested Trade" : hasNTC ? "No Trade Clause" : ""}
+                      </span>
+                    </>
+                  )}
                 </DataRow>
               );
             })}

@@ -4,7 +4,7 @@
  * Handles AI-driven team decisions across all non-user teams
  */
 
-import { Position } from "./nfl-types";
+import { Position, ALL_POSITIONS } from "./nfl-types";
 import { Player, PlayerStatus } from "./player";
 import { Team } from "./team";
 
@@ -427,7 +427,7 @@ export class AITeamManager {
 
       // Protect high potential rookies even if low OVR
       const toCut = sortedRoster.find(
-        (p) => !(p.draft.year === this.gameState.currentSeason && p.potential > 70)
+        (p) => !(p.draftYear === this.gameState.currentSeason && p.potential > 70)
       );
 
       if (toCut) {
@@ -686,7 +686,7 @@ export class AITeamManager {
    * Get all positions
    */
   private getAllPositions(): Position[] {
-    return ["QB", "RB", "WR", "TE", "OL", "DL", "LB", "CB", "S", "K", "P"];
+    return ALL_POSITIONS;
   }
 
   /**

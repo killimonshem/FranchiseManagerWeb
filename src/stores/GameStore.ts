@@ -8,7 +8,7 @@
 import { Team } from '../types/team';
 import { Player } from '../types/player';
 import { UserProfile, createUserProfile, validateUserProfile } from '../types/UserProfile';
-import { StorageService } from '../services/StorageService';
+import { storage } from '../services/StorageService';
 import {
   initializeDraftState,
   DraftState
@@ -164,15 +164,14 @@ export class GameStore {
       };
 
       // Persist to storage
-      const success = StorageService.save(slotName, saveData);
-
-      if (success) {
+      const snapshot = JSON.stringify(saveData);
+      storage.saveSaveSlot(slotName, snapshot, 1).then(() => {
         console.log(`💾 [GameStore] Game saved to slot: ${slotName}`);
-      } else {
-        console.error(`❌ [GameStore] Failed to save game to slot: ${slotName}`);
-      }
+      }).catch((error: Error) => {
+        console.error(`❌ [GameStore] Failed to save game to slot: ${slotName}`, error);
+      });
 
-      return success;
+      return true;
     } catch (error) {
       console.error('❌ [GameStore] Error during save:', error);
       return false;
@@ -184,17 +183,19 @@ export class GameStore {
    * @param slotName - The save slot to load from
    * @returns true if load was successful
    */
-  loadGame(slotName: string): boolean {
+  async loadGame(slotName: string): Promise<boolean> {
     try {
       console.log(`\n📂 [GameStore] Loading game from slot: ${slotName}`);
 
       // Retrieve data from storage
-      const saveData = StorageService.load<SaveData>(slotName);
+      const saveSlot = await storage.loadSaveSlot(slotName);
 
-      if (!saveData) {
+      if (!saveSlot) {
         console.error(`❌ [GameStore] No save data found for slot: ${slotName}`);
         return false;
       }
+
+      const saveData = JSON.parse(saveSlot.snapshot) as SaveData;
 
       // Validate loaded data
       if (!validateUserProfile(saveData.userProfile)) {
@@ -202,27 +203,19 @@ export class GameStore {
         return false;
       }
 
-      // Hydrate Date objects (localStorage serializes them as strings)
-      const hydratedProfile = StorageService.hydrateDate(
-        saveData.userProfile,
-        ['joinedDate']
-      );
-
-      const hydratedSaveData = StorageService.hydrateDate(
-        saveData,
-        ['saveTimestamp']
-      );
+      // Hydrate Date objects (IndexedDB serializes them as strings)
+      const saveTimestamp = saveData.saveTimestamp ? new Date(saveData.saveTimestamp) : new Date();
 
       // Mass-assign loaded state to store
-      this.userProfile = hydratedProfile;
-      this.userTeamId = hydratedSaveData.userTeamId;
-      this.currentDate = hydratedSaveData.currentDate;
-      this.gameDifficulty = hydratedSaveData.gameDifficulty;
-      this.teams = hydratedSaveData.teams;
-      this.allPlayers = hydratedSaveData.allPlayers;
-      this.draftState = hydratedSaveData.draftState;
-      this.saveTimestamp = hydratedSaveData.saveTimestamp;
-      this.playtimeMins = hydratedSaveData.playtimeMins;
+      this.userProfile = saveData.userProfile;
+      this.userTeamId = saveData.userTeamId;
+      this.currentDate = saveData.currentDate;
+      this.gameDifficulty = saveData.gameDifficulty;
+      this.teams = saveData.teams;
+      this.allPlayers = saveData.allPlayers;
+      this.draftState = saveData.draftState;
+      this.saveTimestamp = saveTimestamp;
+      this.playtimeMins = saveData.playtimeMins;
 
       console.log(`✅ [GameStore] Game loaded successfully from slot: ${slotName}`);
       console.log(`   GM: ${this.userProfile?.firstName} ${this.userProfile?.lastName}`);
@@ -240,8 +233,14 @@ export class GameStore {
    * Get all available save slots
    * @returns Array of save slot names
    */
-  getAllSaveSlots(): string[] {
-    return StorageService.getAllSlots();
+  async getAllSaveSlots(): Promise<string[]> {
+    try {
+      const slots = await storage.listSaveSlots();
+      return slots.map(slot => slot.slotName);
+    } catch (error) {
+      console.error('❌ [GameStore] Failed to list save slots:', error);
+      return [];
+    }
   }
 
   /**
@@ -249,12 +248,15 @@ export class GameStore {
    * @param slotName - The save slot to delete
    * @returns true if deletion was successful
    */
-  deleteSave(slotName: string): boolean {
-    const success = StorageService.remove(slotName);
-    if (success) {
+  async deleteSave(slotName: string): Promise<boolean> {
+    try {
+      await storage.deleteSaveSlot(slotName);
       console.log(`🗑️ [GameStore] Save slot deleted: ${slotName}`);
+      return true;
+    } catch (error) {
+      console.error(`❌ [GameStore] Failed to delete save slot '${slotName}':`, error);
+      return false;
     }
-    return success;
   }
 
   /**
@@ -269,8 +271,14 @@ export class GameStore {
    * Check if a save slot exists
    * @param slotName - The save slot to check
    */
-  slotExists(slotName: string): boolean {
-    return StorageService.exists(slotName);
+  async slotExists(slotName: string): Promise<boolean> {
+    try {
+      const slot = await storage.loadSaveSlot(slotName);
+      return !!slot;
+    } catch (error) {
+      console.error(`❌ [GameStore] Failed to check save slot '${slotName}':`, error);
+      return false;
+    }
   }
 
   /**

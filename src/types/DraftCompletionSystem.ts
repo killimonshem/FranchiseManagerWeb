@@ -4,10 +4,9 @@
  * Manages draft finalization, validation, UDFA conversion, and summary generation
  */
 
-import { Position } from "./nfl-types";
+import { Position, DraftProspect } from "./nfl-types";
 import { Player, PlayerStatus } from "./player";
 import { Team } from "./team";
-import { DraftProspect } from "./DraftSystem";
 
 // ============================================================================
 // DRAFT COMPLETION CONSTANTS
@@ -735,7 +734,7 @@ export class DraftCompletionManager {
    */
   private analyzeTeamNeeds(team: Team): Position[] {
     // Simplified - in real app would analyze roster
-    const positions: Position[] = ["QB", "WR", "OL"];
+    const positions: Position[] = [Position.QB, Position.WR, Position.OL];
     return positions.sort(() => Math.random() - 0.5).slice(0, Math.floor(Math.random() * 3) + 2);
   }
 

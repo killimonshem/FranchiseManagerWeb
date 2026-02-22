@@ -14,6 +14,8 @@ import {
   getPositionScarcity,
   createEmptyPlayerAttributes,
   createRandomPlayerPersonality,
+  wouldNTCBlockTrade,
+  NameGenerator,
 } from "./nfl-types";
 
 // ============================================================================
@@ -589,11 +591,8 @@ export function isPlayerCausingDrama(player: Player): boolean {
  */
 export function wouldPlayerVetoTrade(player: Player, toTeamId: string): boolean {
   // Check NTC
-  if (player.contract) {
-    const { wouldNTCBlockTrade } = require("./nfl-types");
-    if (wouldNTCBlockTrade(player.contract, toTeamId)) {
-      return true;
-    }
+  if (player.contract && wouldNTCBlockTrade(player.contract, toTeamId)) {
+    return true;
   }
 
   // Check blocked destinations
@@ -918,7 +917,6 @@ export function generateRookiePlayer(
   const overall = 85 - draftRound * 5 + Math.floor(Math.random() * 11) - 5;
   const potential = overall + Math.floor(Math.random() * 16) + 5;
 
-  const { NameGenerator } = require("./nfl-types");
   const nameGen = NameGenerator.getInstance();
 
   return createPlayer(
@@ -944,7 +942,6 @@ export function generateFreeAgentPlayer(position: Position): Player {
   const age = 24 + Math.floor(Math.random() * 11);
   const overall = 65 + Math.floor(Math.random() * 21);
 
-  const { NameGenerator } = require("./nfl-types");
   const nameGen = NameGenerator.getInstance();
 
   return createPlayer(

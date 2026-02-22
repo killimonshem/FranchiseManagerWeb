@@ -4,7 +4,7 @@
  * Comprehensive trade management with franchise state analysis, NTC enforcement, and player personalities
  */
 
-import { Position } from "./nfl-types";
+import { Position, ALL_POSITIONS } from "./nfl-types";
 import { Player, PlayerStatus } from "./player";
 import { Team } from "./team";
 
@@ -734,21 +734,7 @@ export function calculateDesperationTax(
   const taxes: Record<Position, number> = {};
   const roster = allPlayers.filter((p) => p.teamId === team.id);
 
-  const positions: Position[] = [
-    "QB",
-    "RB",
-    "WR",
-    "TE",
-    "OL",
-    "DL",
-    "LB",
-    "CB",
-    "S",
-    "K",
-    "P",
-  ];
-
-  for (const position of positions) {
+  for (const position of ALL_POSITIONS) {
     const positionPlayers = roster.filter((p) => p.position === position);
     const averageOverall =
       positionPlayers.length > 0

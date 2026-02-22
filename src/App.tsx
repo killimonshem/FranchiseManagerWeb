@@ -23,11 +23,12 @@ import { DraftScreen } from "./screens/DraftScreen";
 import { FinancesScreen } from "./screens/FinancesScreen";
 import { InboxScreen } from "./screens/InboxScreen";
 import { ScheduleScreen } from "./screens/ScheduleScreen";
-import { StaffScreen } from "./screens/StaffScreen";
+import { FrontOfficeScreen } from "./screens/FrontOfficeScreen";
 import { FreeAgencyScreen } from "./screens/FreeAgencyScreen";
 import { ContractNegotiationScreen } from "./screens/ContractNegotiationScreen";
 import { TradeScreen } from "./screens/TradeScreen";
 import { TrophyScreen } from "./screens/TrophyScreen";
+import { PlayoffBracketScreen } from "./screens/PlayoffBracketScreen";
 import { gameStateManager } from "./types/GameStateManager";
 import { SimulationState } from "./types/GameStateManager";
 import { HardStopReason } from "./types/engine-types";
@@ -40,7 +41,7 @@ const ARCHITECTURE = [
     id: "team", label: "Team", icon: Users, defaultScreen: "roster",
     subs: [
       { id: "roster", label: "Roster" },
-      { id: "staff", label: "Coaching Staff" },
+      { id: "staff", label: "Front Office" },
     ]
   },
   {
@@ -56,6 +57,7 @@ const ARCHITECTURE = [
     id: "league", label: "League", icon: Trophy, defaultScreen: "schedule",
     subs: [
       { id: "schedule", label: "Schedule" },
+      { id: "bracket", label: "Playoff Bracket" },
       { id: "trophies", label: "Trophies" },
     ]
   },
@@ -197,10 +199,11 @@ export default function App() {
       case "finances":   return <FinancesScreen />;
       case "inbox":      return <InboxScreen />;
       case "schedule":   return <ScheduleScreen />;
-      case "staff":      return <StaffScreen />;
+      case "staff":      return <FrontOfficeScreen />;
       case "freeAgency": return <FreeAgencyScreen onRosterChange={refresh} onNavigate={(s, d) => { setScreen(s); setDetail(d); }} />;
       case "contractNegotiation": return <ContractNegotiationScreen playerId={detail?.playerId} onDone={() => { setScreen("freeAgency"); setDetail(null); }} onRosterChange={refresh} />;
       case "trade":      return <TradeScreen gsm={gameStateManager} refresh={refresh} />;
+      case "bracket":    return <PlayoffBracketScreen gsm={gameStateManager} refresh={refresh} />;
       case "trophies":   return <TrophyScreen teamAbbr={userTeamMeta?.abbr ?? ""} />;
       default:
         return (
