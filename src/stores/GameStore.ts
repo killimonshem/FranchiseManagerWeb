@@ -14,7 +14,7 @@ import {
   DraftState
 } from '../types/DraftSystem';
 import { CompPick, FreeAgencyTransaction } from '../types/CompensatoryPickSystem';
-import type { GameDate as ManagerGameDate, ProcessingInterrupt, DraftProspect, TeamDraftPick } from '../types/GameStateManager';
+import type { GameDate as ManagerGameDate, ProcessingInterrupt, DraftProspect, TeamDraftPick, CompletedTrade } from '../types/GameStateManager';
 
 /**
  * Game Date representation
@@ -63,6 +63,7 @@ export interface SaveData {
   draftOrder?: string[];
   availableStaff?: unknown[];
   scoutingPointsAvailable?: number;
+  completedTrades?: CompletedTrade[];
 }
 
 /**
@@ -82,6 +83,8 @@ export class GameStore {
   // League data
   teams: Team[] = [];
   allPlayers: Player[] = [];
+  draftPicks: TeamDraftPick[] = [];
+  completedTrades: CompletedTrade[] = [];
 
   // Draft state
   draftState: DraftState = initializeDraftState();
@@ -122,6 +125,8 @@ export class GameStore {
       this.currentDate = { year: 1, week: 1 };
       this.draftState = initializeDraftState();
       this.saveTimestamp = new Date();
+      this.draftPicks = [];
+      this.completedTrades = [];
       this.playtimeMins = 0;
 
       console.log(`✅ [GameStore] Game initialized for ${firstName} ${lastName} with ${this.teams.length} teams`);
@@ -158,6 +163,8 @@ export class GameStore {
         gameDifficulty: this.gameDifficulty,
         teams: this.teams,
         allPlayers: this.allPlayers,
+        draftPicks: this.draftPicks,
+        completedTrades: this.completedTrades,
         draftState: this.draftState,
         saveTimestamp: new Date(),
         playtimeMins: this.playtimeMins
@@ -213,6 +220,8 @@ export class GameStore {
       this.gameDifficulty = saveData.gameDifficulty;
       this.teams = saveData.teams;
       this.allPlayers = saveData.allPlayers;
+      this.draftPicks = saveData.draftPicks || [];
+      this.completedTrades = saveData.completedTrades || [];
       this.draftState = saveData.draftState;
       this.saveTimestamp = saveTimestamp;
       this.playtimeMins = saveData.playtimeMins;
@@ -226,6 +235,22 @@ export class GameStore {
     } catch (error) {
       console.error(`❌ [GameStore] Failed to load game from slot '${slotName}':`, error);
       return false;
+    }
+  }
+
+  /**
+   * Get metadata for a specific save slot without loading it into active state
+   * @param slotName - The save slot to retrieve
+   */
+  async getSaveSlotMetadata(slotName: string): Promise<SaveData | null> {
+    try {
+      const saveSlot = await storage.loadSaveSlot(slotName);
+      if (!saveSlot) return null;
+      const data = JSON.parse(saveSlot.snapshot) as SaveData;
+      return data;
+    } catch (error) {
+      console.error(`❌ [GameStore] Failed to read metadata for slot '${slotName}':`, error);
+      return null;
     }
   }
 
@@ -300,6 +325,8 @@ export class GameStore {
     this.gameDifficulty = 'Normal';
     this.teams = [];
     this.allPlayers = [];
+    this.draftPicks = [];
+    this.completedTrades = [];
     this.draftState = initializeDraftState();
     this.saveTimestamp = new Date();
     this.playtimeMins = 0;

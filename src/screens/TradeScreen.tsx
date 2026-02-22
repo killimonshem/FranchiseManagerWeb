@@ -1,4 +1,4 @@
-import { COLORS } from "../ui/theme";
+import { COLORS, fmtCurrency } from "../ui/theme";
 import { Section, DataRow, PosTag, Pill } from "../ui/components";
 import { useState, useEffect } from "react";
 import { ArrowLeftRight, Lock } from "lucide-react";
@@ -8,6 +8,7 @@ import type { TradeOfferPayloadUI, TradeEvaluation } from "../systems/TradeSyste
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const ROUND_LABEL = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th"];
+const POSITIONS = ["QB", "RB", "WR", "TE", "OL", "DL", "LB", "CB", "S", "K", "P"];
 
 function pickLabel(p: TeamDraftPick): string {
   const rnd = ROUND_LABEL[p.round] ?? `Rd ${p.round}`;
@@ -142,8 +143,9 @@ export function TradeScreen({
   const [offeringPickIds, setOfferingPickIds]     = useState<Set<string>>(new Set());
   const [receivingPickIds, setReceivingPickIds]   = useState<Set<string>>(new Set());
   const [evaluation, setEvaluation]               = useState<TradeEvaluation | null>(null);
-  const [activeTab, setActiveTab]                 = useState<"players" | "picks" | "tradeBlock">("players");
   const [showConfirm, setShowConfirm]             = useState(false);
+  const [userFilter, setUserFilter]               = useState("ALL");
+  const [partnerFilter, setPartnerFilter]         = useState("ALL");
 
   // Pre-populate from AI-initiated offer (Negotiate flow)
   useEffect(() => {
@@ -166,6 +168,14 @@ export function TradeScreen({
   const userPicks    = gsm.draftPicks.filter(p => p.currentTeamId === userTeamId);
   const partnerPlayers = partnerTeamId ? gsm.allPlayers.filter(p => p.teamId === partnerTeamId) : [];
   const partnerPicks   = partnerTeamId ? gsm.draftPicks.filter(p => p.currentTeamId === partnerTeamId) : [];
+
+  const visibleUserPlayers = userFilter === "ALL" || userFilter === "Picks"
+    ? userPlayers 
+    : userPlayers.filter(p => p.position === userFilter);
+
+  const visiblePartnerPlayers = partnerFilter === "ALL" || partnerFilter === "Picks" || partnerFilter === "Trade Block"
+    ? (partnerFilter === "Trade Block" ? partnerPlayers.filter(p => gsm.leagueTradeBlock.has(p.id)) : partnerPlayers)
+    : partnerPlayers.filter(p => p.position === partnerFilter);
 
   function toggle(set: Set<string>, setFn: (s: Set<string>) => void, id: string) {
     const next = new Set(set);
@@ -238,7 +248,13 @@ export function TradeScreen({
         </label>
         <select
           value={partnerTeamId}
-          onChange={e => { setPartnerTeamId(e.target.value); setEvaluation(null); setReceivingPlayerIds(new Set()); setReceivingPickIds(new Set()); }}
+          onChange={e => { 
+            setPartnerTeamId(e.target.value); 
+            setEvaluation(null); 
+            setReceivingPlayerIds(new Set()); 
+            setReceivingPickIds(new Set());
+            setPartnerFilter("ALL");
+          }}
           style={{
             display: "block", marginTop: 4, width: "100%", maxWidth: 280,
             background: "rgba(116,0,86,0.2)", color: COLORS.light,
@@ -253,48 +269,14 @@ export function TradeScreen({
         </select>
       </div>
 
-      {/* Sub-tab for players / picks */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-        <Pill active={activeTab === "players"} onClick={() => setActiveTab("players")}>Players</Pill>
-        <Pill active={activeTab === "picks"}   onClick={() => setActiveTab("picks")}>Draft Picks</Pill>
-        {partnerTeamId && (
-          <Pill active={activeTab === "tradeBlock"} onClick={() => setActiveTab("tradeBlock")}>Trade Block</Pill>
-        )}
-      </div>
-
-      {activeTab === "tradeBlock" && partnerTeam ? (
-        <Section title={`${partnerTeam.abbreviation} Trade Block`} pad={false}>
-          <DataRow header>
-            {["Pos", "Name", "OVR", "Age", ""].map(h => (
-              <span key={h} style={{ flex: h === "Name" ? 3 : 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700 }}>{h}</span>
-            ))}
-          </DataRow>
-          {(() => {
-            const tradeBlockPlayers = gsm.allPlayers.filter(p =>
-              p.teamId === partnerTeamId && gsm.leagueTradeBlock.has(p.id)
-            );
-            if (tradeBlockPlayers.length === 0) {
-              return <div style={{ padding: 20, textAlign: "center", fontSize: 11, color: COLORS.muted }}>This team has no players on the trade block.</div>;
-            }
-            return tradeBlockPlayers.map(p => (
-              <PlayerRow
-                key={p.id}
-                player={p}
-                selected={receivingPlayerIds.has(p.id)}
-                onToggle={id => toggle(receivingPlayerIds, setReceivingPlayerIds, id)}
-              />
-            ));
-          })()}
-        </Section>
-      ) : (
-        /* 3-column asset grid — responsive: side-by-side on desktop, stacked on mobile */
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 44px 1fr",
-          gap: 10,
-        }}
-        className="trade-grid"
-        >
+      {/* 3-column asset grid — responsive: side-by-side on desktop, stacked on mobile */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 44px 1fr",
+        gap: 10,
+      }}
+      className="trade-grid"
+      >
         <style>{`
           @media (min-width: 768px) {
             .trade-sticky-footer {
@@ -346,47 +328,61 @@ export function TradeScreen({
 
         {/* Your Assets */}
         <Section title="Your Assets" pad={false}>
-          {activeTab === "players" ? (
-            <>
-              <DataRow header>
-                {["Pos", "Name", "OVR", "Age", ""].map(h => (
-                  <span key={h} style={{ flex: h === "Name" ? 3 : 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700 }}>{h}</span>
-                ))}
-              </DataRow>
-              {userPlayers.length === 0 ? (
-                <div style={{ padding: 12, fontSize: 11, color: COLORS.muted }}>No players on your roster.</div>
-              ) : (
-                userPlayers.map(p => (
-                  <PlayerRow
-                    key={p.id}
-                    player={p}
-                    selected={offeringPlayerIds.has(p.id)}
-                    onToggle={id => toggle(offeringPlayerIds, setOfferingPlayerIds, id)}
-                    onToggleBlock={handleToggleBlock}
-                    isUserPlayer={true}
-                  />
-                ))
-              )}
-            </>
-          ) : (
+          <div style={{ padding: "8px 12px", display: "flex", gap: 4, overflowX: "auto", borderBottom: `1px solid ${COLORS.darkMagenta}` }}>
+            <Pill active={userFilter === "ALL"} onClick={() => setUserFilter("ALL")}>ALL</Pill>
+            <Pill active={userFilter === "Picks"} onClick={() => setUserFilter("Picks")}>Picks</Pill>
+            {POSITIONS.map(p => (
+              <Pill key={p} active={userFilter === p} onClick={() => setUserFilter(p)}>{p}</Pill>
+            ))}
+          </div>
+
+          {userFilter === "Picks" ? (
             <>
               <DataRow header>
                 {["Pick", ""].map(h => (
                   <span key={h} style={{ flex: h === "Pick" ? 3 : 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700 }}>{h}</span>
                 ))}
               </DataRow>
-              {userPicks.length === 0 ? (
-                <div style={{ padding: 12, fontSize: 11, color: COLORS.muted }}>No picks in your portfolio.</div>
-              ) : (
-                userPicks.map(p => (
-                  <PickRow
-                    key={pickId(p)}
-                    pick={p}
-                    selected={offeringPickIds.has(pickId(p))}
-                    onToggle={id => toggle(offeringPickIds, setOfferingPickIds, id)}
-                  />
-                ))
-              )}
+              <div style={{ height: 320, overflowY: "auto" }}>
+                {userPicks.length === 0 ? (
+                  <div style={{ padding: 12, fontSize: 11, color: COLORS.muted }}>No picks in your portfolio.</div>
+                ) : (
+                  userPicks.map(p => (
+                    <PickRow
+                      key={pickId(p)}
+                      pick={p}
+                      selected={offeringPickIds.has(pickId(p))}
+                      onToggle={id => toggle(offeringPickIds, setOfferingPickIds, id)}
+                    />
+                  ))
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <DataRow header>
+                {["Pos", "Name", "OVR", "Age", ""].map(h => (
+                  <span key={h} style={{ flex: h === "Name" ? 3 : 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700 }}>{h}</span>
+                ))}
+              </DataRow>
+              <div style={{ height: 320, overflowY: "auto" }}>
+                {userPlayers.length === 0 ? (
+                  <div style={{ padding: 12, fontSize: 11, color: COLORS.muted }}>No players on your roster.</div>
+                ) : visibleUserPlayers.length === 0 ? (
+                  <div style={{ padding: 12, fontSize: 11, color: COLORS.muted }}>No players match filter.</div>
+                ) : (
+                  visibleUserPlayers.map((p, i) => (
+                    <PlayerRow
+                      key={`${p.id}-${i}`}
+                      player={p}
+                      selected={offeringPlayerIds.has(p.id)}
+                      onToggle={id => toggle(offeringPlayerIds, setOfferingPlayerIds, id)}
+                      onToggleBlock={handleToggleBlock}
+                      isUserPlayer={true}
+                    />
+                  ))
+                )}
+              </div>
             </>
           )}
 
@@ -404,60 +400,77 @@ export function TradeScreen({
         </div>
 
         {/* Partner Assets */}
-        <Section title={partnerTeam ? `${partnerTeam.abbreviation} Assets` : "Partner Assets"} pad={false}>
+        <Section 
+          title={partnerTeam ? `${partnerTeam.abbreviation} Assets` : "Partner Assets"} 
+          right={partnerTeam ? <span style={{ fontSize: 10, color: COLORS.lime }}>Cap: {fmtCurrency(partnerTeam.capSpace)}</span> : null}
+          pad={false}
+        >
           {!partnerTeamId ? (
             <div style={{ padding: 20, textAlign: "center", fontSize: 11, color: COLORS.muted }}>
               Select a team to see their assets.
             </div>
-          ) : activeTab === "players" ? (
-            <>
-              <DataRow header>
-                {["Pos", "Name", "OVR", "Age", ""].map(h => (
-                  <span key={h} style={{ flex: h === "Name" ? 3 : 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700 }}>{h}</span>
-                ))}
-              </DataRow>
-              {partnerPlayers.length === 0 ? (
-                <div style={{ padding: 12, fontSize: 11, color: COLORS.muted }}>No players found for this team.</div>
-              ) : (
-                partnerPlayers.map(p => (
-                  <PlayerRow
-                    key={p.id}
-                    player={p}
-                    selected={receivingPlayerIds.has(p.id)}
-                    onToggle={id => toggle(receivingPlayerIds, setReceivingPlayerIds, id)}
-                  />
-                ))
-              )}
-            </>
           ) : (
             <>
-              <DataRow header>
-                {["Pick", ""].map(h => (
-                  <span key={h} style={{ flex: h === "Pick" ? 3 : 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700 }}>{h}</span>
+              <div style={{ padding: "8px 12px", display: "flex", gap: 4, overflowX: "auto", borderBottom: `1px solid ${COLORS.darkMagenta}` }}>
+                <Pill active={partnerFilter === "ALL"} onClick={() => setPartnerFilter("ALL")}>ALL</Pill>
+                <Pill active={partnerFilter === "Picks"} onClick={() => setPartnerFilter("Picks")}>Picks</Pill>
+                <Pill active={partnerFilter === "Trade Block"} onClick={() => setPartnerFilter("Trade Block")}>Trade Block</Pill>
+                {POSITIONS.map(p => (
+                  <Pill key={p} active={partnerFilter === p} onClick={() => setPartnerFilter(p)}>{p}</Pill>
                 ))}
-              </DataRow>
-              {partnerPicks.length === 0 ? (
-                <div style={{ padding: 12, fontSize: 11, color: COLORS.muted }}>No picks available from this team.</div>
+              </div>
+              {partnerFilter === "Picks" ? (
+                <>
+                  <DataRow header>
+                    {["Pick", ""].map(h => (
+                      <span key={h} style={{ flex: h === "Pick" ? 3 : 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700 }}>{h}</span>
+                    ))}
+                  </DataRow>
+                  <div style={{ height: 320, overflowY: "auto" }}>
+                    {partnerPicks.length === 0 ? (
+                      <div style={{ padding: 12, fontSize: 11, color: COLORS.muted }}>No picks available from this team.</div>
+                    ) : (
+                      partnerPicks.map(p => (
+                        <PickRow
+                          key={pickId(p)}
+                          pick={p}
+                          selected={receivingPickIds.has(pickId(p))}
+                          onToggle={id => toggle(receivingPickIds, setReceivingPickIds, id)}
+                        />
+                      ))
+                    )}
+                  </div>
+                </>
               ) : (
-                partnerPicks.map(p => (
-                  <PickRow
-                    key={pickId(p)}
-                    pick={p}
-                    selected={receivingPickIds.has(pickId(p))}
-                    onToggle={id => toggle(receivingPickIds, setReceivingPickIds, id)}
-                  />
-                ))
+                <>
+                  <DataRow header>
+                    {["Pos", "Name", "OVR", "Age", ""].map(h => (
+                      <span key={h} style={{ flex: h === "Name" ? 3 : 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700 }}>{h}</span>
+                    ))}
+                  </DataRow>
+                  <div style={{ height: 320, overflowY: "auto" }}>
+                    {partnerPlayers.length === 0 ? (
+                      <div style={{ padding: 12, fontSize: 11, color: COLORS.muted }}>No players found for this team.</div>
+                    ) : visiblePartnerPlayers.length === 0 ? (
+                      <div style={{ padding: 12, fontSize: 11, color: COLORS.muted }}>No players match filter.</div>
+                    ) : (
+                      visiblePartnerPlayers.map((p, i) => (
+                        <PlayerRow
+                          key={`${p.id}-${i}`}
+                          player={p}
+                          selected={receivingPlayerIds.has(p.id)}
+                          onToggle={id => toggle(receivingPlayerIds, setReceivingPlayerIds, id)}
+                        />
+                      ))
+                    )}
+                  </div>
+                </>
               )}
             </>
           )}
 
-          {(receivingPlayerIds.size > 0 || receivingPickIds.size > 0) && (
-            <div style={{ padding: "8px 12px", borderTop: `1px solid ${COLORS.darkMagenta}`, fontSize: 10, color: COLORS.lime }}>
-              Requesting: {receivingPlayerIds.size} player(s) + {receivingPickIds.size} pick(s)
-            </div>
-          )}
         </Section>
-      </div>)}
+      </div>
 
       {/* Sticky Trade Summary Footer */}
       <div style={{

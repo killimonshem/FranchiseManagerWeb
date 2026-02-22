@@ -1,18 +1,9 @@
 import { COLORS } from "../ui/theme";
 import { Section, RatingBadge, DataRow, PosTag, Pill } from "../ui/components";
 import { useState } from "react";
-import draftTradeData from "../../drafttrade.json";
 import type { GameStateManager, DraftProspect } from "../types/GameStateManager";
 
 // ─── Draft pick computation from ledger ──────────────────────────────────────
-
-interface TradedPick {
-  year: number;
-  round: number;
-  original_team: string;
-  new_owner: string;
-  notes: string;
-}
 
 interface DraftPick {
   year: number;
@@ -22,47 +13,21 @@ interface DraftPick {
   notes?: string;
 }
 
-const ALL_TEAMS = [
-  "ARI","ATL","BAL","BUF","CAR","CHI","CIN","CLE","DAL","DEN",
-  "DET","GB","HOU","IND","JAX","KC","LAC","LAR","LV","MIA",
-  "MIN","NE","NO","NYG","NYJ","PHI","PIT","SEA","SF","TB","TEN","WAS",
-];
-
 const DRAFT_YEARS = [2026, 2027, 2028];
 const TOTAL_ROUNDS = 7;
 const ROUND_LABEL = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th"];
 
-const tradedPicks: TradedPick[] = draftTradeData.traded_picks as TradedPick[];
-
 /** Compute which picks a given team currently owns after applying all trades. */
-function computeTeamPicks(teamAbbr: string): DraftPick[] {
+function computeTeamPicks(teamAbbr: string, gsm: GameStateManager): DraftPick[] {
   if (!teamAbbr) return [];
 
-  const tradedAway = new Set<string>();
-  const received: DraftPick[] = [];
-
-  for (const tp of tradedPicks) {
-    if (tp.new_owner === tp.original_team) continue;
-    const key = `${tp.year}-${tp.round}-${tp.original_team}`;
-    if (tp.new_owner === teamAbbr) {
-      received.push({ year: tp.year, round: tp.round, originalTeam: tp.original_team, isOwn: false, notes: tp.notes });
-    }
-    if (tp.original_team === teamAbbr) {
-      tradedAway.add(key);
-    }
-  }
-
-  const ownPicks: DraftPick[] = [];
-  for (const year of DRAFT_YEARS) {
-    for (let round = 1; round <= TOTAL_ROUNDS; round++) {
-      const key = `${year}-${round}-${teamAbbr}`;
-      if (!tradedAway.has(key)) {
-        ownPicks.push({ year, round, originalTeam: teamAbbr, isOwn: true });
-      }
-    }
-  }
-
-  return [...ownPicks, ...received].sort((a, b) =>
+  return gsm.draftPicks.filter(p => p.currentTeamId === teamAbbr).map(p => ({
+    year: p.year,
+    round: p.round,
+    originalTeam: p.originalTeamId,
+    isOwn: p.originalTeamId === teamAbbr,
+    notes: p.notes
+  })).sort((a, b) =>
     a.year !== b.year ? a.year - b.year : a.round - b.round
   );
 }
@@ -103,7 +68,7 @@ export function DraftScreen({
 }) {
   const [tab, setTab] = useState("board");
 
-  const myPicks = computeTeamPicks(userTeamAbbr);
+  const myPicks = computeTeamPicks(userTeamAbbr, gsm);
   const byYear  = DRAFT_YEARS.map(yr => ({
     year: yr,
     picks: myPicks.filter(p => p.year === yr),

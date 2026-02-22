@@ -39,6 +39,7 @@ import type { DraftPickResult } from '../systems/DraftEngine';
 import type { TradeOfferPayloadUI, TradeEvaluation } from '../systems/TradeSystem';
 import { FranchiseTier } from '../systems/TradeSystem';
 import { storage } from '../services/StorageService';
+import draftTradeData from '../../drafttrade.json';
 
 // Re-export engine types so existing imports from this file still work
 export type { Interrupt, InterruptResolution, EngineGameDate, EngineSnapshot, ActionItem };
@@ -338,6 +339,7 @@ export interface TeamDraftPick {
   originalTeamId: string;
   currentTeamId: string;
   overallPick?: number;
+  notes?: string;
 }
 
 export interface PlayoffBracket {
@@ -448,8 +450,26 @@ export interface TrophyManager {
   trophies: Record<string, boolean>;
 }
 
+export interface CompletedTrade {
+  id: string;
+  season: number;
+  week: number;
+  team1Id: string; // Offering Team
+  team2Id: string; // Receiving Team
+  team1Assets: string[]; // Descriptions of what Team 1 gave
+  team2Assets: string[]; // Descriptions of what Team 2 gave
+}
+
 export const TRADE_SYSTEM_DEADLINE_WEEK = 39;
 const PLAYOFF_BRACKET_KEY = 'NFL_PlayoffBracket';
+
+interface TradedPick {
+  year: number;
+  round: number;
+  original_team: string;
+  new_owner: string;
+  notes: string;
+}
 
 // MARK: - Core GameStateManager Class
 
@@ -493,6 +513,7 @@ export class GameStateManager {
   tradeOffers: TradeOffer[] = [];
   sentTradeOffers: TradeOffer[] = [];
   receivedTradeOffers: TradeOffer[] = [];
+  completedTrades: CompletedTrade[] = [];
   leagueTradeBlock: Set<string> = new Set();
 
   // Draft Properties
@@ -556,6 +577,47 @@ export class GameStateManager {
       dayOfWeek: 1,
       timeSlot: TimeSlots.earlyMorning
     };
+  }
+
+  // ── Draft Pick Initialization ──────────────────────────────────────────────
+
+  generateInitialDraftPicks(): void {
+    const DRAFT_YEARS = [2026, 2027, 2028];
+    const TOTAL_ROUNDS = 7;
+    // All 32 teams
+    const TEAMS = [
+      "ARI","ATL","BAL","BUF","CAR","CHI","CIN","CLE","DAL","DEN",
+      "DET","GB","HOU","IND","JAX","KC","LAC","LAR","LV","MIA",
+      "MIN","NE","NO","NYG","NYJ","PHI","PIT","SEA","SF","TB","TEN","WAS"
+    ];
+
+    const picks: TeamDraftPick[] = [];
+    const tradedPicks = (draftTradeData as any).traded_picks as TradedPick[];
+    const tradeMap = new Map<string, { owner: string, notes: string }>();
+
+    for (const tp of tradedPicks) {
+      const key = `${tp.year}-${tp.round}-${tp.original_team}`;
+      tradeMap.set(key, { owner: tp.new_owner, notes: tp.notes });
+    }
+
+    for (const year of DRAFT_YEARS) {
+      for (let round = 1; round <= TOTAL_ROUNDS; round++) {
+        for (const team of TEAMS) {
+          const key = `${year}-${round}-${team}`;
+          const tradeInfo = tradeMap.get(key);
+          
+          picks.push({
+            year,
+            round,
+            originalTeamId: team,
+            currentTeamId: tradeInfo ? tradeInfo.owner : team,
+            notes: tradeInfo ? tradeInfo.notes : undefined,
+          });
+        }
+      }
+    }
+    this.draftPicks = picks;
+    console.log(`✅ [GameStateManager] Generated ${picks.length} initial draft picks`);
   }
 
   // ── Draft engine factory ────────────────────────────────────────────────────
@@ -1329,6 +1391,8 @@ export class GameStateManager {
     if (raw.draftProspects) this.draftProspects = raw.draftProspects;
     if (raw.draftOrder) this.draftOrder = raw.draftOrder;
     if (raw.availableStaff) this.availableStaff = raw.availableStaff;
+    if (raw.completedTrades) this.completedTrades = raw.completedTrades;
+    if (raw.draftPicks) this.draftPicks = raw.draftPicks;
     if (raw.scoutingPointsAvailable != null) this.scoutingPointsAvailable = raw.scoutingPointsAvailable;
     console.log(`✅ [GameStateManager] Hydrated from store — Week ${this.currentWeek}, Season ${this.currentSeason}`);
   }
@@ -1354,6 +1418,7 @@ export class GameStateManager {
     raw.draftProspects = this.draftProspects;
     raw.draftOrder = this.draftOrder;
     raw.availableStaff = this.availableStaff;
+    raw.completedTrades = this.completedTrades;
     raw.scoutingPointsAvailable = this.scoutingPointsAvailable;
   }
 
@@ -2479,6 +2544,40 @@ get enginePhaseLabel(): string {
     try {
       const playerMap = new Map(this.allPlayers.map(p => [p.id, p]));
       const pickMap   = new Map(this.draftPicks.map(p => [`${p.year}-${p.round}-${p.originalTeamId}`, p]));
+
+      // Snapshot assets for history log before mutation
+      const team1Assets: string[] = [];
+      const team2Assets: string[] = [];
+
+      // Team 1 (Offering) Assets
+      for (const id of payload.offeringPlayerIds) {
+        const p = playerMap.get(id);
+        if (p) team1Assets.push(`${p.position} ${p.firstName} ${p.lastName} (${p.overall})`);
+      }
+      for (const id of payload.offeringPickIds) {
+        const pick = pickMap.get(id);
+        if (pick) team1Assets.push(`${pick.year} Rd ${pick.round} (${pick.originalTeamId})`);
+      }
+
+      // Team 2 (Receiving) Assets
+      for (const id of payload.receivingPlayerIds) {
+        const p = playerMap.get(id);
+        if (p) team2Assets.push(`${p.position} ${p.firstName} ${p.lastName} (${p.overall})`);
+      }
+      for (const id of payload.receivingPickIds) {
+        const pick = pickMap.get(id);
+        if (pick) team2Assets.push(`${pick.year} Rd ${pick.round} (${pick.originalTeamId})`);
+      }
+
+      this.completedTrades.unshift({
+        id: uuidv4(),
+        season: this.currentGameDate.season,
+        week: this.currentGameDate.week,
+        team1Id: payload.offeringTeamId,
+        team2Id: payload.receivingTeamId,
+        team1Assets,
+        team2Assets,
+      });
 
       for (const id of payload.offeringPlayerIds) {
         const p = playerMap.get(id);

@@ -13,6 +13,7 @@ import { AlertTriangle } from "lucide-react";
 import { Player } from "../types/player";
 import { TeamMeta, GMProfile } from "./TeamSelectScreen";
 import type { GameStateManager, ActionItem } from "../types/GameStateManager";
+import { gameStore } from "../stores/GameStore";
 
 // ─── Season phase table ───────────────────────────────────────────────────────
 
@@ -96,6 +97,9 @@ export function DashboardScreen({
               <div style={{ fontSize: 10, color: COLORS.muted }}>
                 Roster:{" "}
                 <span style={{ color: COLORS.lime, fontWeight: 700 }}>{players.length}</span> players
+              </div>
+              <div style={{ fontSize: 10, color: COLORS.muted, marginLeft: "auto" }}>
+                Auto-Saved: <span style={{ color: COLORS.light }}>{gameStore.saveTimestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
               </div>
             </div>
           </div>

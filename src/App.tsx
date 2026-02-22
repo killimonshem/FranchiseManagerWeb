@@ -19,6 +19,7 @@ import { TeamSelectScreen, GameStartData, TeamMeta, GMProfile, NFL_TEAMS } from 
 import { DashboardScreen } from "./screens/DashboardScreen";
 import { RosterScreen } from "./screens/RosterScreen";
 import { PlayerProfileScreen } from "./screens/PlayerProfileScreen";
+import { LoadGameScreen } from "./screens/LoadGameScreen";
 import { DraftScreen } from "./screens/DraftScreen";
 import { FinancesScreen } from "./screens/FinancesScreen";
 import { InboxScreen } from "./screens/InboxScreen";
@@ -27,8 +28,11 @@ import { FrontOfficeScreen } from "./screens/FrontOfficeScreen";
 import { FreeAgencyScreen } from "./screens/FreeAgencyScreen";
 import { ContractNegotiationScreen } from "./screens/ContractNegotiationScreen";
 import { TradeScreen } from "./screens/TradeScreen";
+import { TradeHistoryScreen } from "./screens/TradeHistoryScreen";
 import { TrophyScreen } from "./screens/TrophyScreen";
 import { PlayoffBracketScreen } from "./screens/PlayoffBracketScreen";
+import { PostDraftSummaryScreen } from "./screens/PostDraftSummaryScreen";
+import { DraftLeadUpScreen } from "./screens/DraftLeadUpScreen";
 import { gameStateManager } from "./types/GameStateManager";
 import { SimulationState } from "./types/GameStateManager";
 import { HardStopReason } from "./types/engine-types";
@@ -48,6 +52,7 @@ const ARCHITECTURE = [
     id: "office", label: "Office", icon: Briefcase, defaultScreen: "trade",
     subs: [
       { id: "trade", label: "Trade Center" },
+      { id: "tradeHistory", label: "Trade History" },
       { id: "freeAgency", label: "Free Agency" },
       { id: "draft", label: "Draft Board" },
       { id: "finances", label: "Finances" },
@@ -65,7 +70,7 @@ const ARCHITECTURE = [
 
 export default function App() {
   // ── UI-only state (no game data here) ─────────────────────────────
-  const [phase, setPhase]               = useState<"setup" | "playing">("setup");
+  const [phase, setPhase]               = useState<"setup" | "load" | "playing">("setup");
   const [userTeamMeta, setUserTeamMeta] = useState<TeamMeta | null>(null);
   const [gm, setGm]                     = useState<GMProfile | null>(null);
 
@@ -132,6 +137,7 @@ export default function App() {
 
     gameStateManager.selectUserTeam(data.teamAbbr);
     gameStateManager.allPlayers = data.players;
+    gameStateManager.generateInitialDraftPicks();
     gameStateManager.updateAllTeamRatings();
 
     // Wire both callbacks to refresh so engine mutations trigger re-renders
@@ -144,9 +150,40 @@ export default function App() {
     // Seed the store for saveGame
     gameStore.initializeNewGame(data.gm.firstName, data.gm.lastName, data.teamAbbr);
     gameStore.allPlayers = data.players;
+    gameStore.draftPicks = gameStateManager.draftPicks;
 
     setUserTeamMeta(data.teamMeta);
     setGm(data.gm);
+    setPhase("playing");
+  }
+
+  // ── Load Game callback ────────────────────────────────────────────
+  function handleLoadGame() {
+    // 1. Hydrate manager from store (which was populated by LoadGameScreen calling gameStore.loadGame)
+    gameStateManager.hydrateFromStore(gameStore);
+
+    // 2. Wire callbacks
+    gameStateManager.onAutoSave = () => {
+      gameStateManager.syncToStore(gameStore);
+      gameStore.saveGame("AutoSave");
+    };
+    gameStateManager.onEngineStateChange = refresh;
+
+    // 3. Restore UI state
+    const teamId = gameStateManager.userTeamId;
+    const teamMeta = NFL_TEAMS.find(t => t.abbr === teamId);
+    if (teamMeta) setUserTeamMeta(teamMeta);
+
+    if (gameStateManager.userProfile) {
+      setGm({
+        firstName: gameStateManager.userProfile.firstName,
+        lastName: gameStateManager.userProfile.lastName,
+        age: 35, // Default (not persisted in SaveData/UserProfile)
+        style: "analytics", // Default
+      });
+    }
+
+    // 4. Start game
     setPhase("playing");
   }
 
@@ -171,12 +208,21 @@ export default function App() {
 
   // ── Show setup until franchise is configured ──────────────────────
   if (phase === "setup") {
-    return <TeamSelectScreen onStart={handleGameStart} />;
+    return <TeamSelectScreen onStart={handleGameStart} onLoadGame={() => setPhase("load")} />;
+  }
+
+  if (phase === "load") {
+    return <LoadGameScreen onLoad={handleLoadGame} onBack={() => setPhase("setup")} />;
   }
 
   // ── Derived data — always from the manager ────────────────────────
   const teamPlayers   = gameStateManager.userRoster; // engine-owned, position-filtered getter
   const currentPillar = ARCHITECTURE.find(a => a.id === primaryTab);
+
+  // Force show Post-Draft Summary if triggered
+  if (gameStateManager.draftCompletionManager.showingSummaryScreen) {
+    return <PostDraftSummaryScreen gsm={gameStateManager} onDismiss={refresh} />;
+  }
 
   const renderScreen = () => {
     switch (screen) {
@@ -195,7 +241,13 @@ export default function App() {
         return <RosterScreen setScreen={setScreen} setDetail={setDetail} players={teamPlayers} />;
       case "playerProfile":
         return <PlayerProfileScreen player={detail} setScreen={setScreen} />;
-      case "draft":      return <DraftScreen userTeamAbbr={userTeamMeta?.abbr ?? ""} gsm={gameStateManager} refresh={refresh} />;
+      case "draft":
+        // Show Lead-Up screen if it's Draft Week (15) but not yet Thursday (Day 4)
+        // Note: This assumes standard engine calendar where Draft is Week 15
+        if (gameStateManager.currentGameDate.week === 15 && gameStateManager.currentGameDate.dayOfWeek < 4) {
+          return <DraftLeadUpScreen gsm={gameStateManager} onAdvance={() => { gameStateManager.currentGameDate.dayOfWeek = 4; refresh(); }} />;
+        }
+        return <DraftScreen userTeamAbbr={userTeamMeta?.abbr ?? ""} gsm={gameStateManager} refresh={refresh} />;
       case "finances":   return <FinancesScreen />;
       case "inbox":      return <InboxScreen />;
       case "schedule":   return <ScheduleScreen />;
@@ -203,6 +255,7 @@ export default function App() {
       case "freeAgency": return <FreeAgencyScreen onRosterChange={refresh} onNavigate={(s, d) => { setScreen(s); setDetail(d); }} />;
       case "contractNegotiation": return <ContractNegotiationScreen playerId={detail?.playerId} onDone={() => { setScreen("freeAgency"); setDetail(null); }} onRosterChange={refresh} />;
       case "trade":      return <TradeScreen gsm={gameStateManager} refresh={refresh} />;
+      case "tradeHistory": return <TradeHistoryScreen gsm={gameStateManager} />;
       case "bracket":    return <PlayoffBracketScreen gsm={gameStateManager} refresh={refresh} />;
       case "trophies":   return <TrophyScreen teamAbbr={userTeamMeta?.abbr ?? ""} />;
       default:

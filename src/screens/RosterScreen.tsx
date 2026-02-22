@@ -75,19 +75,22 @@ export function RosterScreen({
           ))}
         </div>
         
-        <select
-          value={view}
-          onChange={(e) => setView(e.target.value as any)}
-          style={{
-            padding: "4px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-            background: "rgba(116,0,86,0.2)", color: COLORS.light, border: `1px solid ${COLORS.darkMagenta}`,
-            outline: "none", cursor: "pointer"
-          }}
-        >
-          <option value="overview">Overview</option>
-          <option value="contract">Contract</option>
-          <option value="status">Status</option>
-        </select>
+        <div style={{ display: "flex", background: "rgba(116,0,86,0.2)", borderRadius: 6, padding: 2 }}>
+          {(["overview", "contract", "status"] as const).map(v => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              style={{
+                padding: "4px 12px", borderRadius: 4, fontSize: 10, fontWeight: 700, border: "none", cursor: "pointer",
+                background: view === v ? COLORS.magenta : "transparent",
+                color: view === v ? COLORS.light : COLORS.muted,
+                textTransform: "capitalize"
+              }}
+            >
+              {v === "contract" ? "Contracts" : v}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Sort */}

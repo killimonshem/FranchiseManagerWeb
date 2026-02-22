@@ -124,7 +124,10 @@ function Label({ children }: { children: React.ReactNode }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function TeamSelectScreen({ onStart }: { onStart: (data: GameStartData) => void }) {
+export function TeamSelectScreen({ onStart, onLoadGame }: { 
+  onStart: (data: GameStartData) => void;
+  onLoadGame?: () => void;
+}) {
   // GM profile
   const [gmFirst, setGmFirst] = useState("");
   const [gmLast,  setGmLast]  = useState("");
@@ -306,6 +309,19 @@ export function TeamSelectScreen({ onStart }: { onStart: (data: GameStartData) =
           >
             Next — Load Roster <ChevronRight size={16} />
           </button>
+
+          {onLoadGame && (
+            <button
+              onClick={onLoadGame}
+              style={{
+                width: "100%", marginTop: 12, padding: "12px", borderRadius: 10,
+                fontSize: 12, fontWeight: 600, cursor: "pointer", border: `1px solid ${COLORS.darkMagenta}`,
+                background: "transparent", color: COLORS.muted,
+              }}
+            >
+              Load Saved Game
+            </button>
+          )}
         </div>
       )}
 
