@@ -15,6 +15,7 @@ import { COLORS, FONT } from "./ui/theme";
 import { LayoutDashboard, Users, Briefcase, Trophy, Mail, FinancialHealthBadge, RatingBadge, PosTag, Toast } from "./ui/components";
 import { HoldoutModal, BlackMondayModal } from "./ui/Overlays";
 import { TransactionTicker } from "./ui/TransactionTicker";
+import { RESPONSIVE_CSS } from "./constants/responsive-css";
 
 import { TeamSelectScreen, GameStartData, TeamMeta, GMProfile, NFL_TEAMS } from "./screens/TeamSelectScreen";
 import { DashboardScreen } from "./screens/DashboardScreen";
@@ -348,10 +349,10 @@ export default function App() {
               />
             );
           }
-          return <DraftScreen userTeamAbbr={userTeamMeta?.abbr ?? ""} gsm={gameStateManager} refresh={refresh} />;
+          return <DraftScreen userTeamAbbr={userTeamMeta?.abbr ?? ""} gsm={gameStateManager} refresh={refresh} isMobile={isMobile} />;
         }
         // All other weeks: Show regular Draft Screen (draft board for prep/trading)
-        return <DraftScreen userTeamAbbr={userTeamMeta?.abbr ?? ""} gsm={gameStateManager} refresh={refresh} />;
+        return <DraftScreen userTeamAbbr={userTeamMeta?.abbr ?? ""} gsm={gameStateManager} refresh={refresh} isMobile={isMobile} />;
       case "finances":   return <FinancesScreen gsm={gameStateManager} />;
       case "inbox":      return <InboxScreen gsm={gameStateManager} isMobile={isMobile} onNavigate={(s,d) => { setScreen(s); setDetail(d); }} refresh={refresh} />;
       case "tradeReview": return <ReviewTradeOfferScreen gsm={gameStateManager} onNavigate={(s,d) => { setScreen(s); setDetail(d); }} refresh={refresh} />;
@@ -420,6 +421,7 @@ export default function App() {
         button { transition: all 0.12s; }
         button:not(:disabled):hover { filter: brightness(1.15); }
         input { font-family: inherit; }
+        ${RESPONSIVE_CSS}
       `}</style>
 
       {/* Desktop Sidebar */}
@@ -842,7 +844,7 @@ export default function App() {
       {holdoutPlayer && (
         <HoldoutModal
           player={holdoutPlayer}
-          onResolve={() => setHoldoutPlayer(null)}
+          onResolve={(_resolution) => setHoldoutPlayer(null)}
         />
       )}
 

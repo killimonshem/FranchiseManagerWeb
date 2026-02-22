@@ -128,16 +128,13 @@ function AdvisorDebateOverlay({ prospects, needs, onDismiss }: { prospects: Draf
   const { scout, coach } = data;
 
   return (
-    <div style={{
-      position: "fixed", bottom: 20, left: 20, right: 20, height: 220,
+    <div className="advisor-overlay-wrapper" style={{
       background: "rgba(10, 5, 10, 0.95)", border: `1px solid ${COLORS.darkMagenta}`,
       borderRadius: 12, display: "flex", overflow: "hidden", zIndex: 100,
       boxShadow: "0 -10px 40px rgba(0,0,0,0.8)", animation: "slideUp 0.3s ease-out"
     }}>
-      <style>{`@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
-      
       {/* Scout Side */}
-      <div style={{ flex: 1, borderRight: `1px solid ${COLORS.darkMagenta}`, padding: 20, position: "relative" }}>
+      <div className="advisor-left-panel" style={{ borderRight: `1px solid ${COLORS.darkMagenta}`, padding: 20, position: "relative" }}>
         <div style={{ position: "absolute", top: 10, left: 10, display: "flex", alignItems: "center", gap: 6 }}>
           <Glasses size={16} color={COLORS.sky} />
           <span style={{ fontSize: 10, fontWeight: 800, color: COLORS.sky, textTransform: "uppercase" }}>Head Scout</span>
@@ -193,7 +190,6 @@ function SnipeAlertOverlay({ player, onDismiss }: { player: DraftProspect, onDis
       background: "rgba(60, 0, 0, 0.85)", display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center", animation: "flashRed 0.5s"
     }}>
-      <style>{`@keyframes flashRed { 0% { background: rgba(255,0,0,0.5); } 100% { background: rgba(60,0,0,0.85); } }`}</style>
       
       <Siren size={64} color={COLORS.coral} style={{ marginBottom: 20 }} />
       <h1 style={{ fontSize: 48, fontWeight: 900, color: COLORS.light, margin: 0, textTransform: "uppercase", letterSpacing: 2 }}>
@@ -228,14 +224,12 @@ function SnipeAlertOverlay({ player, onDismiss }: { player: DraftProspect, onDis
 
 function PhoneCallOverlay({ offer, onAccept, onDecline, onNegotiate }: { offer: any, onAccept: () => void, onDecline: () => void, onNegotiate: () => void }) {
   return (
-    <div style={{
-      position: "fixed", bottom: 20, right: 20, width: 320,
+    <div className="phone-call-overlay" style={{
       background: "linear-gradient(135deg, #1a1a1a, #2a2a2a)",
       border: `1px solid ${COLORS.lime}`, borderRadius: 16,
-      boxShadow: "0 10px 30px rgba(0,0,0,0.5)", overflow: "hidden", zIndex: 150,
+      boxShadow: "0 10px 30px rgba(0,0,0,0.5)", overflow: "hidden",
       animation: "ring 1s infinite"
     }}>
-      <style>{`@keyframes ring { 0% { box-shadow: 0 0 0 0 rgba(215, 241, 113, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(215, 241, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(215, 241, 113, 0); } }`}</style>
       
       <div style={{ padding: 20, textAlign: "center", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
         <div style={{ width: 60, height: 60, background: COLORS.lime, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
@@ -283,10 +277,10 @@ function TradeUpOverlay({ offer, onAccept, onCancel }: { offer: any, onAccept: (
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 200,
-      background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center"
+      background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 16px"
     }}>
-      <div style={{
-        background: COLORS.bg, border: `1px solid ${COLORS.lime}`, borderRadius: 12, padding: 24, width: 400,
+      <div className="trade-up-modal" style={{
+        background: COLORS.bg, border: `1px solid ${COLORS.lime}`, borderRadius: 12, padding: 24,
         boxShadow: "0 20px 50px rgba(0,0,0,0.5)"
       }}>
         <h3 style={{ margin: "0 0 16px", color: COLORS.light }}>Trade Up Opportunity</h3>
@@ -367,7 +361,7 @@ function ScoutingReportModal({ prospect, onClose, onScout, scoutPts, isOnClock, 
           </div>
         </div>
 
-        <div style={{ padding: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <div className="scout-modal-grid" style={{ padding: 20 }}>
           {/* Physicals */}
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.lime, textTransform: "uppercase", marginBottom: 8 }}>Physical Profile</div>
@@ -462,10 +456,12 @@ export function DraftScreen({
   userTeamAbbr,
   gsm,
   refresh,
+  isMobile = false,
 }: {
   userTeamAbbr: string;
   gsm: GameStateManager;
   refresh: () => void;
+  isMobile?: boolean;
 }) {
   const [tab, setTab] = useState("board");
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
@@ -819,15 +815,15 @@ export function DraftScreen({
         </div>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <div style={{ display: "flex", gap: 6 }}>
+      <div className="draft-header-row">
+        <div className="draft-header-tabs">
           <Pill active={tab === "board"}  onClick={() => setTab("board")}>Big Board</Pill>
           <Pill active={tab === "targets"}  onClick={() => setTab("targets")}>Draft Targets ({targetedPlayers.size})</Pill>
           <Pill active={tab === "ticker"}  onClick={() => setTab("ticker")}>Pick Tracker</Pill>
           <Pill active={tab === "picks"}  onClick={() => setTab("picks")}>My Picks</Pill>
         </div>
         {gsm.isDraftActive && (
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="draft-header-actions">
             <button onClick={handleTradeUp} style={{
               background: COLORS.lime, color: COLORS.bg, border: "none", borderRadius: 4,
               padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer",
@@ -840,7 +836,7 @@ export function DraftScreen({
               padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer",
               display: "flex", alignItems: "center", gap: 6
             }}>
-              <FastForward size={14} /> Sim to Next Pick
+              <FastForward size={14} /> {isMobile ? "Skip" : "Sim to Next Pick"}
             </button>
           </div>
         )}
@@ -991,12 +987,14 @@ export function DraftScreen({
               <DataRow header>
                 {["#", "Name", "Pos", "College", "OVR", "Proj", "Target", "Scout"].map(h => {
                   const isSortable = ["#", "Name", "Pos", "College", "OVR", "Proj"].includes(h);
+                  const colClass = h === "College" ? "draft-col-college" : h === "Proj" ? "draft-col-proj" : undefined;
                   return (
-                    <span 
-                      key={h} 
+                    <span
+                      key={h}
+                      className={colClass}
                       onClick={() => isSortable && requestSort(h)}
-                      style={{ 
-                        fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700, 
+                      style={{
+                        fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700,
                         flex: h === "Name" ? 2 : 1,
                         cursor: isSortable ? "pointer" : "default",
                         display: "flex", alignItems: "center", gap: 4,
@@ -1020,9 +1018,9 @@ export function DraftScreen({
                     <span style={{ flex: 1, fontSize: 10, fontFamily: "monospace", color: COLORS.muted }}>{rank}</span>
                     <span style={{ flex: 2, fontSize: 11, fontWeight: 600, color: COLORS.light }}>{p.name}</span>
                     <span style={{ flex: 1 }}><PosTag pos={p.position} /></span>
-                    <span style={{ flex: 1.5, fontSize: 10, color: COLORS.muted }}>{p.college}</span>
+                    <span className="draft-col-college" style={{ flex: 1.5, fontSize: 10, color: COLORS.muted }}>{p.college}</span>
                     <span style={{ flex: 1 }}>{renderOvr(p)}</span>
-                    <span style={{ flex: 1, fontSize: 10, color: COLORS.muted }}>Rd {p.projectedRound === 8 ? "UDFA" : p.projectedRound}</span>
+                    <span className="draft-col-proj" style={{ flex: 1, fontSize: 10, color: COLORS.muted }}>Rd {p.projectedRound === 8 ? "UDFA" : p.projectedRound}</span>
                     <span style={{ flex: 1 }}>
                       {gsm.isDraftActive && gsm.draftOrder.length > 0 && gsm.draftOrder[gsm.currentDraftPick - 1] === gsm.userTeamId ? (
                         <button
@@ -1087,14 +1085,17 @@ export function DraftScreen({
           ) : (
             <div>
               <DataRow header>
-                {["#", "Name", "Pos", "College", "OVR", "Proj", "Remove"].map(h => (
-                  <span key={h} style={{
-                    fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700,
-                    flex: h === "Name" ? 2 : 1,
-                  }}>
-                    {h}
-                  </span>
-                ))}
+                {["#", "Name", "Pos", "College", "OVR", "Proj", "Remove"].map(h => {
+                  const colClass = h === "College" ? "draft-col-college" : h === "Proj" ? "draft-col-proj" : undefined;
+                  return (
+                    <span key={h} className={colClass} style={{
+                      fontSize: 8, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700,
+                      flex: h === "Name" ? 2 : 1,
+                    }}>
+                      {h}
+                    </span>
+                  );
+                })}
               </DataRow>
               {gsm.draftProspects
                 .filter(p => targetedPlayers.has(p.id))
@@ -1105,9 +1106,9 @@ export function DraftScreen({
                       <span style={{ flex: 1, fontSize: 10, fontFamily: "monospace", color: COLORS.muted }}>{rank}</span>
                       <span style={{ flex: 2, fontSize: 11, fontWeight: 600, color: COLORS.light }}>{p.name}</span>
                       <span style={{ flex: 1 }}><PosTag pos={p.position} /></span>
-                      <span style={{ flex: 1.5, fontSize: 10, color: COLORS.muted }}>{p.college}</span>
+                      <span className="draft-col-college" style={{ flex: 1.5, fontSize: 10, color: COLORS.muted }}>{p.college}</span>
                       <span style={{ flex: 1 }}>{renderOvr(p)}</span>
-                      <span style={{ flex: 1, fontSize: 10, color: COLORS.muted }}>Rd {p.projectedRound === 8 ? "UDFA" : p.projectedRound}</span>
+                      <span className="draft-col-proj" style={{ flex: 1, fontSize: 10, color: COLORS.muted }}>Rd {p.projectedRound === 8 ? "UDFA" : p.projectedRound}</span>
                       <span style={{ flex: 1 }}>
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleTarget(p.id); }}

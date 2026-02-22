@@ -13,18 +13,16 @@ import { COLORS, fmtCurrency } from '../ui/theme';
 import {
   Section,
   RatingBadge,
-  PosTag,
   StatusBadge,
-  Pill,
   IconBtn,
   CapBar,
   StatBar,
-  FinancialHealthBadge,
   MessageCircle,
   ShieldAlert,
 } from '../ui/components';
 import { gameStateManager } from '../types/GameStateManager';
-import { Player, PlayerStatus } from '../types/player';
+import { calculatePlayerMarketValue } from '../types/player';
+import type { Player } from '../types/player';
 import {
   AgentMood,
   ContractOffer,
@@ -39,12 +37,22 @@ import { PlayerNegotiationState } from '../systems/AgentPersonalitySystem';
 import { CashReserveTier } from '../systems/FinanceSystem';
 import { ArrowLeft, Check } from 'lucide-react';
 
-const AGENT_ICON_MAP: Record<string, string> = {
-  'The Shark': 'SharkIcon',
-  'Uncle/Family Friend': 'HeartIcon',
-  'Brand Builder': 'TrendingUpIcon',
-  'Self-Represented': 'UserIcon',
-};
+
+// Helper to build salary array with correct arithmetic sequence
+function buildSalaryArray(years: number, apy: number, structure: SalaryStructure): number[] {
+  if (years <= 1 || structure === 'flat') return Array(years).fill(apy);
+
+  const spread = 0.15; // 15% delta per step
+  const step = (apy * spread * 2) / (years - 1);
+  // Arithmetic sequence: start + step*i, must average to apy
+  // sum = years*start + step*(0+1+...+(years-1)) = years*start + step*(years*(years-1)/2)
+  // avg = start + step*(years-1)/2 = apy → start = apy - step*(years-1)/2
+  const start = apy - (step * (years - 1)) / 2;
+  const arr = Array.from({ length: years }, (_, i) =>
+    structure === 'backloaded' ? start + step * i : start - step * i
+  );
+  return arr;
+}
 
 interface Props {
   playerId: string;
@@ -53,6 +61,8 @@ interface Props {
   onRosterChange?: () => void;
 }
 
+type SalaryStructure = 'flat' | 'backloaded' | 'frontloaded';
+
 interface OfferDraft {
   years: number;
   apyMillions: number;
@@ -60,6 +70,7 @@ interface OfferDraft {
   signingBonusMillions: number;
   voidYears: number;
   offsetLanguage: boolean;
+  salaryStructure: SalaryStructure;
 }
 
 export function ContractNegotiationScreen({ playerId, onDone, negotiationContext = 'freeAgency', onRosterChange }: Props) {
@@ -70,6 +81,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
     signingBonusMillions: 0.5,
     voidYears: 0,
     offsetLanguage: false,
+    salaryStructure: 'flat',
   });
 
   const [lastResponse, setLastResponse] = useState<NegotiationResponse | null>(null);
@@ -102,10 +114,34 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
         player,
         capSpace,
         positionDepth,
-        isContender
+        isContender,
+        negotiationContext
       );
     }
-  }, [playerId, player, negotiationState]);
+  }, [playerId, player, negotiationState, negotiationContext]);
+
+  // Pre-fill sliders for extension context
+  useEffect(() => {
+    if (negotiationContext === 'extension' && player?.contract) {
+      const c = player.contract;
+      const marketValue = calculatePlayerMarketValue(player);
+      const baseCap = c.currentYearCap > 0 ? c.currentYearCap : marketValue * 0.8;
+      const yearsBase = c.yearsRemaining ?? 1;
+      const derivedGuaranteedPct = c.guaranteedMoney
+        ? Math.round((c.guaranteedMoney / (baseCap * yearsBase)) * 100)
+        : 65;
+
+      setOfferDraft({
+        years: yearsBase + 1,
+        apyMillions: Math.max(baseCap * 1.1, marketValue * 0.8) / 1_000_000,
+        guaranteedPct: Math.min(Math.max(derivedGuaranteedPct, 30), 100),
+        signingBonusMillions: (c.signingBonus ?? 0) / 1_000_000,
+        voidYears: 0,
+        offsetLanguage: false,
+        salaryStructure: 'flat',
+      });
+    }
+  }, [negotiationContext, playerId, player]);
 
   if (!player || !negotiationState) {
     return (
@@ -130,7 +166,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
   const buildOffer = (): ContractOffer => ({
     id: `offer_${playerId}_${Date.now()}`,
     years: offerDraft.years,
-    baseSalaryPerYear: Array(offerDraft.years).fill(apy),
+    baseSalaryPerYear: buildSalaryArray(offerDraft.years, apy, offerDraft.salaryStructure),
     signingBonus,
     guaranteedMoney,
     ltbeIncentives: [],
@@ -156,6 +192,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
 
     if (response.accepted) {
       // Sign the player
+      gameStateManager.agentPersonalitySystem.clearNegotiation(playerId);
       gameStateManager.commitPlayerSigning(playerId, offer, userTeamId);
       onRosterChange?.();
       setTimeout(() => {
@@ -165,6 +202,13 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
 
     setSubmitting(false);
   };
+
+  // Cleanup on unmount to clear stale negotiation state
+  useEffect(() => {
+    return () => {
+      gameStateManager.agentPersonalitySystem.clearNegotiation(playerId);
+    };
+  }, [playerId]);
 
   // Clamp years to agent max length
   const maxYears = negotiationState.agent.maxContractLength || 10;
@@ -525,6 +569,38 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
                 <div style={{ marginTop: 12, padding: 12, background: 'rgba(0,0,0,0.2)', borderRadius: 6 }}>
                   <div style={{ marginBottom: 12 }}>
                     <label style={{ display: 'block', fontSize: 11, color: COLORS.muted, marginBottom: 4 }}>
+                      Salary Structure
+                    </label>
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                      {(['flat', 'backloaded', 'frontloaded'] as const).map((structure) => (
+                        <button
+                          key={structure}
+                          onClick={() => setOfferDraft({ ...offerDraft, salaryStructure: structure })}
+                          disabled={offerDraft.years <= 1}
+                          style={{
+                            flex: 1,
+                            padding: '6px 8px',
+                            fontSize: 10,
+                            fontWeight: 600,
+                            background: offerDraft.salaryStructure === structure ? COLORS.lime : 'rgba(0,0,0,0.3)',
+                            color: offerDraft.salaryStructure === structure ? COLORS.bg : COLORS.light,
+                            border: `1px solid ${offerDraft.salaryStructure === structure ? COLORS.lime : COLORS.muted}`,
+                            borderRadius: 4,
+                            cursor: offerDraft.years <= 1 ? 'not-allowed' : 'pointer',
+                            opacity: offerDraft.years <= 1 ? 0.5 : 1,
+                          }}
+                        >
+                          {structure.charAt(0).toUpperCase() + structure.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ fontSize: 9, color: COLORS.muted }}>
+                      Flat = equal salary each year | Backloaded = ramp up | Frontloaded = ramp down
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ display: 'block', fontSize: 11, color: COLORS.muted, marginBottom: 4 }}>
                       Void Years: {offerDraft.voidYears}
                     </label>
                     <input
@@ -533,11 +609,11 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
                       onChange={(e) => setOfferDraft({ ...offerDraft, voidYears: parseInt(e.target.value) })}
                       style={{ width: '100%' }}
                     />
-                    <div style={{ fontSize: 9, color: COLORS.muted }}>Spreads signing bonus cap hit over extra years.</div>
+                    <div style={{ fontSize: 9, color: COLORS.muted }}>Bonus prorated across (years + void years)</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={offerDraft.offsetLanguage}
                       onChange={(e) => setOfferDraft({ ...offerDraft, offsetLanguage: e.target.checked })}
                     />
@@ -575,10 +651,31 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
                       ? COLORS.coral
                       : COLORS.lime,
                   marginTop: 4,
+                  marginBottom: 12,
                 }}
               >
                 {fmtCurrency(projectedCapHit)} vs {fmtCurrency(capSpace)} available
               </div>
+
+              {offerDraft.salaryStructure !== 'flat' && offerDraft.years > 1 && (
+                <div style={{ fontSize: 10, color: COLORS.muted, marginBottom: 4 }}>
+                  Year-by-Year Base Salary
+                </div>
+              )}
+              {offerDraft.salaryStructure !== 'flat' && offerDraft.years > 1 && (
+                <div style={{ fontSize: 10, fontFamily: 'monospace', color: COLORS.light, marginBottom: 8 }}>
+                  {buildSalaryArray(offerDraft.years, apy, offerDraft.salaryStructure)
+                    .slice(0, 5)
+                    .map((salary, i) => (
+                      <div key={i}>
+                        Year {i + 1}: {fmtCurrency(salary)}
+                      </div>
+                    ))}
+                  {offerDraft.years > 5 && (
+                    <div style={{ color: COLORS.muted }}>+{offerDraft.years - 5} more years</div>
+                  )}
+                </div>
+              )}
             </div>
 
             <IconBtn
@@ -634,13 +731,54 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
                   <div style={{ fontSize: 12, marginBottom: 8 }}>
                     {response.message}
                   </div>
-                  {response.counterOffer && (
-                    <StatusBadge variant="info" style={{ fontSize: 10 }} label={`Counter: ${fmtCurrency(getContractOfferAveragePerYear(response.counterOffer))}/year`} />
+                  {response.counterOffer && !response.accepted && (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <StatusBadge variant="info" style={{ fontSize: 10 }} label={`Counter: ${fmtCurrency(getContractOfferAveragePerYear(response.counterOffer))}/year`} />
+                      <button
+                        onClick={() => {
+                          const co = response.counterOffer!;
+                          setOfferDraft({
+                            years: co.years,
+                            apyMillions: getContractOfferAveragePerYear(co) / 1_000_000,
+                            guaranteedPct: getContractOfferGuaranteedPercentage(co) * 100,
+                            signingBonusMillions: co.signingBonus / 1_000_000,
+                            voidYears: co.voidYears ?? 0,
+                            offsetLanguage: co.offsetLanguage ?? false,
+                            salaryStructure: 'flat',
+                          });
+                        }}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 600,
+                          padding: '4px 8px',
+                          background: COLORS.lime,
+                          color: COLORS.bg,
+                          border: 'none',
+                          borderRadius: 4,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Load →
+                      </button>
+                    </div>
                   )}
                 </div>
               ))
             )}
           </Section>
+
+          {/* ── Walk Away Button ──────────────────────────────────────────────── */}
+
+          <IconBtn
+            icon={ArrowLeft}
+            label="End Negotiations"
+            variant="ghost"
+            onClick={() => {
+              gameStateManager.agentPersonalitySystem.clearNegotiation(playerId);
+              onDone();
+            }}
+            style={{ width: '100%' }}
+          />
         </>
       )}
     </div>

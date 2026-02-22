@@ -429,7 +429,7 @@ export function HoldoutModal({
   onResolve,
 }: {
   player: Player | null;
-  onResolve: () => void;
+  onResolve: (resolution: 'CAVE_IN' | 'FINE' | 'PROVE_IT') => void;
 }) {
   if (!player) return null;
 
@@ -446,20 +446,41 @@ export function HoldoutModal({
       }}>
         <h3 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 800, color: COLORS.coral }}>Player Holdout Warning</h3>
         <p style={{ fontSize: 12, color: COLORS.muted, marginBottom: 16, lineHeight: 1.5 }}>
-          {player.firstName} {player.lastName} is threatening a holdout. His morale has dropped to critical levels. Negotiate a raise or he may refuse to play.
+          {player.firstName} {player.lastName} is threatening a holdout. His morale has dropped to critical levels. Choose your response.
         </p>
         <div style={{ padding: 12, background: "rgba(255, 128, 128, 0.1)", borderRadius: 8, marginBottom: 20 }}>
           <div style={{ fontSize: 11, color: COLORS.coral, fontWeight: 700 }}>Morale: {player.morale}%</div>
         </div>
-        <button
-          onClick={onResolve}
-          style={{
-            width: "100%", padding: "12px", borderRadius: 8, background: COLORS.lime,
-            color: COLORS.bg, border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer"
-          }}
-        >
-          Acknowledge
-        </button>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <button
+            onClick={() => onResolve('CAVE_IN')}
+            style={{
+              width: "100%", padding: "12px", borderRadius: 8, background: COLORS.lime,
+              color: COLORS.bg, border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer"
+            }}
+          >
+            Cave In — Give the Raise (+0.3 leverage)
+          </button>
+          <button
+            onClick={() => onResolve('FINE')}
+            style={{
+              width: "100%", padding: "12px", borderRadius: 8, background: COLORS.gold,
+              color: COLORS.bg, border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer"
+            }}
+          >
+            Fine the Player — Issue fine (holdout continues)
+          </button>
+          <button
+            onClick={() => onResolve('PROVE_IT')}
+            style={{
+              width: "100%", padding: "12px", borderRadius: 8, background: COLORS.coral,
+              color: COLORS.bg, border: "none", fontSize: 12, fontWeight: 800, cursor: "pointer"
+            }}
+          >
+            Prove It — Let him play out the year
+          </button>
+        </div>
       </div>
     </div>
   );

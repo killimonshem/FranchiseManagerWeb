@@ -2177,10 +2177,108 @@ export class GameStateManager {
           calendarEvent.name,
           `${calendarEvent.name} — action required.`,
         );
+      } else {
+        // No user action needed (payload null), but process system logic (e.g. AI cuts)
+        this._processAutomaticEventLogic(calendarEvent.triggerInterrupt);
       }
     }
 
     return null;
+  }
+
+  private _processAutomaticEventLogic(reason: HardStopReason): void {
+    if (reason === HardStopReason.LEAGUE_YEAR_RESET) {
+      // Auto-release any players on ANY team who still have 0 years remaining
+      const expiring = this.allPlayers.filter(p =>
+        p.teamId &&
+        p.contract &&
+        p.contract.yearsRemaining === 0
+      );
+      for (const p of expiring) {
+        p.teamId = undefined;
+        p.status = PlayerStatus.FREE_AGENT;
+      }
+
+      // Sync freeAgents array to include newly released players
+      this.freeAgents = this.allPlayers.filter(p => p.status === PlayerStatus.FREE_AGENT && !p.teamId);
+
+      if (expiring.length > 0) {
+        console.log(`[League Year] Released ${expiring.length} expiring players league-wide.`);
+
+        const topNames = expiring
+          .sort((a, b) => b.overall - a.overall)
+          .slice(0, 3)
+          .map(p => `${p.position} ${p.lastName} (${p.overall})`)
+          .join(', ');
+
+        this.addNotification(
+          'League Year Reset',
+          `${expiring.length} players have entered Free Agency. Notable: ${topNames}.`,
+          NotificationType.MILESTONE,
+          NotificationPriority.HIGH
+        );
+      }
+
+      // Auto-fill AI rosters to minimums
+      this._fillAIRosterMinimums();
+    }
+  }
+
+  private _fillAIRosterMinimums(): void {
+    const MIN_REQUIREMENTS: Record<string, number> = {
+      QB: 2, RB: 3, WR: 4, TE: 2, OL: 7, DL: 6, LB: 4, CB: 4, S: 2, K: 1, P: 1
+    };
+
+    let signedCount = 0;
+    const availableFAs = this.freeAgents;
+    const signedIds = new Set<string>();
+
+    for (const team of this.teams) {
+      if (team.id === this.userTeamId) continue;
+
+      const teamRoster = this.allPlayers.filter(p => p.teamId === team.id);
+      
+      for (const [pos, min] of Object.entries(MIN_REQUIREMENTS)) {
+        const count = teamRoster.filter(p => p.position === pos).length;
+        if (count < min) {
+          const needed = min - count;
+          const candidates = availableFAs
+            .filter(p => p.position === pos && !signedIds.has(p.id))
+            .sort((a, b) => b.overall - a.overall)
+            .slice(0, needed);
+          
+          for (const player of candidates) {
+            this._forceSignFreeAgent(player, team.id);
+            signedIds.add(player.id);
+            teamRoster.push(player);
+            signedCount++;
+          }
+        }
+      }
+    }
+
+    if (signedCount > 0) {
+      console.log(`[League Year] AI Teams signed ${signedCount} players to meet roster minimums.`);
+      this.freeAgents = this.freeAgents.filter(p => !signedIds.has(p.id));
+    }
+  }
+
+  private _forceSignFreeAgent(player: Player, teamId: string): void {
+    player.teamId = teamId;
+    player.status = PlayerStatus.ACTIVE;
+    player.contract = {
+      totalValue: 750_000,
+      yearsRemaining: 1,
+      guaranteedMoney: 0,
+      currentYearCap: 750_000,
+      signingBonus: 0,
+      incentives: 0,
+      canRestructure: false,
+      canCut: true,
+      deadCap: 0,
+      hasNoTradeClause: false,
+      approvedTradeDestinations: [],
+    };
   }
 
   private _buildCalendarPayload(reason: HardStopReason): import('./engine-types').InterruptPayload | null {
@@ -2294,18 +2392,9 @@ export class GameStateManager {
 
       case HardStopReason.LEAGUE_YEAR_RESET:
       case HardStopReason.FREE_AGENCY_OPEN:
-        if (resolution.reason === HardStopReason.LEAGUE_YEAR_RESET && this.userTeamId) {
-          // Auto-release any players on user team who still have 0 years remaining
-          const expiring = this.allPlayers.filter(p =>
-            p.teamId === this.userTeamId &&
-            p.contract &&
-            p.contract.yearsRemaining === 0
-          );
-          for (const p of expiring) {
-            p.teamId = undefined;
-            p.status = PlayerStatus.FREE_AGENT;
-          }
-          if (expiring.length > 0) console.log(`[League Year] Released ${expiring.length} expiring players.`);
+        if (resolution.reason === HardStopReason.LEAGUE_YEAR_RESET) {
+          // Enforce league-wide expiration for anyone remaining (User + AI)
+          this._processAutomaticEventLogic(HardStopReason.LEAGUE_YEAR_RESET);
         }
         break;
       case HardStopReason.STARTER_INJURED:

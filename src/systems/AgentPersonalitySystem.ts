@@ -33,6 +33,7 @@ import {
 
 export interface PlayerNegotiationState {
   playerId: string;
+  playerName: string;
   agent: AgentPersonality;
   currentOffer?: ContractOffer;
   counterOffer?: ContractOffer;
@@ -65,12 +66,13 @@ export class AgentPersonalitySystem {
     player: Player,
     capSpace: number,
     positionDepth: number,
-    isContender: boolean
+    isContender: boolean,
+    context: 'freeAgency' | 'extension' | 'franchiseTag' = 'freeAgency'
   ): PlayerNegotiationState {
     const agent = generateAgentPersonality(player);
     const marketValue = calculateMarketValueForContract(player);
     const teamFriendlyTarget = marketValue * 0.85;
-    const leverage = this._calculateLeverage(
+    let leverage = this._calculateLeverage(
       player,
       marketValue,
       capSpace,
@@ -78,8 +80,16 @@ export class AgentPersonalitySystem {
       isContender
     );
 
+    // Extensions start with higher agent leverage (player has existing relationship)
+    // Scale: 0.0 (no leverage) → 1.0 (full leverage)
+    if (context === 'extension') {
+      leverage.agentLeverage = 0.7;
+      leverage.userLeverage = 0.3;
+    }
+
     const state: PlayerNegotiationState = {
       playerId: player.id,
+      playerName: player.firstName + ' ' + player.lastName,
       agent,
       leverage,
       lowballCount: 0,
@@ -516,7 +526,7 @@ export class AgentPersonalitySystem {
   ): void {
     const leak: PressLeak = {
       id: `leak_${state.playerId}_${Date.now()}`,
-      playerName: '', // Would need to pass player firstName + lastName
+      playerName: state.playerName,
       teamName: 'Your Team',
       offerAmount: getContractOfferAveragePerYear(offer),
       marketValue: state.marketValue,
