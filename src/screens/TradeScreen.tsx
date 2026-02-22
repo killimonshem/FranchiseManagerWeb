@@ -125,39 +125,7 @@ export function TradeScreen({
   const [receivingPickIds, setReceivingPickIds]   = useState<Set<string>>(new Set());
   const [evaluation, setEvaluation]               = useState<TradeEvaluation | null>(null);
   const [activeTab, setActiveTab]                 = useState<"players" | "picks">("players");
-
-  // ─── Hydration Guard ─────────────────────────────────────────────────────────
-  // Ensure teams and players are loaded before rendering interactive elements
-  const isHydrated = gsm.teams.length > 0 && gsm.allPlayers.length > 0;
-
-  if (!isHydrated) {
-    return (
-      <div style={{ padding: 20, textAlign: "center" }}>
-        <h2 style={{ color: COLORS.light, marginBottom: 12 }}>Trade Center</h2>
-        <div style={{ fontSize: 12, color: COLORS.muted }}>Loading teams and players...</div>
-        <div style={{ marginTop: 16, display: "flex", gap: 4, justifyContent: "center" }}>
-          <div style={{
-            width: 8, height: 8, borderRadius: "50%", background: COLORS.lime,
-            animation: "pulse 1.5s infinite"
-          }} />
-          <div style={{
-            width: 8, height: 8, borderRadius: "50%", background: COLORS.lime,
-            animation: "pulse 1.5s infinite 0.3s",
-          }} />
-          <div style={{
-            width: 8, height: 8, borderRadius: "50%", background: COLORS.lime,
-            animation: "pulse 1.5s infinite 0.6s",
-          }} />
-        </div>
-        <style>{`
-          @keyframes pulse {
-            0%, 100% { opacity: 0.3; }
-            50% { opacity: 1; }
-          }
-        `}</style>
-      </div>
-    );
-  }
+  const [showConfirm, setShowConfirm]             = useState(false);
 
   // Pre-populate from AI-initiated offer (Negotiate flow)
   useEffect(() => {
@@ -194,6 +162,11 @@ export function TradeScreen({
 
   function handleSubmit() {
     if (!canSubmit) return;
+    setShowConfirm(true);
+  }
+
+  function executeTradeProposal() {
+    setShowConfirm(false);
     const payload: TradeOfferPayloadUI = {
       offeringTeamId:    userTeamId,
       receivingTeamId:   partnerTeamId,
@@ -567,6 +540,49 @@ export function TradeScreen({
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirm && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 300,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+        }}>
+          <div style={{
+            background: COLORS.bg, border: `1px solid ${COLORS.darkMagenta}`,
+            borderRadius: 12, padding: 24, maxWidth: 400, width: "100%",
+            boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
+          }}>
+            <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 800, color: COLORS.light }}>
+              Confirm Trade Proposal
+            </h3>
+            <p style={{ fontSize: 13, color: COLORS.muted, marginBottom: 24, lineHeight: 1.5 }}>
+              Are you sure you want to submit this offer to the <strong>{partnerTeam?.city} {partnerTeam?.name}</strong>?
+            </p>
+            <div style={{ display: "flex", gap: 12 }}>
+              <button
+                onClick={() => setShowConfirm(false)}
+                style={{
+                  flex: 1, padding: "10px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                  background: "transparent", border: `1px solid ${COLORS.muted}`,
+                  color: COLORS.muted, cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeTradeProposal}
+                style={{
+                  flex: 1, padding: "10px", borderRadius: 6, fontSize: 12, fontWeight: 700,
+                  background: COLORS.magenta, border: "none",
+                  color: COLORS.light, cursor: "pointer",
+                }}
+              >
+                Confirm Proposal
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
