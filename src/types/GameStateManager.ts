@@ -43,7 +43,7 @@ import { establishDraftOrder } from './DraftSystem';
 import type { TradeOfferPayloadUI, TradeEvaluation } from '../systems/TradeSystem';
 import { FranchiseTier } from '../systems/TradeSystem';
 import { storage } from '../services/StorageService';
-import draftTradeData from '../../drafttrade.json';
+import draftTradeData from '../../public/data/drafttrade.json';
 
 // Re-export engine types so existing imports from this file still work
 export type { Interrupt, InterruptResolution, EngineGameDate, EngineSnapshot, ActionItem };
@@ -556,6 +556,7 @@ export class GameStateManager {
   draftProspects: DraftProspect[] = [];
   draftBoard: DraftProspect[] = [];
   draftPicks: TeamDraftPick[] = [];
+  private draftTradeData: { traded_picks: TradedPick[] } | null = null;
   isDraftActive: boolean = false;
   currentDraftRound: number = 1;
   currentDraftPick: number = 1;
