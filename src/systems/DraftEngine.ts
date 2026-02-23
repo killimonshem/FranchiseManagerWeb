@@ -24,6 +24,7 @@ import { HardStopReason } from '../types/engine-types';
 import type { DraftProspect, TradeOffer } from '../types/GameStateManager';
 import { Position } from '../types/nfl-types';
 import bigboardJson from '../../bigboard.json';
+import { selectProspectForAITeam } from './AIDraftLogic';
 
 // ─── Gem / Bust constants (PRD §4.3) ─────────────────────────────────────────
 
@@ -338,14 +339,10 @@ export class DraftEngine {
     return { pickNumber, round, teamId, playerId, outcome, potentialGranted };
   }
 
-  private _selectBestProspectForTeam(_team: Team): DraftProspect | null {
-    const prospects = this._host.draftProspects;
-    if (prospects.length === 0) return null;
-
-    // AI sees true overall — fog-of-war is a UI mechanic for the human GM only.
-    // Sort by true overall descending and return the best available.
-    const sorted = [...prospects].sort((a, b) => (b.trueOverall ?? 0) - (a.trueOverall ?? 0));
-    return sorted[0] ?? null;
+  private _selectBestProspectForTeam(team: Team): DraftProspect | null {
+    // AI uses fog-of-war logic: scouting consensus + team needs + risk factors.
+    // AI does NOT see true overall — only public scouting data.
+    return selectProspectForAITeam(team, this._host.draftProspects, this._host.allPlayers);
   }
 
   private _findTradeUpCandidate(pickNumber: number): Team | null {
@@ -452,18 +449,19 @@ function generateMedicalGrade(): 'A' | 'B' | 'C' | 'D' {
 }
 
 /**
- * Fog-of-war range visible to the user before scouting.
- * Range half-width by projected round — 1st-rounders are more scrutinized.
+ * Fog-of-war range visible to the user and AI before scouting.
+ * Tighter ranges by projected round so board order feels more predictable.
+ * 1st-rounders are more scrutinized, later rounds have wider variance.
  */
 function computeScoutingRange(
   trueOvr: number,
   round: number,
 ): { min: number; max: number } {
-  const halfWidth = round === 1 ? 5
-    : round <= 3 ? 8
-    : round <= 5 ? 10
-    : round <= 7 ? 12
-    : 15; // UDFA
+  const halfWidth = round === 1 ? 3   // Narrower: scouts know top prospects well
+    : round <= 3 ? 5   // Round 2-3: reasonable consensus
+    : round <= 5 ? 7   // Round 4-5: more projection variance
+    : round <= 7 ? 9   // Round 6-7: significant uncertainty
+    : 12; // UDFA: very wide range
   return {
     min: Math.max(40, trueOvr - halfWidth),
     max: Math.min(99, trueOvr + halfWidth),
