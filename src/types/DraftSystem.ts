@@ -256,24 +256,19 @@ export function buildSeasonDraftOrder(
   const baseOrder = establishDraftOrder(teams);
 
   // For 2026-2028, apply trades from the dataset
+  // NOTE: Only return round 1 order (32 teams). DraftEngine applies serpentine logic per round.
   if (currentSeason >= 2026 && currentSeason <= 2028) {
-    console.log(`\n📋 Applying draft trades for ${currentSeason}...`);
-    const tradedDraftOrder: string[] = [];
+    console.log(`\n📋 Loading draft order for ${currentSeason} from trade data...`);
+    const round1Order = getDraftOrderForRound(currentSeason, 1);
 
-    // Build each round with trades applied
-    for (let round = 1; round <= 7; round++) {
-      const roundOrder = getDraftOrderForRound(currentSeason, round);
-      tradedDraftOrder.push(...roundOrder);
-    }
-
-    if (tradedDraftOrder.length === baseOrder.length) {
+    if (round1Order.length === baseOrder.length) {
       console.log(
-        `✅ Applied ${currentSeason} trades. Draft order ready with ${tradedDraftOrder.length} picks`
+        `✅ Loaded ${currentSeason} draft order from JSON. Round 1 picks in order: ${round1Order.slice(0, 5).join(', ')}...`
       );
-      return tradedDraftOrder;
+      return round1Order;
     } else {
       console.warn(
-        `⚠️ Trade application failed (length mismatch), falling back to base order`
+        `⚠️ Trade data incomplete (got ${round1Order.length}, expected ${baseOrder.length}), falling back to standings`
       );
     }
   }

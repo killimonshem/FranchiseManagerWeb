@@ -750,6 +750,7 @@ export class GameStateManager {
         this.draftOrder = buildSeasonDraftOrder(this.teams, this.currentGameDate.season);
       } else {
         // Build draft order from round 1 of current year (respects trades)
+        // Note: DraftEngine applies serpentine logic, so we only need the round 1 order (32 teams)
         const round1Picks = currentYearPicks.filter(p => p.round === 1).sort((a, b) => {
           // Sort by original team order (standings-based)
           const aTeam = this.teams.find(t => t.id === a.originalTeamId);
@@ -759,16 +760,12 @@ export class GameStateManager {
           return aOrder - bOrder;
         });
 
-        // Repeat the current owners for all 7 rounds
+        // Build current owner order for round 1 only (DraftEngine will reverse for even rounds)
         this.draftOrder = [];
-        for (let round = 1; round <= 7; round++) {
-          const roundPicks = currentYearPicks.filter(p => p.round === round);
-          for (const pick of round1Picks) {
-            // Find who currently owns this pick in this round
-            const currentOwner = roundPicks.find(p => p.originalTeamId === pick.originalTeamId);
-            if (currentOwner) {
-              this.draftOrder.push(currentOwner.currentTeamId);
-            }
+        for (const pick of round1Picks) {
+          const currentOwner = currentYearPicks.find(p => p.originalTeamId === pick.originalTeamId && p.round === 1);
+          if (currentOwner) {
+            this.draftOrder.push(currentOwner.currentTeamId);
           }
         }
       }

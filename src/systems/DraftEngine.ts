@@ -102,10 +102,13 @@ export class DraftEngine {
     for (let round = 1; round <= totalRounds; round++) {
       if (!this._running) break;
 
+      // Apply serpentine (snake) draft logic: reverse order for even rounds
+      const roundOrder = round % 2 === 0 ? [...this._host.draftOrder].reverse() : this._host.draftOrder;
+
       for (let pickIdx = 0; pickIdx < totalPicksPerRound; pickIdx++) {
         if (!this._running) break;
 
-        const teamId = this._host.draftOrder[pickIdx];
+        const teamId = roundOrder[pickIdx];
         const pickNumber = (round - 1) * totalPicksPerRound + pickIdx + 1;
         const isUserPick = teamId === this._host.userTeamId;
 

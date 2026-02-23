@@ -57,12 +57,19 @@ export function parseDraftTradeData(): DraftTrade[] {
 export function getBaseTeamOrderForYear(year: number): string[] {
   // Use the 2026 order if available, otherwise return empty
   if (year === 2026 && draftTradeData.base_draft_order_2026) {
-    return draftTradeData.base_draft_order_2026;
+    // Extract team IDs from pick objects (handles both string and object formats)
+    const baseOrder = (draftTradeData.base_draft_order_2026 as any[]).map(
+      (entry) => (typeof entry === 'string' ? entry : entry.team)
+    );
+    return baseOrder;
   }
 
   // For future years, would need to recalculate based on season results
   // For now, return a default order
-  return draftTradeData.base_draft_order_2026 || [];
+  const fallback = draftTradeData.base_draft_order_2026 as any[];
+  return fallback
+    ? fallback.map((entry) => (typeof entry === 'string' ? entry : entry.team))
+    : [];
 }
 
 /**
@@ -117,15 +124,21 @@ export function buildDraftPickOwnershipMap(year: number): Map<string, string> {
  */
 export function getDraftOrderForRound(year: number, round: number): string[] {
   const baseOrder = getBaseTeamOrderForYear(year);
+
+  // Only return round 1 order (DraftEngine applies serpentine logic per round)
+  if (round !== 1) {
+    return [];
+  }
+
   const trades = parseDraftTradeData().filter(
-    (t) => t.year === year && t.round === round
+    (t) => t.year === year && t.round === 1
   );
 
   // Start with base order
   let roundOrder = [...baseOrder];
 
-  // Apply trades for this round
-  // Trades swap positions in the order
+  // Apply trades for round 1
+  // Trades swap positions in the draft order
   for (const trade of trades) {
     const originalIndex = roundOrder.findIndex(
       (t) => t === trade.originalTeamId
@@ -133,7 +146,7 @@ export function getDraftOrderForRound(year: number, round: number): string[] {
     if (originalIndex !== -1) {
       roundOrder[originalIndex] = trade.newOwnerId;
       console.log(
-        `  📍 ${trade.year} R${round}: Position ${originalIndex + 1} now owned by ${trade.newOwnerId}`
+        `  📍 ${trade.year} R1: Position ${originalIndex + 1} now owned by ${trade.newOwnerId}`
       );
     }
   }
