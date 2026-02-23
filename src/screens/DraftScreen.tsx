@@ -844,20 +844,19 @@ export function DraftScreen({
 
       {/* On The Clock Banner */}
       {gsm.isDraftActive && gsm.draftOrder.length > 0 && gsm.draftOrder[gsm.currentDraftPick - 1] === gsm.userTeamId && (
-        <div style={{
+        <div className="on-the-clock-banner" style={{
           background: `linear-gradient(90deg, ${COLORS.lime}15, transparent)`,
           border: `2px solid ${COLORS.lime}`,
           borderRadius: 10,
-          padding: "14px 20px",
+          padding: "12px 16px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: 16,
           animation: "pulse 1.5s infinite",
         }}>
           <div>
             <div style={{
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: 900,
               color: COLORS.lime,
               textTransform: "uppercase",
@@ -865,7 +864,7 @@ export function DraftScreen({
             }}>
               ⚡ YOU ARE ON THE CLOCK
             </div>
-            <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 2 }}>
+            <div style={{ fontSize: 10, color: COLORS.muted, marginTop: 2 }}>
               Round {gsm.currentDraftRound} · Pick #{gsm.currentDraftPick} of {gsm.draftOrder.length * 7}
             </div>
           </div>

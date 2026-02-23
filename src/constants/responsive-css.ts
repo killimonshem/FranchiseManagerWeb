@@ -166,4 +166,30 @@ export const RESPONSIVE_CSS = `
       min-width: 0 !important;
     }
   }
+
+  /* ─── On The Clock Banner: Sticky & Compact ────────────────────────────────── */
+  .on-the-clock-banner {
+    position: sticky;
+    top: 0;
+    z-index: 99;
+    margin-bottom: 12px;
+  }
+
+  .draft-clock-compact {
+    font-size: 18px;
+    font-weight: 900;
+  }
+
+  .draft-clock-bar {
+    width: 60px;
+    height: 4px;
+  }
+
+  @media (max-width: 640px) {
+    .on-the-clock-banner {
+      padding: 12px;
+      margin-left: -16px;
+      margin-right: -16px;
+    }
+  }
 `;

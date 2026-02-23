@@ -143,6 +143,13 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
     }
   }, [negotiationContext, playerId, player]);
 
+  // Cleanup on unmount to clear stale negotiation state
+  useEffect(() => {
+    return () => {
+      gameStateManager.agentPersonalitySystem.clearNegotiation(playerId);
+    };
+  }, [playerId]);
+
   if (!player || !negotiationState) {
     return (
       <div style={{ animation: 'fadeIn .4s' }}>
@@ -202,13 +209,6 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
 
     setSubmitting(false);
   };
-
-  // Cleanup on unmount to clear stale negotiation state
-  useEffect(() => {
-    return () => {
-      gameStateManager.agentPersonalitySystem.clearNegotiation(playerId);
-    };
-  }, [playerId]);
 
   // Clamp years to agent max length
   const maxYears = negotiationState.agent.maxContractLength || 10;

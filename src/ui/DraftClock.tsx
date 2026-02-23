@@ -28,19 +28,15 @@ export function DraftClock({ secondsLeft, maxSeconds = 300 }: DraftClockProps) {
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-      gap: 8,
+      gap: 6,
     }}>
-      <div style={{
-        fontSize: 32,
-        fontWeight: 900,
+      <div className="draft-clock-compact" style={{
         fontVariantNumeric: "tabular-nums",
         color: bgColor,
       }}>
         {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
       </div>
-      <div style={{
-        width: 80,
-        height: 6,
+      <div className="draft-clock-bar" style={{
         background: "rgba(255,255,255,0.1)",
         borderRadius: 3,
         overflow: "hidden",
