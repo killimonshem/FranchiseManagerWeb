@@ -272,6 +272,64 @@ export function DashboardScreen({
         })}
       </Section>
 
+      {/* Expiring Contracts Widget */}
+      {(() => {
+        const expiringContracts = players.filter(p => p.contract && p.contract.yearsRemaining <= 1).sort((a, b) => b.overall - a.overall);
+        return expiringContracts.length > 0 ? (
+          <Section
+            title="Expiring Contracts"
+            right={
+              <button
+                onClick={() => setScreen("roster")}
+                style={{
+                  fontSize: 9, color: COLORS.gold, background: "none", border: "none",
+                  cursor: "pointer", textDecoration: "underline", padding: 0, fontWeight: 600,
+                }}
+              >
+                Manage
+              </button>
+            }
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {expiringContracts.slice(0, 3).map((p, i) => (
+                <div
+                  key={p.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "8px",
+                    background: "rgba(215, 241, 113, 0.05)",
+                    borderRadius: 4,
+                    border: `1px solid ${COLORS.gold}20`,
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.light }}>
+                      {p.firstName} {p.lastName}
+                    </div>
+                    <div style={{ fontSize: 9, color: COLORS.gold }}>
+                      Expires: {new Date().getFullYear() + (p.contract?.yearsRemaining || 0)}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <RatingBadge value={p.overall} size="sm" />
+                    <div style={{ fontSize: 9, color: COLORS.muted, marginTop: 2 }}>
+                      {fmtCurrency(p.contract?.currentYearCap || 0)}/yr
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {expiringContracts.length > 3 && (
+                <div style={{ fontSize: 10, color: COLORS.muted, textAlign: "center", marginTop: 4 }}>
+                  +{expiringContracts.length - 3} more expiring
+                </div>
+              )}
+            </div>
+          </Section>
+        ) : null;
+      })()}
+
       {/* Financial Snapshot */}
       <Section title="Financial Health">
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>

@@ -732,7 +732,7 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
                     {response.message}
                   </div>
                   {response.counterOffer && !response.accepted && (
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       <StatusBadge variant="info" style={{ fontSize: 10 }} label={`Counter: ${fmtCurrency(getContractOfferAveragePerYear(response.counterOffer))}/year`} />
                       <button
                         onClick={() => {
@@ -751,14 +751,58 @@ export function ContractNegotiationScreen({ playerId, onDone, negotiationContext
                           fontSize: 10,
                           fontWeight: 600,
                           padding: '4px 8px',
-                          background: COLORS.lime,
-                          color: COLORS.bg,
-                          border: 'none',
+                          background: COLORS.muted + '40',
+                          color: COLORS.light,
+                          border: `1px solid ${COLORS.muted}`,
                           borderRadius: 4,
                           cursor: 'pointer',
                         }}
                       >
-                        Load →
+                        Load
+                      </button>
+                      <button
+                        onClick={async () => {
+                          const co = response.counterOffer!;
+                          setOfferDraft({
+                            years: co.years,
+                            apyMillions: getContractOfferAveragePerYear(co) / 1_000_000,
+                            guaranteedPct: getContractOfferGuaranteedPercentage(co) * 100,
+                            signingBonusMillions: co.signingBonus / 1_000_000,
+                            voidYears: co.voidYears ?? 0,
+                            offsetLanguage: co.offsetLanguage ?? false,
+                            salaryStructure: 'flat',
+                          });
+                          // Auto-submit the counter offer
+                          setSubmitting(true);
+                          const acceptedOffer: ContractOffer = co;
+                          const agentResponse = gameStateManager.agentPersonalitySystem.submitOffer(playerId, acceptedOffer);
+                          setLastResponse(agentResponse);
+                          setResponseHistory([...responseHistory, agentResponse]);
+
+                          if (agentResponse.accepted) {
+                            gameStateManager.agentPersonalitySystem.clearNegotiation(playerId);
+                            gameStateManager.commitPlayerSigning(playerId, acceptedOffer, userTeamId);
+                            onRosterChange?.();
+                            setTimeout(() => {
+                              onDone();
+                            }, 500);
+                          }
+                          setSubmitting(false);
+                        }}
+                        disabled={submitting}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 600,
+                          padding: '4px 8px',
+                          background: COLORS.lime,
+                          color: COLORS.bg,
+                          border: 'none',
+                          borderRadius: 4,
+                          cursor: submitting ? 'not-allowed' : 'pointer',
+                          opacity: submitting ? 0.6 : 1,
+                        }}
+                      >
+                        {submitting ? 'Accepting...' : 'Accept Counter'}
                       </button>
                     </div>
                   )}

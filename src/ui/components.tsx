@@ -350,11 +350,12 @@ export function PhaseTag({ phase, color }: { phase: string; color: string }) {
 // ═══════════════════════════════════════════════════════════════════
 // TOAST NOTIFICATION
 // ═══════════════════════════════════════════════════════════════════
-export function Toast({ data, onClose }: { data: { title: string; message: string; type: 'info' | 'success' | 'error' }; onClose: () => void }) {
+export function Toast({ data, onClose, onUndo }: { data: { title: string; message: string; type: 'info' | 'success' | 'error'; action?: string; timeoutMs?: number }; onClose: () => void; onUndo?: () => void }) {
   useEffect(() => {
-    const timer = setTimeout(onClose, 4000);
+    const timeout = data.timeoutMs ?? 4000;
+    const timer = setTimeout(onClose, timeout);
     return () => clearTimeout(timer);
-  }, [onClose]);
+  }, [onClose, data.timeoutMs]);
 
   return (
     <div style={{
@@ -365,7 +366,27 @@ export function Toast({ data, onClose }: { data: { title: string; message: strin
     }}>
       <style>{`@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
       <div style={{ fontSize: 12, fontWeight: 800, color: COLORS.lime, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>{data.title}</div>
-      <div style={{ fontSize: 12, color: COLORS.light, lineHeight: 1.4 }}>{data.message}</div>
+      <div style={{ fontSize: 12, color: COLORS.light, lineHeight: 1.4, marginBottom: data.action ? 8 : 0 }}>{data.message}</div>
+      {data.action && onUndo && (
+        <button
+          onClick={() => {
+            onUndo();
+            onClose();
+          }}
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            padding: '4px 8px',
+            background: COLORS.lime,
+            color: COLORS.bg,
+            border: 'none',
+            borderRadius: 4,
+            cursor: 'pointer',
+          }}
+        >
+          Undo
+        </button>
+      )}
     </div>
   );
 }

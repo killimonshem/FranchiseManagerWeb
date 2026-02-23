@@ -8,6 +8,7 @@ import { Position, DraftProspect, createRookieContract } from "./nfl-types";
 import { Player, PlayerStatus, createPlayer, createEmptyPlayerStats } from "./player";
 import { Team } from "./team";
 import { CompPick } from "./CompensatoryPickSystem";
+import { getDraftOrderForRound } from "../systems/DraftTradeProcessor";
 
 // ============================================================================
 // DRAFT AUDIT RESULT
@@ -241,6 +242,43 @@ export function establishDraftOrder(teams: Team[]): string[] {
   console.log(`✅ Draft order established with ${draftOrder.length} picks`);
 
   return draftOrder;
+}
+
+/**
+ * Build draft order for a specific season with trades applied
+ * For 2026+ seasons, applies the historical trades from drafttrade.json
+ */
+export function buildSeasonDraftOrder(
+  teams: Team[],
+  currentSeason: number
+): string[] {
+  // Establish base order (sorted by record)
+  const baseOrder = establishDraftOrder(teams);
+
+  // For 2026-2028, apply trades from the dataset
+  if (currentSeason >= 2026 && currentSeason <= 2028) {
+    console.log(`\n📋 Applying draft trades for ${currentSeason}...`);
+    const tradedDraftOrder: string[] = [];
+
+    // Build each round with trades applied
+    for (let round = 1; round <= 7; round++) {
+      const roundOrder = getDraftOrderForRound(currentSeason, round);
+      tradedDraftOrder.push(...roundOrder);
+    }
+
+    if (tradedDraftOrder.length === baseOrder.length) {
+      console.log(
+        `✅ Applied ${currentSeason} trades. Draft order ready with ${tradedDraftOrder.length} picks`
+      );
+      return tradedDraftOrder;
+    } else {
+      console.warn(
+        `⚠️ Trade application failed (length mismatch), falling back to base order`
+      );
+    }
+  }
+
+  return baseOrder;
 }
 
 // ============================================================================

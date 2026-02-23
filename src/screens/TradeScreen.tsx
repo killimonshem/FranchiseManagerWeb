@@ -103,9 +103,23 @@ function PickRow({
   selected: boolean;
   onToggle: (id: string) => void;
 }) {
+  // Estimate player value based on round (basic model)
+  const getEstimatedOverall = (round: number): number => {
+    const roundToOVR: Record<number, number> = {
+      1: 88, 2: 85, 3: 82, 4: 79, 5: 76, 6: 73, 7: 70,
+    };
+    return roundToOVR[round] || 65;
+  };
+
+  const estimatedOVR = getEstimatedOverall(pick.round);
+  const tooltipText = `Est. Value: ${estimatedOVR} OVR`;
+
   return (
     <DataRow hover even={false} key={pickId(pick)}>
-      <span style={{ flex: 3, fontSize: 11, fontWeight: 600, color: pick.round === 1 ? COLORS.lime : COLORS.light }}>
+      <span
+        style={{ flex: 3, fontSize: 11, fontWeight: 600, color: pick.round === 1 ? COLORS.lime : COLORS.light, cursor: 'help' }}
+        title={tooltipText}
+      >
         {pickLabel(pick)}
       </span>
       <span style={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
@@ -233,6 +247,16 @@ export function TradeScreen({
     setEvaluation(result);
     if (result.accepted) {
       gsm.executeTrade(payload);
+
+      // Show trade completion toast
+      const partnerTeam = gsm.teams.find(t => t.id === partnerTeamId);
+      gsm.latestToast = {
+        id: `trade_${Date.now()}`,
+        title: 'Trade Completed',
+        message: `Trade with ${partnerTeam?.name || partnerTeamId} accepted!`,
+        type: 'success',
+      };
+
       // Clear state after successful trade
       setOfferingPlayerIds(new Set());
       setReceivingPlayerIds(new Set());

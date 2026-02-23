@@ -634,9 +634,13 @@ export default function App() {
 
       {/* ── Toast Notifications ── */}
       {gameStateManager.latestToast && (
-        <Toast 
-          data={gameStateManager.latestToast} 
-          onClose={() => { gameStateManager.clearToast(); refresh(); }} 
+        <Toast
+          data={gameStateManager.latestToast}
+          onClose={() => { gameStateManager.clearToast(); refresh(); }}
+          onUndo={() => {
+            gameStateManager.undoLastAction();
+            refresh();
+          }}
         />
       )}
 

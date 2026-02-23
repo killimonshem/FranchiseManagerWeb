@@ -35,6 +35,8 @@ export function RosterScreen({
   players: Player[];
 }) {
   const [confirmRelease, setConfirmRelease] = useState<{ open: boolean; player?: Player }>({ open: false });
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmBulkRelease, setConfirmBulkRelease] = useState(false);
   const [filter, setFilter] = useState("ALL");
   const [tab, setTab]       = useState("active");
   const [view, setView]     = useState<"overview" | "contract" | "status">("overview");
@@ -205,6 +207,20 @@ export function RosterScreen({
           <Section pad={false}>
             {/* Header row */}
             <DataRow header>
+              <span style={{ flex: 0.5, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size > 0 && selectedIds.size === sorted.length}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedIds(new Set(sorted.map(p => p.id)));
+                    } else {
+                      setSelectedIds(new Set());
+                    }
+                  }}
+                  style={{ cursor: "pointer" }}
+                />
+              </span>
               <span style={{ flex: 2, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Player</span>
               <span style={{ flex: 1, fontSize: 8, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Pos</span>
               {renderHeader("Age", "age", 1)}
@@ -252,8 +268,47 @@ export function RosterScreen({
               const tradeReq = p.tradeRequestState === "Requested";
 
               return (
-                <DataRow key={p.id} even={i % 2 === 0} hover onClick={() => { setDetail(p); setScreen("playerProfile"); }}>
-                  <div style={{ flex: 2 }}>
+                <div
+                  key={p.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '8px 12px',
+                    borderRadius: 4,
+                    background: expiring ? `${COLORS.gold}15` : (i % 2 === 0 ? 'rgba(116,0,86,0.1)' : 'transparent'),
+                    borderLeft: expiring ? `3px solid ${COLORS.gold}` : 'none',
+                    borderBottom: '1px solid rgba(116,0,86,0.4)',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!expiring) (e.currentTarget as HTMLElement).style.background = 'rgba(116,0,86,0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = expiring ? `${COLORS.gold}15` : (i % 2 === 0 ? 'rgba(116,0,86,0.1)' : 'transparent');
+                  }}
+                >
+                  <span style={{ flex: 0.5, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(p.id)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        const updated = new Set(selectedIds);
+                        if (e.target.checked) {
+                          updated.add(p.id);
+                        } else {
+                          updated.delete(p.id);
+                        }
+                        setSelectedIds(updated);
+                      }}
+                      style={{ cursor: "pointer" }}
+                    />
+                  </span>
+                  <div
+                    style={{ flex: 2, cursor: "pointer" }}
+                    onClick={() => { setDetail(p); setScreen("playerProfile"); }}
+                  >
                     <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.light }}>
                       {p.firstName} {p.lastName}
                     </div>
@@ -375,10 +430,34 @@ export function RosterScreen({
                       </button>
                     </>
                   )}
-                </DataRow>
+                </div>
               );
             })}
           </Section>
+        </div>
+      )}
+
+      {/* Bulk Release Button */}
+      {selectedIds.size > 0 && (
+        <div style={{ marginTop: 16, padding: 12, background: COLORS.coral + '20', borderRadius: 6, border: `1px solid ${COLORS.coral}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.light }}>
+            {selectedIds.size} player{selectedIds.size !== 1 ? 's' : ''} selected
+          </span>
+          <button
+            onClick={() => setConfirmBulkRelease(true)}
+            style={{
+              padding: '8px 16px',
+              background: COLORS.coral,
+              color: COLORS.bg,
+              border: 'none',
+              borderRadius: 4,
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer'
+            }}
+          >
+            Release Selected ({selectedIds.size})
+          </button>
         </div>
       )}
 
@@ -408,6 +487,92 @@ export function RosterScreen({
                 if (confirmRelease.player) gameStateManager.releasePlayer(confirmRelease.player.id);
                 setConfirmRelease({ open: false });
               }} style={{ padding: '6px 12px', borderRadius: 6, background: COLORS.coral, border: 'none', color: COLORS.bg, cursor: 'pointer', fontWeight: 700 }}>Release</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Release Modal */}
+      {confirmBulkRelease && selectedIds.size > 0 && (
+        <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} onClick={() => setConfirmBulkRelease(false)} />
+          <div style={{ background: COLORS.bg, padding: 18, borderRadius: 8, width: 420, maxHeight: '70vh', overflowY: 'auto', boxShadow: '0 8px 30px rgba(0,0,0,0.6)', zIndex: 201 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>Confirm Bulk Release</div>
+            <div style={{ fontSize: 13, color: COLORS.muted, marginBottom: 16 }}>
+              Release {selectedIds.size} player{selectedIds.size !== 1 ? 's' : ''}?
+            </div>
+
+            {/* Player list */}
+            <div style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 16 }}>
+              {sorted.filter(p => selectedIds.has(p.id)).map((p, i) => (
+                <div
+                  key={p.id}
+                  style={{
+                    padding: 8,
+                    marginBottom: i < sorted.filter(p => selectedIds.has(p.id)).length - 1 ? 8 : 0,
+                    background: 'rgba(255,255,255,0.03)',
+                    borderRadius: 4,
+                    border: `1px solid ${COLORS.darkMagenta}`,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.light }}>
+                      {p.firstName} {p.lastName}
+                    </div>
+                    <div style={{ fontSize: 9, color: COLORS.muted }}>
+                      Dead Cap: ${((p.contract?.deadCap || 0) / 1e6).toFixed(2)}M
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Total dead cap */}
+            <div style={{ marginBottom: 16, padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 6, border: `1px solid ${COLORS.darkMagenta}` }}>
+              <div style={{ fontSize: 10, color: COLORS.muted, textTransform: "uppercase", fontWeight: 700, marginBottom: 4 }}>Total Dead Cap</div>
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: (() => {
+                    const totalDeadCap = sorted
+                      .filter(p => selectedIds.has(p.id))
+                      .reduce((sum, p) => sum + (p.contract?.deadCap || 0), 0);
+                    return totalDeadCap > 0 ? COLORS.coral : COLORS.lime;
+                  })()
+                }}
+              >
+                ${(() => {
+                  const totalDeadCap = sorted
+                    .filter(p => selectedIds.has(p.id))
+                    .reduce((sum, p) => sum + (p.contract?.deadCap || 0), 0);
+                  return (totalDeadCap / 1e6).toFixed(2);
+                })()}M
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setConfirmBulkRelease(false)}
+                style={{ padding: '6px 12px', borderRadius: 6, background: 'transparent', border: `1px solid ${COLORS.muted}`, color: COLORS.muted, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  for (const playerId of selectedIds) {
+                    gameStateManager.releasePlayer(playerId);
+                  }
+                  setSelectedIds(new Set());
+                  setConfirmBulkRelease(false);
+                }}
+                style={{ padding: '6px 12px', borderRadius: 6, background: COLORS.coral, border: 'none', color: COLORS.bg, cursor: 'pointer', fontWeight: 700 }}
+              >
+                Release All
+              </button>
             </div>
           </div>
         </div>

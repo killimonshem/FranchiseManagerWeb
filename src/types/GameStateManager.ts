@@ -39,7 +39,8 @@ import { FinanceSystem } from '../systems/FinanceSystem';
 import type { RestructureResult, WeeklyFinanceReport } from '../systems/FinanceSystem';
 import { DraftEngine, generateDraftClass } from '../systems/DraftEngine';
 import type { DraftPickResult } from '../systems/DraftEngine';
-import { establishDraftOrder } from './DraftSystem';
+import { UndoManager } from '../systems/UndoManager';
+import { establishDraftOrder, buildSeasonDraftOrder } from './DraftSystem';
 import type { TradeOfferPayloadUI, TradeEvaluation } from '../systems/TradeSystem';
 import { FranchiseTier } from '../systems/TradeSystem';
 import { storage } from '../services/StorageService';
@@ -152,6 +153,9 @@ export interface ToastData {
   title: string;
   message: string;
   type: 'info' | 'success' | 'error';
+  action?: 'UNDO_RELEASE' | 'UNDO_TRADE' | 'UNDO_DRAFT';
+  playerId?: string;
+  timeoutMs?: number;
 }
 
 // Current game date with season, week, day, and time slot progression
@@ -599,6 +603,7 @@ export class GameStateManager {
   agentPersonalitySystem: AgentPersonalitySystem = new AgentPersonalitySystem();
   tradeSystem: TradeSystem = new TradeSystem();
   financeSystem: FinanceSystem = new FinanceSystem();
+  undoManager: UndoManager = new UndoManager();
   /** Populated by AI initiative; TradeScreen reads this on mount for Negotiate flow. */
   pendingAITradeOffer: TradeOfferPayloadUI | null = null;
   private _negotiationAttempts = new Map<string, number>();
@@ -741,8 +746,8 @@ export class GameStateManager {
       const currentYearPicks = this.draftPicks.filter(p => p.year === this.currentGameDate.season);
 
       if (currentYearPicks.length === 0) {
-        // Fallback to basic order if no picks exist (shouldn't happen in normal flow)
-        this.draftOrder = establishDraftOrder(this.teams);
+        // Fallback to season-aware order with trades applied if available
+        this.draftOrder = buildSeasonDraftOrder(this.teams, this.currentGameDate.season);
       } else {
         // Build draft order from round 1 of current year (respects trades)
         const round1Picks = currentYearPicks.filter(p => p.round === 1).sort((a, b) => {
@@ -2538,6 +2543,17 @@ export class GameStateManager {
     if (!player) return;
 
     const teamId = player.teamId;
+    const team = teamId ? this.teams.find(t => t.id === teamId) : null;
+
+    // Capture snapshot before mutation for undo
+    if (team) {
+      this.undoManager.captureSnapshot(
+        'release',
+        [player],
+        [team],
+        `Released ${player.firstName} ${player.lastName}`
+      );
+    }
 
     // In a full implementation, we would calculate and accelerate dead cap here.
     // For now, we ensure they are detached from the franchise.
@@ -2546,10 +2562,61 @@ export class GameStateManager {
 
     if (teamId) {
       console.log(`✂️ [Roster] Released ${player.firstName} ${player.lastName} from ${teamId}`);
+
+      // Show undo toast
+      this.latestToast = {
+        id: `toast_${Date.now()}`,
+        title: 'Player Released',
+        message: `Released ${player.firstName} ${player.lastName}`,
+        type: 'info',
+        action: 'UNDO_RELEASE',
+        playerId,
+        timeoutMs: 5000,
+      };
+
       this.validateRosterConstraints();
       this.onEngineStateChange?.();
       this.onAutoSave?.();
     }
+  }
+
+  /**
+   * Undo the last destructive action (release, trade, etc).
+   * Restores player state from snapshot if available.
+   */
+  undoLastAction(): boolean {
+    const snapshot = this.undoManager.getSnapshot();
+    if (!snapshot) return false;
+
+    if (snapshot.actionType === 'release') {
+      // Restore player state from snapshot
+      for (const [playerId, playerSnapshot] of snapshot.playerSnapshots) {
+        const player = this.allPlayers.find(p => p.id === playerId);
+        if (player && playerSnapshot) {
+          if (playerSnapshot.teamId !== undefined) player.teamId = playerSnapshot.teamId;
+          if (playerSnapshot.status !== undefined) player.status = playerSnapshot.status;
+          if (playerSnapshot.morale !== undefined) player.morale = playerSnapshot.morale;
+          if (playerSnapshot.contract !== undefined) player.contract = playerSnapshot.contract;
+        }
+      }
+
+      console.log(`↶ [Undo] Restored player release: ${snapshot.description}`);
+
+      this.undoManager.clearSnapshot();
+      this.latestToast = {
+        id: `toast_${Date.now()}`,
+        title: 'Action Undone',
+        message: `Undone: ${snapshot.description}`,
+        type: 'success',
+      };
+
+      this.validateRosterConstraints();
+      this.onEngineStateChange?.();
+      this.onAutoSave?.();
+      return true;
+    }
+
+    return false;
   }
 
   /**

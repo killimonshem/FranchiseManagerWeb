@@ -186,7 +186,7 @@ function AdvisorDebateOverlay({ prospects, needs, onDismiss }: { prospects: Draf
 function SnipeAlertOverlay({ player, onDismiss }: { player: DraftProspect, onDismiss: () => void }) {
   return (
     <div style={{
-      position: "fixed", inset: 0, zIndex: 200,
+      position: "fixed", inset: 0, zIndex: 250,
       background: "rgba(60, 0, 0, 0.85)", display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center", animation: "flashRed 0.5s"
     }}>
@@ -222,61 +222,146 @@ function SnipeAlertOverlay({ player, onDismiss }: { player: DraftProspect, onDis
   );
 }
 
-function PhoneCallOverlay({ offer, onAccept, onDecline, onNegotiate }: { offer: any, onAccept: () => void, onDecline: () => void, onNegotiate: () => void }) {
-  return (
-    <div className="phone-call-overlay" style={{
-      background: "linear-gradient(135deg, #1a1a1a, #2a2a2a)",
-      border: `1px solid ${COLORS.lime}`, borderRadius: 16,
-      boxShadow: "0 10px 30px rgba(0,0,0,0.5)", overflow: "hidden",
-      animation: "ring 1s infinite"
-    }}>
-      
-      <div style={{ padding: 20, textAlign: "center", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-        <div style={{ width: 60, height: 60, background: COLORS.lime, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
-          <Phone size={32} color={COLORS.bg} />
-        </div>
-        <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.light }}>Incoming Trade</div>
-        <div style={{ fontSize: 12, color: COLORS.lime, fontWeight: 600, marginTop: 4 }}>
-          {offer.description || "Trade Offer"}
-        </div>
-      </div>
+interface ScoutRecommendation {
+  name: string;
+  position: string;
+  reason: string;
+}
 
-      <div style={{ padding: 16 }}>
-        <div style={{ fontSize: 11, color: COLORS.muted, marginBottom: 12, textAlign: "center" }}>
-          The other GM is on the line waiting for an answer.
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          <button onClick={onAccept} style={{
-            background: COLORS.lime, border: "none", borderRadius: 8, padding: 12,
-            color: COLORS.bg, fontWeight: 800, fontSize: 12, cursor: "pointer",
-            display: "flex", flexDirection: "column", alignItems: "center", gap: 4
-          }}>
-            <Check size={16} /> Accept
-          </button>
-          <button onClick={onDecline} style={{
-            background: COLORS.coral, border: "none", borderRadius: 8, padding: 12,
-            color: COLORS.bg, fontWeight: 800, fontSize: 12, cursor: "pointer",
-            display: "flex", flexDirection: "column", alignItems: "center", gap: 4
-          }}>
-            <X size={16} /> Decline
-          </button>
-        </div>
-        <button onClick={onNegotiate} style={{
-          width: "100%", marginTop: 8, background: "rgba(255,255,255,0.1)",
-          border: "none", borderRadius: 8, padding: 10,
-          color: COLORS.light, fontWeight: 600, fontSize: 11, cursor: "pointer"
-        }}>
-          Negotiate / Counter
+function PhoneCallOverlay({
+  offer,
+  recommendations,
+  onAccept,
+  onDecline,
+  onClose
+}: {
+  offer: any
+  recommendations?: ScoutRecommendation[]
+  onAccept: () => void
+  onDecline: () => void
+  onClose: () => void
+}) {
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed", inset: 0, zIndex: 251,
+          background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)"
+        }}
+      />
+
+      {/* Popup */}
+      <div className="phone-call-popup" style={{
+        position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+        zIndex: 252,
+        background: "linear-gradient(135deg, #1a1a1a, #2a2a2a)",
+        border: `1px solid ${COLORS.lime}`, borderRadius: 12,
+        boxShadow: "0 20px 40px rgba(0,0,0,0.8)", overflow: "hidden",
+        animation: "slideDown 0.3s ease-out",
+        width: "90%", maxWidth: 420, maxHeight: "80vh", overflowY: "auto"
+      }}>
+
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          style={{
+            position: "absolute", top: 12, right: 12, zIndex: 10,
+            background: "rgba(0,0,0,0.5)", border: "none", color: COLORS.muted,
+            borderRadius: "50%", width: 24, height: 24, cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "all 0.2s"
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "rgba(255,255,255,0.2)";
+            e.currentTarget.style.color = COLORS.light;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "rgba(0,0,0,0.5)";
+            e.currentTarget.style.color = COLORS.muted;
+          }}
+        >
+          <X size={14} />
         </button>
+
+        {/* Header */}
+        <div style={{ padding: "16px 16px 12px", textAlign: "center", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+          <div style={{ width: 40, height: 40, background: COLORS.lime, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 8px" }}>
+            <Phone size={20} color={COLORS.bg} />
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: COLORS.light }}>War Room Call</div>
+          <div style={{ fontSize: 11, color: COLORS.lime, fontWeight: 600, marginTop: 2 }}>
+            Scout & Coach Recommendations
+          </div>
+        </div>
+
+        {/* Recommendations */}
+        {recommendations && recommendations.length > 0 && (
+          <div style={{ padding: "12px 14px", background: "rgba(104, 255, 0, 0.08)", borderBottom: "1px solid rgba(104, 255, 0, 0.2)" }}>
+            <div style={{ fontSize: 9, color: COLORS.lime, fontWeight: 700, textTransform: "uppercase", marginBottom: 8 }}>
+              📍 Recommended Targets
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {recommendations.map((rec, idx) => (
+                <div key={idx} style={{
+                  background: "rgba(255,255,255,0.08)", padding: "8px 10px", borderRadius: 6,
+                  borderLeft: `2px solid ${COLORS.lime}`
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: COLORS.light }}>{rec.name}</span>
+                    <span style={{ fontSize: 8, background: COLORS.lime, color: COLORS.bg, padding: "2px 6px", borderRadius: 3, fontWeight: 700 }}>{rec.position}</span>
+                  </div>
+                  <div style={{ fontSize: 9, color: COLORS.muted, fontStyle: "italic" }}>"{rec.reason}"</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Message */}
+        <div style={{ padding: 12, fontSize: 10, color: COLORS.muted, textAlign: "center" }}>
+          Your scouts are on the line. Take the pick or pass?
+        </div>
+
+        {/* Actions */}
+        <div style={{ padding: 12, display: "flex", gap: 8, flexDirection: "column" }}>
+          <button
+            onClick={onAccept}
+            style={{
+              background: COLORS.lime, border: "none", borderRadius: 6, padding: 10,
+              color: COLORS.bg, fontWeight: 700, fontSize: 11, cursor: "pointer",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+              transition: "all 0.2s"
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = "0.9"}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
+          >
+            <Check size={14} /> Take Pick
+          </button>
+          <button
+            onClick={onDecline}
+            style={{
+              background: COLORS.coral, border: "none", borderRadius: 6, padding: 10,
+              color: COLORS.bg, fontWeight: 700, fontSize: 11, cursor: "pointer",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+              transition: "all 0.2s"
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = "0.9"}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
+          >
+            <X size={14} /> Pass
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
 function TradeUpOverlay({ offer, onAccept, onCancel }: { offer: any, onAccept: () => void, onCancel: () => void }) {
   return (
     <div style={{
-      position: "fixed", inset: 0, zIndex: 200,
+      position: "fixed", inset: 0, zIndex: 253,
       background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 16px"
     }}>
       <div className="trade-up-modal" style={{
