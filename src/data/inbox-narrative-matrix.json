@@ -1,284 +1,500 @@
 {
-  "inboxMessages": [
+  "version": "1.0.0",
+  "templates": [
+
     {
       "triggerId": "Contract_Rejected_Low_Guarantee",
-      "displayName": "Agent Rejects Offer - Insufficient Guarantee",
+      "displayName": "Agent Rejects Offer – Low Guarantee",
       "senderArchetype": "agent",
       "senderPersonality": ["Shark", "Uncle", "BrandBuilder", "SelfRepresented"],
       "category": "contract",
       "requiresAction": true,
-      "subjectTemplate": "RE: [PlayerFirstName] [PlayerLastName] - Offer Rejected",
-      "narrativeBody": "I've reviewed your contract proposal for [PlayerFirstName], and frankly, the guarantee structure doesn't reflect his market value. We've had interest from three other clubs willing to commit real money upfront. Until you can match the level of security he deserves, we can't move forward.",
-      "mechanicalTruth": "Guarantee Analysis: You offered $[OfferedGuarantee]M, but [PlayerFirstName]'s market baseline is $[MarketGuarantee]M ([PercentageBelowMarket]% below market). Your guarantee covers [GuaranteeWeeks] weeks of the contract, while comparable [Position] players are securing [ComparableWeeks] weeks guaranteed.",
+      "subjectTemplate": "RE: [PlayerFirstName] [PlayerLastName] – Offer Rejected",
+      "narrativeBody": "I've reviewed your contract proposal for [PlayerFirstName], and frankly, the guarantee structure doesn't reflect his market value. We've had interest from other clubs willing to commit real money upfront. Until you can match the level of security he deserves, we can't move forward.",
+      "mechanicalTruth": "Guarantee Analysis: You offered $[OfferedGuaranteeMil]M guaranteed, but [PlayerFirstName]'s market baseline is $[MarketGuaranteeMil]M ([PercentageBelowMarket]% below market). At [GuaranteePct]% guaranteed on your deal, comparable [Position] players with OVR [Overall] are securing [MarketGuaranteePct]% guaranteed on the open market. Close the gap to at least $[MinAcceptableGuaranteeMil]M to move forward.",
       "requiredVariables": [
         "PlayerFirstName",
         "PlayerLastName",
-        "OfferedGuarantee",
-        "MarketGuarantee",
+        "OfferedGuaranteeMil",
+        "MarketGuaranteeMil",
         "PercentageBelowMarket",
-        "GuaranteeWeeks",
-        "ComparableWeeks",
-        "Position"
+        "GuaranteePct",
+        "Position",
+        "Overall",
+        "MarketGuaranteePct",
+        "MinAcceptableGuaranteeMil"
       ],
-      "actionRouting": "Route_To_Negotiation",
+      "actionRouting": "Route_To_Contract_Negotiation",
       "actionButtons": [
         { "label": "Revise Offer", "action": "onNavigate('contractNegotiation', {playerId})" },
-        { "label": "Draft List", "action": "onNavigate('draftBoard', {})" }
+        { "label": "Walk Away", "action": "handleReleasePlayer(playerId)" }
       ]
     },
+
     {
-      "triggerId": "Trade_Offer_Received",
-      "displayName": "Incoming Trade Proposal",
-      "senderArchetype": "competitor_gm",
-      "senderPersonality": null,
-      "category": "trade",
+      "triggerId": "Contract_Rejected_Insulting_APY",
+      "displayName": "Agent Rejects Offer – APY Too Low",
+      "senderArchetype": "agent",
+      "senderPersonality": ["Shark", "BrandBuilder"],
+      "category": "contract",
       "requiresAction": true,
-      "subjectTemplate": "[OfferingTeamName] Wants to Discuss [PlayerFirstName] [PlayerLastName]",
-      "narrativeBody": "[SenderGM] from [OfferingTeamName] called to gauge interest in [PlayerFirstName]. They're offering [OfferingAssets]. Given their cap situation and [PlayerFirstName]'s fit with their scheme, this might be a serious inquiry worth exploring. They want an answer within two weeks.",
-      "mechanicalTruth": "Trade Valuation: [OfferingTeamName] is offering assets worth approximately $[OfferingValue]M in trade value. [PlayerFirstName]'s current trade value is estimated at $[PlayerTradeValue]M based on age ([PlayerAge]), contract ($[PlayerCap]M cap hit), and [PlayerPosition] scarcity index. This offer is [PercentageOfValue]% of his market rate. Your team receives [ReceiverCompensation].",
+      "subjectTemplate": "RE: [PlayerFirstName] [PlayerLastName] – Insulting Offer",
+      "narrativeBody": "I'm going to be straight with you — that offer was an insult. [PlayerFirstName] has put in the work and earned his market rate. We're not coming back to the table at these numbers. Come back when you're serious.",
+      "mechanicalTruth": "APY Analysis: You offered $[OfferedAPYMil]M/year. [PlayerFirstName]'s market APY is $[MarketAPYMil]M ([PercentageBelowMarket]% below market). The top 5 [Position] players average $[Top5AvgMil]M APY; comparable OVR [Overall] players average $[CompAvgMil]M APY. Minimum acceptable APY to reengage: $[MinAcceptableAPYMil]M.",
       "requiredVariables": [
-        "OfferingTeamName",
-        "SenderGM",
         "PlayerFirstName",
         "PlayerLastName",
-        "OfferingAssets",
-        "OfferingValue",
-        "PlayerTradeValue",
-        "PlayerAge",
-        "PlayerCap",
-        "PlayerPosition",
-        "PercentageOfValue",
-        "ReceiverCompensation"
+        "OfferedAPYMil",
+        "MarketAPYMil",
+        "PercentageBelowMarket",
+        "Position",
+        "Overall",
+        "Top5AvgMil",
+        "CompAvgMil",
+        "MinAcceptableAPYMil"
       ],
-      "actionRouting": "Route_To_Trade_Review",
+      "actionRouting": "Route_To_Contract_Negotiation",
       "actionButtons": [
-        { "label": "Review Full Offer", "action": "onNavigate('tradeReview', {inboxId})" },
-        { "label": "Counter Offer", "action": "onNavigate('tradeReview', {inboxId, showCounterForm: true})" },
-        { "label": "Reject", "action": "handleRejectTrade(inboxId)" }
+        { "label": "Revise Offer", "action": "onNavigate('contractNegotiation', {playerId})" },
+        { "label": "Explore Trade", "action": "onNavigate('tradeBlock', {playerId})" }
       ]
     },
+
     {
-      "triggerId": "Trade_Offer_Rejected_Overvalued_Asset",
-      "displayName": "Your Trade Offer Was Rejected",
-      "senderArchetype": "competitor_gm",
-      "senderPersonality": null,
-      "category": "trade",
-      "requiresAction": false,
-      "subjectTemplate": "RE: Trade Proposal for [TargetPlayerName]",
-      "narrativeBody": "Thanks for reaching out about [TargetPlayerName]. After reviewing your proposal, we don't feel it adequately addresses our needs. We value [TargetPlayerName] significantly higher than your offer reflects, especially given his age and durability track record. If you'd like to revisit this, you'll need to sweeten the package considerably.",
-      "mechanicalTruth": "Valuation Mismatch: You offered [OfferedAssetValue]M in value for a player our scouts grade at [TargetValue]M. That's a [ShortfallPercent]% shortfall from their asking price. Key differential: Their cap relief needs are [TheirCapRelief]M, but your offer only addresses [YourCapRelief]M of that burden. Counter proposals should close that gap.",
+      "triggerId": "Contract_Rejected_Short_Duration",
+      "displayName": "Agent Rejects Offer – Too Short",
+      "senderArchetype": "agent",
+      "senderPersonality": ["Shark", "Uncle", "BrandBuilder", "SelfRepresented"],
+      "category": "contract",
+      "requiresAction": true,
+      "subjectTemplate": "RE: [PlayerFirstName] [PlayerLastName] – Duration Insufficient",
+      "narrativeBody": "[PlayerFirstName] is looking for stability and long-term commitment. A [OfferedYears]-year deal at this stage of his career doesn't give him the security he needs. We're looking for at least [MinYears] years. Show us you're committed to him long-term.",
+      "mechanicalTruth": "Duration Analysis: You offered [OfferedYears] years. Agent minimum for [PlayerFirstName] (age [PlayerAge], [Position], OVR [Overall]) is [MinYears] years. Market comps at this position and age average [MarketAvgYears] years per deal. Note: agent archetype '[AgentArchetype]' places [LengthPriority] priority on contract length.",
       "requiredVariables": [
-        "TargetPlayerName",
-        "OfferedAssetValue",
-        "TargetValue",
-        "ShortfallPercent",
-        "TheirCapRelief",
-        "YourCapRelief"
+        "PlayerFirstName",
+        "PlayerLastName",
+        "OfferedYears",
+        "MinYears",
+        "PlayerAge",
+        "Position",
+        "Overall",
+        "MarketAvgYears",
+        "AgentArchetype",
+        "LengthPriority"
       ],
-      "actionRouting": "Route_To_Trade_Board",
+      "actionRouting": "Route_To_Contract_Negotiation",
       "actionButtons": [
-        { "label": "Back to Trade Board", "action": "onNavigate('tradeBoard', {})" },
-        { "label": "Available Players", "action": "onNavigate('rosterScreen', {})" }
+        { "label": "Revise Offer", "action": "onNavigate('contractNegotiation', {playerId})" },
+        { "label": "Franchise Tag", "action": "handleFranchiseTag(playerId)" }
       ]
     },
+
     {
-      "triggerId": "Owner_Cap_Mandate_Immediate_Action",
-      "displayName": "URGENT: Ownership Directive on Salary Cap",
+      "triggerId": "Contract_Counter_Offer_Received",
+      "displayName": "Agent Sends Counter-Offer",
+      "senderArchetype": "agent",
+      "senderPersonality": ["Shark", "Uncle", "BrandBuilder", "SelfRepresented"],
+      "category": "contract",
+      "requiresAction": true,
+      "subjectTemplate": "[PlayerFirstName] [PlayerLastName] – Counter-Proposal",
+      "narrativeBody": "We've reviewed your offer and we're not quite there yet. Here's what we're looking for to get this done. These are our terms — meet us here and [PlayerFirstName] is yours.",
+      "mechanicalTruth": "Counter Terms: [CounterYears] years | $[CounterAPYMil]M APY | $[CounterGuaranteeMil]M guaranteed ([CounterGuaranteePct]%). Total value: $[CounterTotalMil]M. Year 1 cap hit: $[CounterCapHitMil]M. Your current cap space: $[CapSpaceMil]M. Gap to close: $[GapAPYMil]M APY / $[GapGuaranteeMil]M guaranteed.",
+      "requiredVariables": [
+        "PlayerFirstName",
+        "PlayerLastName",
+        "CounterYears",
+        "CounterAPYMil",
+        "CounterGuaranteeMil",
+        "CounterGuaranteePct",
+        "CounterTotalMil",
+        "CounterCapHitMil",
+        "CapSpaceMil",
+        "GapAPYMil",
+        "GapGuaranteeMil"
+      ],
+      "actionRouting": "Route_To_Contract_Negotiation",
+      "actionButtons": [
+        { "label": "Accept Counter", "action": "handleAcceptCounter(playerId)" },
+        { "label": "Revise Offer", "action": "onNavigate('contractNegotiation', {playerId})" },
+        { "label": "Walk Away", "action": "handleReleasePlayer(playerId)" }
+      ]
+    },
+
+    {
+      "triggerId": "Contract_Offer_Accepted",
+      "displayName": "Contract Signed",
+      "senderArchetype": "agent",
+      "senderPersonality": ["Shark", "Uncle", "BrandBuilder", "SelfRepresented"],
+      "category": "contract",
+      "requiresAction": false,
+      "subjectTemplate": "SIGNED: [PlayerFirstName] [PlayerLastName] – [Years]-Year Deal",
+      "narrativeBody": "[PlayerFirstName] is excited to be part of the team. This is exactly the kind of commitment he was looking for. We look forward to great things ahead.",
+      "mechanicalTruth": "Contract Executed: [Years] years | $[APYMil]M APY | $[GuaranteeMil]M guaranteed ([GuaranteePct]%). Total value: $[TotalMil]M. Signing bonus: $[SigningBonusMil]M (spread over [VoidYears] void years if applicable). Year 1 cap hit: $[Year1CapHitMil]M. Remaining cap space after signing: $[RemainingCapMil]M.",
+      "requiredVariables": [
+        "PlayerFirstName",
+        "PlayerLastName",
+        "Years",
+        "APYMil",
+        "GuaranteeMil",
+        "GuaranteePct",
+        "TotalMil",
+        "SigningBonusMil",
+        "VoidYears",
+        "Year1CapHitMil",
+        "RemainingCapMil"
+      ],
+      "actionRouting": "Route_To_Roster",
+      "actionButtons": [
+        { "label": "View Roster", "action": "onNavigate('roster', {})" }
+      ]
+    },
+
+    {
+      "triggerId": "Negotiation_Lockout_Declared",
+      "displayName": "Agent Terminates Negotiations",
+      "senderArchetype": "agent",
+      "senderPersonality": ["Shark", "BrandBuilder"],
+      "category": "contract",
+      "requiresAction": false,
+      "subjectTemplate": "[PlayerFirstName] [PlayerLastName] – Negotiations Terminated",
+      "narrativeBody": "After careful consideration, we've decided to terminate negotiations with your organization. The offers presented did not come close to reflecting [PlayerFirstName]'s value, and we have no interest in continuing down this path. We'll be exploring other options.",
+      "mechanicalTruth": "Lockout Reason: [LockoutReason]. Negotiation lasted [RoundsCompleted] rounds. Final offer was $[FinalOfferAPYMil]M APY vs. market value of $[MarketAPYMil]M ([PctBelowMarket]% below). Relationship score dropped to [RelationshipScore]/100, crossing the lockout threshold of [LockoutThreshold]/100.",
+      "requiredVariables": [
+        "PlayerFirstName",
+        "PlayerLastName",
+        "LockoutReason",
+        "RoundsCompleted",
+        "FinalOfferAPYMil",
+        "MarketAPYMil",
+        "PctBelowMarket",
+        "RelationshipScore",
+        "LockoutThreshold"
+      ],
+      "actionRouting": "Route_To_Free_Agency",
+      "actionButtons": [
+        { "label": "Return to Free Agency", "action": "onNavigate('freeAgency', {})" },
+        { "label": "Explore Trade", "action": "onNavigate('tradeBlock', {})" }
+      ]
+    },
+
+    {
+      "triggerId": "Free_Agent_Interest_Received",
+      "displayName": "Free Agent Inquiry",
+      "senderArchetype": "agent",
+      "senderPersonality": ["Shark", "Uncle", "BrandBuilder", "SelfRepresented"],
+      "category": "contract",
+      "requiresAction": true,
+      "subjectTemplate": "[PlayerFirstName] [PlayerLastName] – Free Agent Interest",
+      "narrativeBody": "Multiple teams are showing interest in [PlayerFirstName] as we approach the open market. The [InterestLevel] level of interest suggests he'll command strong money this offseason. I wanted to reach out to see if you'd like to get ahead of the market and keep him in the fold.",
+      "mechanicalTruth": "Market Projection: Age [PlayerAge] | [Position] | OVR [Overall]. Projected APY: $[ProjectedAPYMil]M. Projected guarantee: $[ProjectedGuaranteeMil]M (~[GuaranteePct]% guaranteed). Franchise tag value: $[FranchiseTagMil]M (saves $[SavingsVsFreeMarketMil]M vs. open market, but signals non-commitment). Comparable free agents this class: [CompCount] at similar OVR.",
+      "requiredVariables": [
+        "PlayerFirstName",
+        "PlayerLastName",
+        "PlayerAge",
+        "Position",
+        "Overall",
+        "InterestLevel",
+        "ProjectedAPYMil",
+        "ProjectedGuaranteeMil",
+        "GuaranteePct",
+        "FranchiseTagMil",
+        "SavingsVsFreeMarketMil",
+        "CompCount"
+      ],
+      "actionRouting": "Route_To_Contract_Negotiation",
+      "actionButtons": [
+        { "label": "Offer Contract", "action": "onNavigate('contractNegotiation', {playerId})" },
+        { "label": "Franchise Tag", "action": "handleFranchiseTag(playerId)" },
+        { "label": "Let Walk", "action": "handleReleasePlayer(playerId)" }
+      ]
+    },
+
+    {
+      "triggerId": "Phone_Dead_Warning",
+      "displayName": "Agent Not Taking Calls",
+      "senderArchetype": "agent",
+      "senderPersonality": ["Shark"],
+      "category": "contract",
+      "requiresAction": false,
+      "subjectTemplate": "[PlayerFirstName] [PlayerLastName] – Not Available",
+      "narrativeBody": "[PlayerFirstName]'s camp is stepping back from talks. We've said what we need to say. When you're ready to have a real conversation, you know where to find us. Don't call us — we'll call you.",
+      "mechanicalTruth": "Phone Dead: Agent unavailable for [DeadDays] days (~[DeadRounds] negotiation rounds). Triggered by: [TriggerReason]. Current agent mood: [CurrentMood]. To resume talks, wait [DeadRounds] rounds or use a relationship-building action if available.",
+      "requiredVariables": [
+        "PlayerFirstName",
+        "PlayerLastName",
+        "DeadDays",
+        "DeadRounds",
+        "TriggerReason",
+        "CurrentMood"
+      ],
+      "actionRouting": "Route_To_Free_Agency",
+      "actionButtons": [
+        { "label": "Return to Free Agency", "action": "onNavigate('freeAgency', {})" }
+      ]
+    },
+
+    {
+      "triggerId": "Press_Leak_Contract_Dispute",
+      "displayName": "Press Leak – Contract Dispute",
+      "senderArchetype": "media",
+      "senderPersonality": null,
+      "category": "media",
+      "requiresAction": false,
+      "subjectTemplate": "BREAKING: [PlayerFirstName] [PlayerLastName] Contract Talks 'Stalled'",
+      "narrativeBody": "Sources close to [PlayerFirstName] [PlayerLastName]'s camp indicate that contract negotiations with the organization have hit a significant wall. The player is reportedly frustrated with the team's unwillingness to meet market value. Multiple rival teams are said to be monitoring the situation closely.",
+      "mechanicalTruth": "Press Impact: Fan confidence -[FanConfidenceDrop] points. Owner satisfaction -[OwnerSatisfactionDrop] points. Agent leverage +[AgentLeverageGain] (public pressure increases agent's negotiating position). Leaked by: [LeakSource]. This leak cannot be retracted — damage is permanent for this negotiation cycle.",
+      "requiredVariables": [
+        "PlayerFirstName",
+        "PlayerLastName",
+        "FanConfidenceDrop",
+        "OwnerSatisfactionDrop",
+        "AgentLeverageGain",
+        "LeakSource"
+      ],
+      "actionRouting": "Route_To_Contract_Negotiation",
+      "actionButtons": [
+        { "label": "Address Media", "action": "handleMediaStatement(playerId)" },
+        { "label": "Accelerate Offer", "action": "onNavigate('contractNegotiation', {playerId})" }
+      ]
+    },
+
+    {
+      "triggerId": "Shadow_Advisor_Detected",
+      "displayName": "Shadow Advisor Influencing Player",
+      "senderArchetype": "agent",
+      "senderPersonality": null,
+      "category": "contract",
+      "requiresAction": true,
+      "subjectTemplate": "⚠ Blocked Number – Unknown Influence on [PlayerFirstName] [PlayerLastName]",
+      "narrativeBody": "We're getting word that an outside party has been whispering in [PlayerFirstName]'s ear. Someone is advising him off the books — and their ask is significantly higher than what's been on the table. This complicates things.",
+      "mechanicalTruth": "Shadow Advisor Detected: [AdvisorName] is advising [PlayerFirstName] off-book. Advisor demand: $[AdvisorDemandMil]M. Impact on negotiation: APY floor raised by $[FloorRaiseMil]M / guarantee floor raised by $[GuaranteeFloorRaiseMil]M. Options: ENGAGE (attempt to neutralize, costs 1 round) or REPORT to league office (possible penalty to advisor; risks agent relationship -[RelationshipCost] pts).",
+      "requiredVariables": [
+        "PlayerFirstName",
+        "PlayerLastName",
+        "AdvisorName",
+        "AdvisorDemandMil",
+        "FloorRaiseMil",
+        "GuaranteeFloorRaiseMil",
+        "RelationshipCost"
+      ],
+      "actionRouting": "Route_To_Shadow_Advisor_Response",
+      "actionButtons": [
+        { "label": "Engage Advisor", "action": "respondToShadowAdvisor(playerId, 'ENGAGE')" },
+        { "label": "Report to League", "action": "respondToShadowAdvisor(playerId, 'REPORT')" }
+      ]
+    },
+
+    {
+      "triggerId": "Holdout_Declared",
+      "displayName": "Player Declares Holdout",
+      "senderArchetype": "agent",
+      "senderPersonality": ["Shark", "BrandBuilder"],
+      "category": "contract",
+      "requiresAction": true,
+      "subjectTemplate": "HOLDOUT: [PlayerFirstName] [PlayerLastName] Will Not Report",
+      "narrativeBody": "I've advised [PlayerFirstName] not to report to camp until this contract situation is resolved. He's committed to this process, but he's not going to play on a deal that undervalues him. This isn't personal — it's business.",
+      "mechanicalTruth": "Holdout Impact: [PlayerFirstName] unavailable for [HoldoutDays] estimated days. Performance penalty if holdout extends past training camp: -[OvrPenalty] OVR for first [PenaltyGames] games of season. Daily fine accruing: $[DailyFineMil]M/day (deducted from any eventual contract value). Resolve by offering $[ResolutionAPYMil]M APY or higher.",
+      "requiredVariables": [
+        "PlayerFirstName",
+        "PlayerLastName",
+        "HoldoutDays",
+        "OvrPenalty",
+        "PenaltyGames",
+        "DailyFineMil",
+        "ResolutionAPYMil"
+      ],
+      "actionRouting": "Route_To_Contract_Negotiation",
+      "actionButtons": [
+        { "label": "Make Offer", "action": "onNavigate('contractNegotiation', {playerId})" },
+        { "label": "Trade Player", "action": "onNavigate('tradeBlock', {playerId})" },
+        { "label": "Release Player", "action": "handleReleasePlayer(playerId)" }
+      ]
+    },
+
+    {
+      "triggerId": "Franchise_Tag_Applied",
+      "displayName": "Franchise Tag Notice",
+      "senderArchetype": "agent",
+      "senderPersonality": ["Shark", "Uncle", "BrandBuilder", "SelfRepresented"],
+      "category": "contract",
+      "requiresAction": false,
+      "subjectTemplate": "[PlayerFirstName] [PlayerLastName] – Franchise Tag Received",
+      "narrativeBody": "[PlayerFirstName] has received your franchise tag. He'll honor the contract for this season, but make no mistake — this is not the long-term commitment he was hoping for. We'll be revisiting this conversation before the deadline. Use this time wisely.",
+      "mechanicalTruth": "Franchise Tag: 1-year tender at $[TagValueMil]M (exclusive tag) or $[NonExclusiveTagMil]M (non-exclusive). Cap hit: $[TagCapHitMil]M. Long-term extension window: [ExtensionDeadlineDays] days remaining. If not extended by deadline, [PlayerFirstName] enters free agency next offseason. Agent mood penalty: -[MoodPenalty] (dissatisfied with tag).",
+      "requiredVariables": [
+        "PlayerFirstName",
+        "PlayerLastName",
+        "TagValueMil",
+        "NonExclusiveTagMil",
+        "TagCapHitMil",
+        "ExtensionDeadlineDays",
+        "MoodPenalty"
+      ],
+      "actionRouting": "Route_To_Contract_Negotiation",
+      "actionButtons": [
+        { "label": "Negotiate Extension", "action": "onNavigate('contractNegotiation', {playerId, context: 'extension'})" },
+        { "label": "View Roster", "action": "onNavigate('roster', {})" }
+      ]
+    },
+
+    {
+      "triggerId": "Extension_Deadline_Warning",
+      "displayName": "Extension Window Closing",
+      "senderArchetype": "agent",
+      "senderPersonality": ["Shark", "Uncle", "BrandBuilder", "SelfRepresented"],
+      "category": "contract",
+      "requiresAction": true,
+      "subjectTemplate": "URGENT: [PlayerFirstName] [PlayerLastName] Extension Deadline in [DaysRemaining] Days",
+      "narrativeBody": "I want to make sure you're aware — the window to lock up [PlayerFirstName] on a long-term deal is closing fast. After [DeadlineDate], he'll be heading to the open market. If you want to keep him, now is the time to make a serious offer.",
+      "mechanicalTruth": "Extension Deadline: [DaysRemaining] days remaining ([DeadlineDate]). If no extension agreed, [PlayerFirstName] becomes a free agent at season end. Current estimated market value: $[MarketAPYMil]M APY. Post-deadline cap cost increase: ~[PostDeadlineInflationPct]% (free market premium). Recommended offer floor to close: $[RecommendedAPYMil]M APY / $[RecommendedGuaranteeMil]M guaranteed.",
+      "requiredVariables": [
+        "PlayerFirstName",
+        "PlayerLastName",
+        "DaysRemaining",
+        "DeadlineDate",
+        "MarketAPYMil",
+        "PostDeadlineInflationPct",
+        "RecommendedAPYMil",
+        "RecommendedGuaranteeMil"
+      ],
+      "actionRouting": "Route_To_Contract_Negotiation",
+      "actionButtons": [
+        { "label": "Offer Extension", "action": "onNavigate('contractNegotiation', {playerId, context: 'extension'})" },
+        { "label": "Let Walk", "action": "handleReleasePlayer(playerId)" }
+      ]
+    },
+
+    {
+      "triggerId": "Agent_Mood_Shift_Excited",
+      "displayName": "Agent Mood Improves",
+      "senderArchetype": "agent",
+      "senderPersonality": ["Uncle", "BrandBuilder", "SelfRepresented"],
+      "category": "contract",
+      "requiresAction": false,
+      "subjectTemplate": "[PlayerFirstName] [PlayerLastName] – Encouraged by Recent Offer",
+      "narrativeBody": "I'll be honest — that last offer surprised me in a good way. [PlayerFirstName] is genuinely excited about the direction this is heading. Keep this momentum going and I think we can get something done.",
+      "mechanicalTruth": "Mood Update: Agent mood shifted from [PreviousMood] → EXCITED. Leverage recalculated: You [UserLeveragePct]% | Agent [AgentLeveragePct]%. Acceptance probability increased by ~[AcceptanceProbGain]%. Maintain offer trajectory to close deal within [EstimatedRoundsToClose] round(s).",
+      "requiredVariables": [
+        "PlayerFirstName",
+        "PlayerLastName",
+        "PreviousMood",
+        "UserLeveragePct",
+        "AgentLeveragePct",
+        "AcceptanceProbGain",
+        "EstimatedRoundsToClose"
+      ],
+      "actionRouting": "Route_To_Contract_Negotiation",
+      "actionButtons": [
+        { "label": "Press Advantage", "action": "onNavigate('contractNegotiation', {playerId})" }
+      ]
+    },
+
+    {
+      "triggerId": "Agent_Mood_Shift_Angry",
+      "displayName": "Agent Mood Worsens",
+      "senderArchetype": "agent",
+      "senderPersonality": ["Shark", "BrandBuilder"],
+      "category": "contract",
+      "requiresAction": true,
+      "subjectTemplate": "[PlayerFirstName] [PlayerLastName] – Talks Deteriorating",
+      "narrativeBody": "I need to be direct with you. [PlayerFirstName] is frustrated, and frankly so am I. The offers we've seen don't reflect how serious you are about retaining him. We're one more bad offer away from shutting this down entirely.",
+      "mechanicalTruth": "Mood Alert: Agent mood dropped to ANGRY. Relationship score: [RelationshipScore]/100 (lockout threshold: [LockoutThreshold]/100). Distance to lockout: [DistanceToLockout] points. Last offer was [LastOfferGapPct]% below minimum acceptable on [WorstMetric]. Improve on [WorstMetric] in next offer or risk termination of negotiations.",
+      "requiredVariables": [
+        "PlayerFirstName",
+        "PlayerLastName",
+        "RelationshipScore",
+        "LockoutThreshold",
+        "DistanceToLockout",
+        "LastOfferGapPct",
+        "WorstMetric"
+      ],
+      "actionRouting": "Route_To_Contract_Negotiation",
+      "actionButtons": [
+        { "label": "Revise Offer", "action": "onNavigate('contractNegotiation', {playerId})" },
+        { "label": "Explore Trade", "action": "onNavigate('tradeBlock', {playerId})" }
+      ]
+    },
+
+    {
+      "triggerId": "Owner_Blocks_Signing_Bonus",
+      "displayName": "Owner Vetoes Signing Bonus",
       "senderArchetype": "owner",
       "senderPersonality": null,
-      "category": "owner",
+      "category": "finance",
       "requiresAction": true,
-      "subjectTemplate": "IMMEDIATE ACTION REQUIRED: Cap Space Breach",
-      "narrativeBody": "Our accounting has flagged a serious problem. You are currently [CapOverage]M over the salary cap. This is untenable and jeopardizes our draft. You have until the end of this week to bring us into compliance. Restructure deals, release veterans, trade for picks—I don't care how you do it, but get it done. This is non-negotiable.",
-      "mechanicalTruth": "Cap Status: Current commitments total $[TotalCommitments]M against a $[CapCeiling]M cap limit. You need to shed $[RequiredRelief]M in cap space. Immediate options: (1) Release [ReleaseOptionName] ($[ReleaseCap]M relief), (2) Restructure [RestructureOptionName] ($[RestructureCap]M relief, adds [DeadCapPenalty]M dead cap in Year [DeadCapYear]), (3) Execute trade for $[TradeValue]M in incoming cap relief.",
+      "subjectTemplate": "Owner Decision: Signing Bonus Blocked – [PlayerFirstName] [PlayerLastName]",
+      "narrativeBody": "I've reviewed the proposed signing bonus and I'm not approving it at this time. Our cash position doesn't support a commitment of this size right now. Restructure the deal or find another path forward.",
+      "mechanicalTruth": "Cash Reserve Block: Proposed signing bonus $[ProposedBonusMil]M exceeds available threshold. Current cash reserves: $[CashReservesMil]M (tier: [CashTier]). Maximum approvable signing bonus at current tier: $[MaxBonusMil]M. To unlock higher signing bonuses: reach [NextCashTier] tier ($[NextTierThresholdMil]M reserves required). Alternatively, reduce signing bonus to $[MaxBonusMil]M or below.",
       "requiredVariables": [
-        "CapOverage",
-        "TotalCommitments",
-        "CapCeiling",
-        "RequiredRelief",
-        "ReleaseOptionName",
-        "ReleaseCap",
-        "RestructureOptionName",
-        "RestructureCap",
-        "DeadCapPenalty",
-        "DeadCapYear",
-        "TradeValue"
+        "PlayerFirstName",
+        "PlayerLastName",
+        "ProposedBonusMil",
+        "CashReservesMil",
+        "CashTier",
+        "MaxBonusMil",
+        "NextCashTier",
+        "NextTierThresholdMil"
+      ],
+      "actionRouting": "Route_To_Contract_Negotiation",
+      "actionButtons": [
+        { "label": "Revise Offer", "action": "onNavigate('contractNegotiation', {playerId})" },
+        { "label": "View Finances", "action": "onNavigate('finances', {})" }
+      ]
+    },
+
+    {
+      "triggerId": "Cap_Space_Insufficient",
+      "displayName": "Insufficient Cap Space",
+      "senderArchetype": "headcoach",
+      "senderPersonality": null,
+      "category": "finance",
+      "requiresAction": true,
+      "subjectTemplate": "Cap Alert: Cannot Sign [PlayerFirstName] [PlayerLastName]",
+      "narrativeBody": "The front office has flagged a cap issue. We can't execute this signing without creating the necessary space first. We need to restructure or move some contracts before we can bring [PlayerFirstName] on board.",
+      "mechanicalTruth": "Cap Shortfall: Year 1 cap hit of $[Year1CapHitMil]M exceeds available cap space of $[CapSpaceMil]M. Shortfall: $[ShortfallMil]M. Options to create space: (1) Release/trade a player with cap hit ≥ $[ShortfallMil]M. (2) Restructure an existing contract (converts base salary to signing bonus). (3) Reduce this offer's APY by $[APYReductionNeededMil]M or add [VoidYearsNeeded] void year(s) to spread the signing bonus hit.",
+      "requiredVariables": [
+        "PlayerFirstName",
+        "PlayerLastName",
+        "Year1CapHitMil",
+        "CapSpaceMil",
+        "ShortfallMil",
+        "APYReductionNeededMil",
+        "VoidYearsNeeded"
       ],
       "actionRouting": "Route_To_Roster_Management",
       "actionButtons": [
-        { "label": "Review Roster Moves", "action": "onNavigate('rosterScreen', {filterReleaseOptions: true})" },
-        { "label": "Restructure Contracts", "action": "onNavigate('contractScreen', {filterRestructurable: true})" },
-        { "label": "Find Trade Partners", "action": "onNavigate('tradeBoard', {})" }
+        { "label": "Manage Roster", "action": "onNavigate('roster', {})" },
+        { "label": "Revise Offer", "action": "onNavigate('contractNegotiation', {playerId})" }
       ]
     },
+
     {
-      "triggerId": "Contract_Restructure_Request_From_Coach",
-      "displayName": "Coach Requests Contract Restructure",
-      "senderArchetype": "headcoach",
-      "senderPersonality": null,
-      "category": "staff",
+      "triggerId": "Competing_Offer_Received",
+      "displayName": "Rival Team Offers Sheet",
+      "senderArchetype": "agent",
+      "senderPersonality": ["Shark", "BrandBuilder"],
+      "category": "contract",
       "requiresAction": true,
-      "subjectTemplate": "Roster Strategy Discussion: [PlayerName]'s Role Going Forward",
-      "narrativeBody": "[PlayerName] is still valuable to our defensive scheme, but frankly, we're paying veteran money for a reserve role. If we could restructure his deal to free up some cap space, it wouldn't change his playing time, but it would give us flexibility to address other gaps. Can we make this work?",
-      "mechanicalTruth": "Restructure Math: [PlayerName]'s current cap hit is $[CurrentCap]M. If we convert [ConversionPercent]% of base salary to signing bonus, we reduce his Year [RestructureYear] cap by $[YearCapSavings]M. However, we add $[AddedDeadCap]M in dead cap spread across Years [DeadCapSpread]. Net three-year impact: $[ThreeYearSavings]M saved, but flexibility frozen until Year [LastDeadCapYear].",
+      "subjectTemplate": "[PlayerFirstName] [PlayerLastName] – Competing Offer on Table",
+      "narrativeBody": "I have to be transparent with you — we've received a formal offer from another organization. [PlayerFirstName] values his time here, but he's a professional and has to consider all his options. If you want to keep him, we need to see your best offer now.",
+      "mechanicalTruth": "Competing Offer: [RivalTeamName] has submitted $[RivalAPYMil]M APY | [RivalYears] years | $[RivalGuaranteeMil]M guaranteed. Leverage shift: Agent leverage now [AgentLeveragePct]% (was [PrevAgentLeveragePct]%). Match or beat the rival offer to retain [PlayerFirstName]. You have [HoursToRespond] hours (in-game) before he is likely to sign elsewhere.",
       "requiredVariables": [
-        "PlayerName",
-        "CurrentCap",
-        "ConversionPercent",
-        "RestructureYear",
-        "YearCapSavings",
-        "AddedDeadCap",
-        "DeadCapSpread",
-        "ThreeYearSavings",
-        "LastDeadCapYear"
-      ],
-      "actionRouting": "Route_To_Contract_Management",
-      "actionButtons": [
-        { "label": "Restructure [PlayerName]", "action": "onNavigate('playerProfile', {playerId, tab: 'contract', showRestructureUI: true})" },
-        { "label": "Keep Current Deal", "action": "handleDismissMessage(inboxId)" }
-      ]
-    },
-    {
-      "triggerId": "Free_Agency_Rival_Signing",
-      "displayName": "Free Agent You Targeted Just Signed Elsewhere",
-      "senderArchetype": "media",
-      "senderPersonality": null,
-      "category": "media",
-      "requiresAction": false,
-      "subjectTemplate": "[PlayerName] Signs with [RivalTeamName]",
-      "narrativeBody": "[PlayerName] has agreed to a [ContractLength]-year deal with [RivalTeamName] worth up to $[TotalValue]M. Sources say the guaranteed money ($[GuaranteedValue]M) was the deciding factor. You were reportedly in discussions, but [RivalTeamName] moved faster and offered more certainty.",
-      "mechanicalTruth": "Market Data: [PlayerName]'s signing sets a new baseline for [Position] free agents. His deal: $[AAV]M AAV with [GuaranteePercent]% guaranteed. You had offered $[YourOffer]M AAV with [YourGuaranteePercent]% guaranteed—a shortfall of $[Gap]M AAV and [GuaranteeGap]% in guarantee structure. For future [Position] targets, expect to match or exceed: $[NewBaseline]M AAV, [NewGuaranteeBaseline]% guaranteed.",
-      "requiredVariables": [
-        "PlayerName",
+        "PlayerFirstName",
+        "PlayerLastName",
         "RivalTeamName",
-        "ContractLength",
-        "TotalValue",
-        "GuaranteedValue",
-        "Position",
-        "AAV",
-        "GuaranteePercent",
-        "YourOffer",
-        "YourGuaranteePercent",
-        "Gap",
-        "GuaranteeGap",
-        "NewBaseline",
-        "NewGuaranteeBaseline"
+        "RivalAPYMil",
+        "RivalYears",
+        "RivalGuaranteeMil",
+        "AgentLeveragePct",
+        "PrevAgentLeveragePct",
+        "HoursToRespond"
       ],
-      "actionRouting": "Route_To_Free_Agency_Board",
+      "actionRouting": "Route_To_Contract_Negotiation",
       "actionButtons": [
-        { "label": "Free Agent Board", "action": "onNavigate('freeAgencyScreen', {})" },
-        { "label": "Scouting Report", "action": "onNavigate('scouting', {})" }
-      ]
-    },
-    {
-      "triggerId": "Head_Coach_Demands_Upgrade",
-      "displayName": "Head Coach Demands Roster Upgrade",
-      "senderArchetype": "headcoach",
-      "senderPersonality": null,
-      "category": "staff",
-      "requiresAction": true,
-      "subjectTemplate": "CRITICAL: We Need Help at [Position]",
-      "narrativeBody": "I need to be direct: our [Position] room is [CapabilityAssessment]. We've struggled all season because we lack depth and elite talent at the position. If we're going to compete in the playoffs, we MUST upgrade before the trade deadline. I know it's costly, but we're leaving wins on the field.",
-      "mechanicalTruth": "Position Performance: Our [Position] unit is averaging [UnitRating] in positional rating, placing us [LeagueRank]th in the league. The playoff-contending teams in our conference all have [Position] units averaging [CompetitorRating]+. To close that gap, we need a player grading [TargetGrade] or higher. Current cap flexibility: $[AvailableCapSpace]M. Market cost for that tier: $[MarketCost]M in trade assets.",
-      "requiredVariables": [
-        "Position",
-        "CapabilityAssessment",
-        "UnitRating",
-        "LeagueRank",
-        "CompetitorRating",
-        "TargetGrade",
-        "AvailableCapSpace",
-        "MarketCost"
-      ],
-      "actionRouting": "Route_To_Trade_Board",
-      "actionButtons": [
-        { "label": "Search Trade Market", "action": "onNavigate('tradeBoard', {filterByPosition: 'Position'})" },
-        { "label": "Dismiss Request", "action": "handleDismissMessage(inboxId)" }
-      ]
-    },
-    {
-      "triggerId": "Media_Pressure_Losing_Streak",
-      "displayName": "Media Pressure Mounting: Losing Streak Accountability",
-      "senderArchetype": "media",
-      "senderPersonality": null,
-      "category": "media",
-      "requiresAction": false,
-      "subjectTemplate": "Calls for Change Mount After [GameCount]-Game Skid",
-      "narrativeBody": "Local sports media is sharpening their knives after a tough stretch. Talk radio is full of speculation about your job security, questions about veteran talent, and whether a midseason shakeup might spark the team. The pressure is real, and fans want to see action. Every loss compounds the narrative.",
-      "mechanicalTruth": "Morale Impact: Four consecutive losses have triggered a -12 morale penalty across the active roster. Coach morale is -8. Media sentiment is now 'Critical' (was 'Stable' last week). Threshold for owner concern: three straight losses. You're currently [GamesAboveThreshold] games above that threshold. One more loss pushes you into a potential hard stop for 'ownership intervention interrupt.'",
-      "requiredVariables": [
-        "GameCount",
-        "GamesAboveThreshold"
-      ],
-      "actionRouting": "Route_To_Schedule",
-      "actionButtons": [
-        { "label": "View Schedule", "action": "onNavigate('scheduleScreen', {})" },
-        { "label": "Team Morale Report", "action": "onNavigate('dashboard', {focusTab: 'morale'})" }
-      ]
-    },
-    {
-      "triggerId": "Roster_Violation_Too_Many_Players",
-      "displayName": "ACTION REQUIRED: Roster Size Violation",
-      "senderArchetype": "league_office",
-      "senderPersonality": null,
-      "category": "league",
-      "requiresAction": true,
-      "subjectTemplate": "Roster Compliance Alert",
-      "narrativeBody": "NFL Operations has flagged your roster for exceeding the active list limit. You currently have [ActiveRosterCount] players on the active roster, which exceeds the [RosterLimit] player limit. You must cut [PlayersToRelease] players by end of business tomorrow to bring the roster into compliance.",
-      "mechanicalTruth": "Roster Status: Active roster = [ActiveRosterCount] players (limit: [RosterLimit]). Excess: [Excess]. To reach compliance, you have three options: (1) Release [CheapestRelease] players valued at combined $[ReleaseSalaryTotal]M cap relief, (2) Move [PlayerCountToPracticeSquad] to practice squad (saves $[PSTransitionSavings]M in cap), (3) Trade [TradeCount] players for draft picks. Failure to comply by [ComplianceDeadline] results in automatic release of lowest-paid players and -5 owner approval penalty.",
-      "requiredVariables": [
-        "ActiveRosterCount",
-        "RosterLimit",
-        "PlayersToRelease",
-        "Excess",
-        "CheapestRelease",
-        "ReleaseSalaryTotal",
-        "PlayerCountToPracticeSquad",
-        "PSTransitionSavings",
-        "TradeCount",
-        "ComplianceDeadline"
-      ],
-      "actionRouting": "Route_To_Roster_Cuts",
-      "actionButtons": [
-        { "label": "Cut Players", "action": "onNavigate('rosterScreen', {filterReleasableOnly: true})" },
-        { "label": "Move to Practice Squad", "action": "onNavigate('rosterScreen', {filterPSEligible: true})" },
-        { "label": "Find Trade Partners", "action": "onNavigate('tradeBoard', {})" }
-      ]
-    },
-    {
-      "triggerId": "Injury_Report_Star_Player",
-      "displayName": "Injury Update: [PlayerName] Status",
-      "senderArchetype": "medical_staff",
-      "senderPersonality": null,
-      "category": "owner",
-      "requiresAction": true,
-      "subjectTemplate": "[PlayerName] Suffers [InjuryType] - Timeline Uncertain",
-      "narrativeBody": "[PlayerName] suffered a [InjuryType] in the second half and underwent preliminary imaging. Our medical team is still evaluating the severity. He's been listed as [InitialStatus] for the coming week. Depending on further testing, we may need to adjust the roster or activate a backup plan.",
-      "mechanicalTruth": "Injury Prognosis: [PlayerName]'s [InjuryType] has been graded as '[SeverityGrade]' by our medical team. Conservative outlook: [WeeksOut] weeks out. Worst case: [WorstCaseWeeks] weeks. His cap hit of $[PlayerCap]M remains on the books during recovery. Options: (1) IR designation (frees roster spot, maintains salary), (2) Call up backup [BackupName] (capSpace cost: $[BackupCap]M), (3) Activate free agent (max salary: $[FAMaxSalary]M).",
-      "requiredVariables": [
-        "PlayerName",
-        "InjuryType",
-        "InitialStatus",
-        "SeverityGrade",
-        "WeeksOut",
-        "WorstCaseWeeks",
-        "PlayerCap",
-        "BackupName",
-        "BackupCap",
-        "FAMaxSalary"
-      ],
-      "actionRouting": "Route_To_Roster_Management",
-      "actionButtons": [
-        { "label": "Place on IR", "action": "handleIRActivation(playerId)" },
-        { "label": "Call Up Backup", "action": "onNavigate('rosterScreen', {filterBackups: true})" },
-        { "label": "Free Agent Signings", "action": "onNavigate('freeAgencyScreen', {})" }
+        { "label": "Match Offer", "action": "onNavigate('contractNegotiation', {playerId})" },
+        { "label": "Let Walk", "action": "handleReleasePlayer(playerId)" }
       ]
     }
-  ],
-  "metadata": {
-    "version": "1.0",
-    "description": "Narrative Matrix JSON - Maps mechanical game states to immersive, educational inbox messages",
-    "instructions": "Each trigger maps to a precise game condition. The engine calls addInboxMessage() with the triggerId, then looks up this JSON to fetch templates and inject required variables. Mechanical Truth field exposes the math so players learn, not just react.",
-    "architectureNotes": "This JSON is read by InboxMessageRenderer.ts (new file) which handles variable injection and archetype flavor text swapping. The engine passes (triggerId, requiredVariables) → renderer returns formatted InboxItem with narrative + mechanical truth."
-  }
+
+  ]
 }
